@@ -6,6 +6,7 @@ import { OrderStatusTable } from "@/components/OrderStatusTable";
 import { ApiConfiguration } from "@/components/ApiConfiguration";
 import { WhatsAppConnection } from "@/components/WhatsAppConnection";
 import { ConversationsPanel } from "@/components/ConversationsPanel";
+import { ChangePassword } from "@/components/ChangePassword";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageSquare, Calendar, Package, Settings, Loader2, Headphones } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -172,8 +173,9 @@ const Index = () => {
             <OrderStatusTable />
           </TabsContent>
 
-          <TabsContent value="config">
+          <TabsContent value="config" className="space-y-6">
             <ApiConfiguration />
+            <ChangePassword />
           </TabsContent>
         </Tabs>
       </main>

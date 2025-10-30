@@ -1,23 +1,38 @@
-import { MessageSquare, Settings } from "lucide-react";
-import { Button } from "./ui/button";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { LogOut, User } from "lucide-react";
 
 export const DashboardHeader = () => {
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await supabase.auth.signOut();
+  };
+
   return (
-    <header className="bg-gradient-primary text-primary-foreground shadow-md">
-      <div className="container mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <MessageSquare className="h-8 w-8" />
-            <div>
-              <h1 className="text-2xl font-bold">WhatsApp Chatbot</h1>
-              <p className="text-sm opacity-90">Sistema de Campanhas de Status</p>
-            </div>
+    <header className="border-b bg-card">
+      <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <User className="h-5 w-5 text-primary" />
           </div>
-          <Button variant="secondary" size="sm">
-            <Settings className="mr-2 h-4 w-4" />
-            Configurações
-          </Button>
+          <div>
+            <h1 className="text-xl font-bold">Sistema de Gestão</h1>
+            <p className="text-sm text-muted-foreground">
+              Gerenciamento de WhatsApp e Pedidos
+            </p>
+          </div>
         </div>
+        <Button 
+          variant="outline" 
+          onClick={handleLogout}
+          disabled={loggingOut}
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          {loggingOut ? "Saindo..." : "Sair"}
+        </Button>
       </div>
     </header>
   );
