@@ -22,8 +22,13 @@ serve(async (req) => {
 
     console.log('Sending WhatsApp message:', { phone, messageLength: message.length });
 
-    // Format phone number (remove non-digits)
-    const cleanPhone = phone.replace(/\D/g, '');
+    // Format phone number (remove non-digits and add country code if missing)
+    let cleanPhone = phone.replace(/\D/g, '');
+    
+    // Add Brazil country code (55) if not present
+    if (!cleanPhone.startsWith('55') && cleanPhone.length >= 10) {
+      cleanPhone = '55' + cleanPhone;
+    }
     
     // Send message via Evolution API
     const response = await fetch(
