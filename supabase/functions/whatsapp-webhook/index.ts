@@ -25,12 +25,25 @@ serve(async (req) => {
     const rawEvent = (payload?.event || pathEvent || '').toLowerCase();
     const isMessageEvent = rawEvent.includes('message') && rawEvent.includes('upsert');
 
-    // Normalizar estrutura de mensagens (array ou objeto único)
+    // Normalizar estrutura de mensagens
     let incoming: any[] = [];
-    if (Array.isArray(payload?.data?.messages)) incoming = payload.data.messages;
-    else if (payload?.data?.message) incoming = [payload.data.message];
-    else if (Array.isArray(payload?.messages)) incoming = payload.messages;
-    else if (payload?.data && (payload.data.key || payload.data.message || payload.data.body)) incoming = [payload.data];
+    
+    // Caso 1: payload.data.messages (array)
+    if (Array.isArray(payload?.data?.messages)) {
+      incoming = payload.data.messages;
+    }
+    // Caso 2: payload.data é a mensagem direta (Evolution com webhook by events)
+    else if (payload?.data?.key && payload?.data?.message) {
+      incoming = [payload.data];
+    }
+    // Caso 3: payload.messages (array)
+    else if (Array.isArray(payload?.messages)) {
+      incoming = payload.messages;
+    }
+    // Caso 4: payload.data.message (objeto único)
+    else if (payload?.data?.message) {
+      incoming = [payload.data];
+    }
 
     console.log('Parsed event:', rawEvent, 'messages count:', incoming.length);
 
