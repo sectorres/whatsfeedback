@@ -11,7 +11,7 @@ import { Loader2, Lock } from "lucide-react";
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("admin@admin.com");
-  const [password, setPassword] = useState("admin");
+  const [password, setPassword] = useState("31218112");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export default function Login() {
         if (error.message.includes("Invalid") && email === "admin@admin.com") {
           const { error: signUpError } = await supabase.auth.signUp({
             email: "admin@admin.com",
-            password: "admin",
+            password: "31218112",
           });
 
           if (signUpError) {
@@ -57,7 +57,7 @@ export default function Login() {
           // Tentar login novamente
           const { error: loginError } = await supabase.auth.signInWithPassword({
             email: "admin@admin.com",
-            password: "admin",
+            password: "31218112",
           });
 
           if (loginError) throw loginError;
@@ -128,7 +128,7 @@ export default function Login() {
               )}
             </Button>
             <p className="text-xs text-center text-muted-foreground mt-4">
-              Credenciais padrão: admin@admin.com / admin
+              Credenciais padrão: admin@admin.com / 31218112
             </p>
           </form>
         </CardContent>
