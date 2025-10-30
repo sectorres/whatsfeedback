@@ -18,6 +18,7 @@ interface Campaign {
 
 interface Survey {
   id: string;
+  campaign_send_id: string;
   customer_name: string;
   customer_phone: string;
   rating: number | null;
@@ -25,6 +26,13 @@ interface Survey {
   status: string;
   sent_at: string;
   responded_at: string | null;
+}
+
+interface CampaignSend {
+  id: string;
+  customer_name: string;
+  customer_phone: string;
+  message_sent: string;
 }
 
 interface Insight {
@@ -41,6 +49,7 @@ export function SatisfactionSurveys() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [campaignSends, setCampaignSends] = useState<Record<string, CampaignSend>>({});
   const [insights, setInsights] = useState<Insight | null>(null);
   const [loading, setLoading] = useState(false);
   const [generatingInsights, setGeneratingInsights] = useState(false);
@@ -79,12 +88,19 @@ export function SatisfactionSurveys() {
       // Buscar envios da campanha
       const { data: sends, error: sendsError } = await supabase
         .from('campaign_sends')
-        .select('id')
+        .select('*')
         .eq('campaign_id', selectedCampaignId);
 
       if (sendsError) throw sendsError;
 
       const sendIds = sends?.map(s => s.id) || [];
+      
+      // Criar mapa de envios para acesso rápido
+      const sendsMap: Record<string, CampaignSend> = {};
+      sends?.forEach(send => {
+        sendsMap[send.id] = send;
+      });
+      setCampaignSends(sendsMap);
 
       // Buscar pesquisas
       const { data, error } = await supabase
@@ -300,34 +316,74 @@ export function SatisfactionSurveys() {
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {surveys.map((survey) => (
-                    <div
-                      key={survey.id}
-                      className="flex items-center justify-between p-4 border rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium">{survey.customer_name || survey.customer_phone}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(survey.sent_at).toLocaleDateString('pt-BR')}
-                        </p>
-                        {survey.feedback && (
-                          <p className="text-sm mt-2 italic">&quot;{survey.feedback}&quot;</p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        {survey.rating ? (
-                          <div className="flex items-center gap-2">
-                            <span className={`text-2xl font-bold ${getRatingColor(survey.rating)}`}>
-                              {survey.rating}
-                            </span>
-                            <Star className={`h-5 w-5 ${getRatingColor(survey.rating)}`} />
+                  {surveys.map((survey) => {
+                    const sendDetails = campaignSends[survey.campaign_send_id];
+                    return (
+                      <div
+                        key={survey.id}
+                        className="flex flex-col gap-3 p-4 border rounded-lg"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-lg">
+                                {survey.customer_name || sendDetails?.customer_name || 'Cliente'}
+                              </p>
+                              {survey.rating && (
+                                <div className="flex items-center gap-1">
+                                  <span className={`text-xl font-bold ${getRatingColor(survey.rating)}`}>
+                                    {survey.rating}
+                                  </span>
+                                  <Star className={`h-5 w-5 ${getRatingColor(survey.rating)}`} />
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="text-sm text-muted-foreground space-y-1">
+                              <p className="flex items-center gap-2">
+                                <span className="font-medium">Telefone:</span>
+                                {survey.customer_phone || sendDetails?.customer_phone}
+                              </p>
+                              <p className="flex items-center gap-2">
+                                <span className="font-medium">Enviado em:</span>
+                                {new Date(survey.sent_at).toLocaleString('pt-BR')}
+                              </p>
+                              {survey.responded_at && (
+                                <p className="flex items-center gap-2">
+                                  <span className="font-medium">Respondido em:</span>
+                                  {new Date(survey.responded_at).toLocaleString('pt-BR')}
+                                </p>
+                              )}
+                            </div>
+
+                            {sendDetails?.message_sent && (
+                              <div className="mt-2 p-3 bg-muted rounded-md">
+                                <p className="text-xs font-medium text-muted-foreground mb-1">
+                                  Mensagem da campanha:
+                                </p>
+                                <p className="text-sm">{sendDetails.message_sent}</p>
+                              </div>
+                            )}
+
+                            {survey.feedback && (
+                              <div className="mt-2 p-3 bg-primary/5 border border-primary/20 rounded-md">
+                                <p className="text-xs font-medium text-primary mb-1">
+                                  Feedback do cliente:
+                                </p>
+                                <p className="text-sm italic">&quot;{survey.feedback}&quot;</p>
+                              </div>
+                            )}
                           </div>
-                        ) : (
-                          <Badge variant="outline">{survey.status === 'sent' ? 'Pendente' : 'Enviado'}</Badge>
-                        )}
+                          
+                          {!survey.rating && (
+                            <Badge variant="outline" className="ml-4">
+                              {survey.status === 'sent' ? 'Pendente' : 'Enviado'}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
