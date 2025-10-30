@@ -316,7 +316,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           </div>
 
           {/* Filtros de Carga */}
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <Filter className="h-4 w-4" />
@@ -333,6 +333,23 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                   <SelectItem value="FATU">Faturada</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Filtrar por Número</Label>
+              <Input
+                placeholder="Digite o número da carga"
+                type="number"
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value) {
+                    const found = cargas.find(c => c.id.toString() === value);
+                    if (found) {
+                      setSelectedCargaId(value);
+                    }
+                  }
+                }}
+              />
             </div>
 
             <div className="space-y-2">
