@@ -11,6 +11,8 @@ serve(async (req) => {
   }
 
   try {
+    const { dataInicial, dataFinal } = await req.json().catch(() => ({}));
+    
     const API_URL = 'https://ec.torrescabral.com.br/shx-integrador/srv/ServPubGetCargasEntrega/V1';
     const API_USERNAME = Deno.env.get('API_USERNAME');
     const API_PASSWORD = Deno.env.get('API_PASSWORD');
@@ -19,7 +21,15 @@ serve(async (req) => {
       throw new Error('API credentials not configured');
     }
 
-    console.log('Fetching cargas from API...');
+    // Se não foram fornecidas datas, usar os últimos 30 dias
+    const hoje = new Date();
+    const dataFinalFormatted = dataFinal || hoje.toISOString().slice(0, 10).replace(/-/g, '');
+    
+    const dataInicialDate = new Date();
+    dataInicialDate.setDate(hoje.getDate() - 30);
+    const dataInicialFormatted = dataInicial || dataInicialDate.toISOString().slice(0, 10).replace(/-/g, '');
+
+    console.log('Fetching cargas from API...', { dataInicial: dataInicialFormatted, dataFinal: dataFinalFormatted });
 
     // Create Basic Auth header
     const credentials = btoa(`${API_USERNAME}:${API_PASSWORD}`);
@@ -30,7 +40,10 @@ serve(async (req) => {
         'Authorization': `Basic ${credentials}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        dataInicial: dataInicialFormatted,
+        dataFinal: dataFinalFormatted,
+      }),
     });
 
     if (!response.ok) {
