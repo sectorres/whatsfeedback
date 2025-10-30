@@ -47,9 +47,25 @@ serve(async (req) => {
         );
       }
 
-      // Get QR Code
+      // Restart instance to get fresh QR code
+      const restartResponse = await fetch(
+        `${EVOLUTION_API_URL}/instance/restart/${EVOLUTION_INSTANCE_NAME}`,
+        {
+          method: 'PUT',
+          headers: {
+            'apikey': EVOLUTION_API_KEY,
+          }
+        }
+      );
+
+      console.log('Restart response status:', restartResponse.status);
+
+      // Wait a bit for instance to restart
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Get QR Code - usando o endpoint fetchInstances que retorna o QR
       const qrResponse = await fetch(
-        `${EVOLUTION_API_URL}/instance/connect/${EVOLUTION_INSTANCE_NAME}`,
+        `${EVOLUTION_API_URL}/instance/fetchInstances?instanceName=${EVOLUTION_INSTANCE_NAME}`,
         {
           headers: {
             'apikey': EVOLUTION_API_KEY,
@@ -60,9 +76,46 @@ serve(async (req) => {
       const qrData = await qrResponse.json();
       console.log('QR Code response:', qrData);
 
+      // Extract QR code from response
+      if (qrData && qrData.length > 0 && qrData[0]?.instance?.qrcode) {
+        const qrcode = qrData[0].instance.qrcode;
+        return new Response(
+          JSON.stringify({ qrcode: { base64: qrcode.base64 || qrcode } }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // If no QR code yet, try direct connect endpoint
+      const connectResponse = await fetch(
+        `${EVOLUTION_API_URL}/instance/connect/${EVOLUTION_INSTANCE_NAME}`,
+        {
+          headers: {
+            'apikey': EVOLUTION_API_KEY,
+          }
+        }
+      );
+
+      const connectData = await connectResponse.json();
+      console.log('Connect response:', connectData);
+
+      if (connectData.qrcode || connectData.base64) {
+        return new Response(
+          JSON.stringify({ 
+            qrcode: { 
+              base64: connectData.qrcode?.base64 || connectData.base64 || connectData.qrcode 
+            } 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Return error if no QR code available
       return new Response(
-        JSON.stringify(qrData),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          error: 'QR code not available. Instance may need to be created first.',
+          details: connectData
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
