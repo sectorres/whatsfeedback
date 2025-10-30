@@ -1,1 +1,4 @@
 project_id = "netzgkrlmoqsnvckzbkh"
+
+[functions.fetch-cargas]
+verify_jwt = false
