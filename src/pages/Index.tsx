@@ -5,8 +5,9 @@ import { CampaignBuilder } from "@/components/CampaignBuilder";
 import { OrderStatusTable } from "@/components/OrderStatusTable";
 import { ApiConfiguration } from "@/components/ApiConfiguration";
 import { WhatsAppConnection } from "@/components/WhatsAppConnection";
+import { ConversationsPanel } from "@/components/ConversationsPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageSquare, Calendar, Package, Settings, Loader2 } from "lucide-react";
+import { MessageSquare, Calendar, Package, Settings, Loader2, Headphones } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Carga {
@@ -64,10 +65,14 @@ const Index = () => {
       
       <main className="container mx-auto px-6 py-8">
         <Tabs defaultValue="chat" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
+          <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
             <TabsTrigger value="chat" className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
               Chat
+            </TabsTrigger>
+            <TabsTrigger value="atendimento" className="flex items-center gap-2">
+              <Headphones className="h-4 w-4" />
+              Atendimento
             </TabsTrigger>
             <TabsTrigger value="campaigns" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
@@ -121,6 +126,16 @@ const Index = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="atendimento" className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Atendimento ao Cliente</h2>
+              <p className="text-muted-foreground mb-6">
+                Gerencie conversas e responda mensagens dos clientes em tempo real
+              </p>
+              <ConversationsPanel />
             </div>
           </TabsContent>
 
