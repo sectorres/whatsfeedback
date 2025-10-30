@@ -23,12 +23,31 @@ serve(async (req) => {
     const oneDayAgo = new Date();
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
-    const { data: eligibleSends, error: sendsError } = await supabaseClient
+    // Primeiro, buscar IDs que já têm pesquisa
+    const { data: existingSurveys, error: existingSurveysError } = await supabaseClient
+      .from('satisfaction_surveys')
+      .select('campaign_send_id');
+
+    if (existingSurveysError) {
+      console.error('Erro ao buscar pesquisas existentes:', existingSurveysError);
+      throw existingSurveysError;
+    }
+
+    const existingSurveyIds = existingSurveys?.map(s => s.campaign_send_id) || [];
+
+    // Buscar envios elegíveis
+    let query = supabaseClient
       .from('campaign_sends')
       .select('*')
       .eq('status', 'sent')
-      .lt('sent_at', oneDayAgo.toISOString())
-      .not('id', 'in', `(SELECT campaign_send_id FROM satisfaction_surveys)`);
+      .lt('sent_at', oneDayAgo.toISOString());
+
+    // Se houver pesquisas existentes, excluir esses IDs
+    if (existingSurveyIds.length > 0) {
+      query = query.not('id', 'in', `(${existingSurveyIds.join(',')})`);
+    }
+
+    const { data: eligibleSends, error: sendsError } = await query;
 
     if (sendsError) {
       console.error('Erro ao buscar envios:', sendsError);
@@ -58,18 +77,18 @@ serve(async (req) => {
       }
 
       // Enviar mensagem via WhatsApp
-      const surveyMessage = `Olá ${send.customer_name || ''}! 
+      const surveyMessage = `Olá${send.customer_name ? ' ' + send.customer_name : ''}! 
 
-Gostaríamos de saber sua opinião sobre nosso atendimento recente.
+Gostaríamos de saber sua opinião sobre a entrega dos seus produtos.
 
 Por favor, avalie de 1 a 5:
 1️⃣ - Muito insatisfeito
-2️⃣ - Insatisfeito
+2️⃣ - Insatisfeito  
 3️⃣ - Neutro
 4️⃣ - Satisfeito
 5️⃣ - Muito satisfeito
 
-Responda apenas com o número da sua avaliação.`;
+*Responda apenas com o número da sua avaliação.*`;
 
       try {
         const { data: whatsappResponse, error: whatsappError } = await supabaseClient.functions.invoke('whatsapp-send', {
