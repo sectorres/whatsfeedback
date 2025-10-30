@@ -60,9 +60,11 @@ serve(async (req) => {
         // Ignorar mensagens enviadas pelo próprio bot
         if (msg.key?.fromMe) continue;
 
+        // Extrair telefone (suporta diferentes estruturas)
         const remoteJid = msg.key?.remoteJid || msg.remoteJid || msg.from || '';
-        const customerPhone = (remoteJid || '').replace('@s.whatsapp.net', '').replace('@g.us', '');
+        const customerPhone = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '').replace(/\D/g, '');
 
+        // Extrair texto da mensagem
         const messageText =
           msg.message?.conversation ||
           msg.message?.extendedTextMessage?.text ||
@@ -72,6 +74,7 @@ serve(async (req) => {
           msg.body ||
           '[Mídia recebida]';
 
+        // Extrair nome do remetente
         const customerName = msg.pushName || msg.senderName || customerPhone;
 
         console.log(`Processing message from ${customerPhone}: ${messageText}`);
