@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { MessageCircle, Send, X, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MessageCircle, Send, X, Loader2, Archive } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -34,11 +35,13 @@ interface Message {
 
 export function ConversationsPanel() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
 
   useEffect(() => {
     loadConversations();
@@ -105,17 +108,29 @@ export function ConversationsPanel() {
 
   const loadConversations = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data: activeData, error: activeError } = await supabase
       .from('conversations')
       .select('*')
       .eq('status', 'active')
       .order('last_message_at', { ascending: false });
 
-    if (error) {
-      console.error('Error loading conversations:', error);
-      toast.error('Erro ao carregar conversas');
+    const { data: archivedData, error: archivedError } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('status', 'closed')
+      .order('last_message_at', { ascending: false });
+
+    if (activeError) {
+      console.error('Error loading active conversations:', activeError);
+      toast.error('Erro ao carregar conversas ativas');
     } else {
-      setConversations(data || []);
+      setConversations(activeData || []);
+    }
+
+    if (archivedError) {
+      console.error('Error loading archived conversations:', archivedError);
+    } else {
+      setArchivedConversations(archivedData || []);
     }
     setLoading(false);
   };
@@ -219,59 +234,110 @@ export function ConversationsPanel() {
     <div className="grid md:grid-cols-3 gap-4 h-[600px]">
       {/* Lista de conversas */}
       <Card className="p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <MessageCircle className="h-5 w-5" />
-          <h3 className="font-semibold">Conversas Ativas</h3>
-          <Badge variant="secondary">{conversations.length}</Badge>
-        </div>
-        <ScrollArea className="h-[500px]">
-          {loading ? (
-            <div className="flex justify-center p-4">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          ) : conversations.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center p-4">
-              Nenhuma conversa ativa
-            </p>
-          ) : (
-            conversations.map((conv) => (
-              <div
-                key={conv.id}
-                className={`p-3 rounded-lg cursor-pointer mb-2 transition-colors relative ${
-                  selectedConversation?.id === conv.id
-                    ? 'bg-primary/10'
-                    : 'hover:bg-muted'
-                }`}
-                onClick={() => setSelectedConversation(conv)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="font-medium">{conv.customer_name || conv.customer_phone}</div>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "active" | "archived")}>
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="active" className="gap-2">
+              <MessageCircle className="h-4 w-4" />
+              Ativas
+              <Badge variant="secondary">{conversations.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="archived" className="gap-2">
+              <Archive className="h-4 w-4" />
+              Antigas
+              <Badge variant="secondary">{archivedConversations.length}</Badge>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="active" className="mt-0">
+            <ScrollArea className="h-[500px]">
+              {loading ? (
+                <div className="flex justify-center p-4">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : conversations.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center p-4">
+                  Nenhuma conversa ativa
+                </p>
+              ) : (
+                conversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    className={`p-3 rounded-lg cursor-pointer mb-2 transition-colors relative ${
+                      selectedConversation?.id === conv.id
+                        ? 'bg-primary/10'
+                        : 'hover:bg-muted'
+                    }`}
+                    onClick={() => setSelectedConversation(conv)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium">{conv.customer_name || conv.customer_phone}</div>
+                          {conv.unread_count > 0 && (
+                            <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center px-1">
+                              {conv.unread_count}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {conv.customer_phone}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {formatDistanceToNow(new Date(conv.last_message_at), {
+                            addSuffix: true,
+                            locale: ptBR
+                          })}
+                        </div>
+                      </div>
                       {conv.unread_count > 0 && (
-                        <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center px-1">
-                          {conv.unread_count}
-                        </Badge>
+                        <div className="w-2 h-2 rounded-full bg-destructive" />
                       )}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {conv.customer_phone}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {formatDistanceToNow(new Date(conv.last_message_at), {
-                        addSuffix: true,
-                        locale: ptBR
-                      })}
+                  </div>
+                ))
+              )}
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="archived" className="mt-0">
+            <ScrollArea className="h-[500px]">
+              {loading ? (
+                <div className="flex justify-center p-4">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : archivedConversations.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center p-4">
+                  Nenhuma conversa arquivada
+                </p>
+              ) : (
+                archivedConversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    className={`p-3 rounded-lg cursor-pointer mb-2 transition-colors ${
+                      selectedConversation?.id === conv.id
+                        ? 'bg-primary/10'
+                        : 'hover:bg-muted'
+                    }`}
+                    onClick={() => setSelectedConversation(conv)}
+                  >
+                    <div className="flex-1">
+                      <div className="font-medium">{conv.customer_name || conv.customer_phone}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {conv.customer_phone}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {formatDistanceToNow(new Date(conv.last_message_at), {
+                          addSuffix: true,
+                          locale: ptBR
+                        })}
+                      </div>
                     </div>
                   </div>
-                  {conv.unread_count > 0 && (
-                    <div className="w-2 h-2 rounded-full bg-destructive" />
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-        </ScrollArea>
+                ))
+              )}
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
       </Card>
 
       {/* Área de chat */}
