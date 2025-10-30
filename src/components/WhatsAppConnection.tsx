@@ -4,6 +4,7 @@ import { Button } from "./ui/button";
 import { Loader2, QrCode, CheckCircle, XCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WhatsAppConnectionProps {
   onConnectionChange?: (connected: boolean) => void;
@@ -15,32 +16,93 @@ export const WhatsAppConnection = ({ onConnectionChange }: WhatsAppConnectionPro
   const [qrCode, setQrCode] = useState<string>("");
   const [showQRDialog, setShowQRDialog] = useState(false);
 
-  const handleConnect = () => {
+  useEffect(() => {
+    checkConnectionStatus();
+  }, []);
+
+  const checkConnectionStatus = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-connect', {
+        body: { action: 'getStatus' }
+      });
+
+      if (error) throw error;
+
+      const isOpen = data?.instance?.state === 'open';
+      setIsConnected(isOpen);
+      onConnectionChange?.(isOpen);
+    } catch (error) {
+      console.error('Error checking connection status:', error);
+    }
+  };
+
+  const handleConnect = async () => {
     setIsConnecting(true);
     setShowQRDialog(true);
     
-    // Simular geração de QR Code
-    // Em produção, isso viria de uma API como Evolution API ou Baileys
-    setTimeout(() => {
-      // QR Code de exemplo (em produção viria da API)
-      setQrCode("https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=WhatsAppConnection");
-      setIsConnecting(false);
-    }, 1500);
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-connect', {
+        body: { action: 'getQRCode' }
+      });
 
-    // Simular conexão após 10 segundos (em produção, viria do webhook)
-    setTimeout(() => {
-      setIsConnected(true);
-      setShowQRDialog(false);
-      toast.success("WhatsApp conectado com sucesso!");
-      onConnectionChange?.(true);
-    }, 10000);
+      if (error) throw error;
+
+      if (data.status === 'connected') {
+        setIsConnected(true);
+        setShowQRDialog(false);
+        onConnectionChange?.(true);
+        toast.success("WhatsApp já está conectado!");
+        setIsConnecting(false);
+        return;
+      }
+
+      if (data.qrcode?.base64) {
+        setQrCode(`data:image/png;base64,${data.qrcode.base64}`);
+        setIsConnecting(false);
+
+        const pollInterval = setInterval(async () => {
+          try {
+            const { data: statusData } = await supabase.functions.invoke('whatsapp-connect', {
+              body: { action: 'getStatus' }
+            });
+
+            if (statusData?.instance?.state === 'open') {
+              clearInterval(pollInterval);
+              setIsConnected(true);
+              setShowQRDialog(false);
+              onConnectionChange?.(true);
+              toast.success("WhatsApp conectado com sucesso!");
+            }
+          } catch (error) {
+            console.error('Error polling status:', error);
+          }
+        }, 2000);
+
+        setTimeout(() => clearInterval(pollInterval), 120000);
+      }
+    } catch (error) {
+      console.error('Error connecting:', error);
+      setIsConnecting(false);
+      toast.error("Falha ao conectar WhatsApp. Verifique as configurações.");
+    }
   };
 
-  const handleDisconnect = () => {
-    setIsConnected(false);
-    setQrCode("");
-    toast.info("WhatsApp desconectado");
-    onConnectionChange?.(false);
+  const handleDisconnect = async () => {
+    try {
+      const { error } = await supabase.functions.invoke('whatsapp-connect', {
+        body: { action: 'disconnect' }
+      });
+
+      if (error) throw error;
+
+      setIsConnected(false);
+      setQrCode("");
+      toast.info("WhatsApp desconectado");
+      onConnectionChange?.(false);
+    } catch (error) {
+      console.error('Error disconnecting:', error);
+      toast.error("Falha ao desconectar WhatsApp");
+    }
   };
 
   return (

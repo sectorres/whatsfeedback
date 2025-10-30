@@ -142,14 +142,37 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
 
     toast.success(`Enviando ${pedidosParaEnviar.length} mensagens...`);
     
-    // Enviar com delay aleatório entre 3 e 8 segundos
+    let successCount = 0;
+    let errorCount = 0;
+
     for (let i = 0; i < pedidosParaEnviar.length; i++) {
       const pedido = pedidosParaEnviar[i];
-      
-      // Simular envio individual
-      console.log(`Enviando para ${pedido.cliente?.nome} - ${getPhone(pedido)}`);
-      
-      // Delay aleatório entre 3000ms (3s) e 8000ms (8s)
+      const phone = getPhone(pedido);
+
+      try {
+        const formattedMessage = messageTemplate
+          .replace(/{cliente}/g, pedido.cliente?.nome || "Cliente")
+          .replace(/{pedido}/g, pedido.pedido || "")
+          .replace(/{valor}/g, `${pedido.valor?.toFixed(2) || "0.00"}`)
+          .replace(/{status}/g, statusMap[selectedCarga?.status || ""] || "")
+          .replace(/{notaFiscal}/g, pedido.notaFiscal || "");
+
+        const { error } = await supabase.functions.invoke('whatsapp-send', {
+          body: { 
+            phone,
+            message: formattedMessage
+          }
+        });
+
+        if (error) throw error;
+
+        successCount++;
+        console.log(`✓ Enviado para ${pedido.cliente?.nome}`);
+      } catch (error) {
+        errorCount++;
+        console.error(`✗ Erro ao enviar para ${pedido.cliente?.nome}:`, error);
+      }
+
       if (i < pedidosParaEnviar.length - 1) {
         const delay = Math.floor(Math.random() * (8000 - 3000 + 1)) + 3000;
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -157,7 +180,13 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     }
     
     setSending(false);
-    toast.success("Campanha enviada com sucesso!");
+    
+    if (errorCount === 0) {
+      toast.success(`Campanha enviada com sucesso! ${successCount} mensagens enviadas`);
+    } else {
+      toast.error(`Campanha concluída com erros: ${successCount} enviadas, ${errorCount} falharam`);
+    }
+    
     setCampaignName("");
     setSelectedPedidos(new Set());
     setEditedPhones({});
