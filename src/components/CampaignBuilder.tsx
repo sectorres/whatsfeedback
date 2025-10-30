@@ -45,14 +45,14 @@ interface CampaignBuilderProps {
 export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => {
   const [campaignName, setCampaignName] = useState("");
   const [messageTemplate, setMessageTemplate] = useState(
-    "Olá {cliente}! Seu pedido {pedido} no valor de R$ {valor} está {status}."
+    "TORRES CABRAL - LOGÍSTICA\n\n🚨🚨🚨 *ATENÇÃO* 🚨🚨🚨\n\nOlá {cliente},\n\n*Seu pedido será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega\n✅ Em caso de dúvida, entre em contato conosco ou responda esta mensagem.\n\nPEDIDO: {pedido}\n\n⚠️ Caso esta mensagem tenha sido enviada para o número errado, responda \"NÃO\"\n\n\n📞 114206-5500"
   );
   
   const defaultTemplates = [
     {
       id: "default",
-      name: "Padrão - Atualização de Status",
-      template: "Olá {cliente}! Seu pedido {pedido} no valor de R$ {valor} está {status}."
+      name: "Padrão - Notificação de Entrega",
+      template: "TORRES CABRAL - LOGÍSTICA\n\n🚨🚨🚨 *ATENÇÃO* 🚨🚨🚨\n\nOlá {cliente},\n\n*Seu pedido será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega\n✅ Em caso de dúvida, entre em contato conosco ou responda esta mensagem.\n\nPEDIDO: {pedido}\n\n⚠️ Caso esta mensagem tenha sido enviada para o número errado, responda \"NÃO\"\n\n\n📞 114206-5500"
     }
   ];
 
