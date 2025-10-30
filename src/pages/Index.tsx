@@ -11,9 +11,10 @@ import { ChangePassword } from "@/components/ChangePassword";
 import { WebhookConfiguration } from "@/components/WebhookConfiguration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Package, Settings, Headphones, LayoutDashboard } from "lucide-react";
+import { Calendar, Package, Settings, Headphones, LayoutDashboard, Star } from "lucide-react";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { useWhatsAppStatus } from "@/hooks/useWhatsAppStatus";
+import { SatisfactionSurveys } from "@/components/SatisfactionSurveys";
 
 const Index = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
@@ -26,7 +27,7 @@ const Index = () => {
       
       <main className="container mx-auto px-6 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
+          <TabsList className="grid w-full grid-cols-6 lg:w-[900px]">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
@@ -43,6 +44,10 @@ const Index = () => {
             <TabsTrigger value="campaigns" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
               Campanhas
+            </TabsTrigger>
+            <TabsTrigger value="satisfaction" className="flex items-center gap-2">
+              <Star className="h-4 w-4" />
+              Satisfação
             </TabsTrigger>
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
@@ -71,6 +76,10 @@ const Index = () => {
           <TabsContent value="campaigns" className="space-y-6">
             <CampaignBuilder whatsappConnected={isConnected} />
             <SavedCampaigns />
+          </TabsContent>
+
+          <TabsContent value="satisfaction">
+            <SatisfactionSurveys />
           </TabsContent>
 
           <TabsContent value="orders">

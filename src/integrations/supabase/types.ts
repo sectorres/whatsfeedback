@@ -171,6 +171,100 @@ export type Database = {
           },
         ]
       }
+      satisfaction_insights: {
+        Row: {
+          average_rating: number | null
+          campaign_id: string
+          created_at: string
+          generated_at: string
+          id: string
+          insights: string | null
+          rating_distribution: Json | null
+          sentiment_summary: string | null
+          total_responses: number
+        }
+        Insert: {
+          average_rating?: number | null
+          campaign_id: string
+          created_at?: string
+          generated_at?: string
+          id?: string
+          insights?: string | null
+          rating_distribution?: Json | null
+          sentiment_summary?: string | null
+          total_responses?: number
+        }
+        Update: {
+          average_rating?: number | null
+          campaign_id?: string
+          created_at?: string
+          generated_at?: string
+          id?: string
+          insights?: string | null
+          rating_distribution?: Json | null
+          sentiment_summary?: string | null
+          total_responses?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "satisfaction_insights_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      satisfaction_surveys: {
+        Row: {
+          campaign_send_id: string
+          created_at: string
+          customer_name: string | null
+          customer_phone: string
+          feedback: string | null
+          id: string
+          rating: number | null
+          responded_at: string | null
+          sent_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_send_id: string
+          created_at?: string
+          customer_name?: string | null
+          customer_phone: string
+          feedback?: string | null
+          id?: string
+          rating?: number | null
+          responded_at?: string | null
+          sent_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_send_id?: string
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string
+          feedback?: string | null
+          id?: string
+          rating?: number | null
+          responded_at?: string | null
+          sent_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "satisfaction_surveys_campaign_send_id_fkey"
+            columns: ["campaign_send_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_sends"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
