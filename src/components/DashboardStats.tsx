@@ -46,21 +46,21 @@ export function DashboardStats() {
     setLoading(true);
     try {
       // Buscar estatísticas de conversas
-      const { data: conversasAtivas } = await supabase
+      const { count: conversasAtivasCount } = await supabase
         .from('conversations')
-        .select('id', { count: 'exact', head: true })
+        .select('*', { count: 'exact', head: true })
         .eq('status', 'active');
 
-      const { data: conversasTotal } = await supabase
+      const { count: conversasTotalCount } = await supabase
         .from('conversations')
-        .select('id', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true });
 
       // Buscar mensagens de hoje
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const { data: mensagensHoje } = await supabase
+      const { count: mensagensHojeCount } = await supabase
         .from('messages')
-        .select('id', { count: 'exact', head: true })
+        .select('*', { count: 'exact', head: true })
         .gte('created_at', today.toISOString());
 
       // Buscar estatísticas de cargas e pedidos
@@ -87,9 +87,9 @@ export function DashboardStats() {
       }
 
       setStats({
-        conversasAtivas: conversasAtivas?.length || 0,
-        conversasTotal: conversasTotal?.length || 0,
-        mensagensHoje: mensagensHoje?.length || 0,
+        conversasAtivas: conversasAtivasCount || 0,
+        conversasTotal: conversasTotalCount || 0,
+        mensagensHoje: mensagensHojeCount || 0,
         campanhasAtivas: 0, // Placeholder - implementar quando houver campanhas ativas
         pedidosAbertos,
         pedidosFaturados,
