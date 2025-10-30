@@ -2,7 +2,7 @@ import { useState } from "react";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { DashboardStats } from "@/components/DashboardStats";
 import { CampaignBuilder } from "@/components/CampaignBuilder";
-import { CampaignsList } from "@/components/CampaignsList";
+import { SavedCampaigns } from "@/components/SavedCampaigns";
 import { OrderStatusTable } from "@/components/OrderStatusTable";
 import { ApiConfiguration } from "@/components/ApiConfiguration";
 import { WhatsAppConnection } from "@/components/WhatsAppConnection";
@@ -61,7 +61,7 @@ const Index = () => {
           <TabsContent value="campaigns" className="space-y-6">
             <WhatsAppConnection onConnectionChange={setWhatsappConnected} />
             <CampaignBuilder whatsappConnected={whatsappConnected} />
-            <CampaignsList />
+            <SavedCampaigns />
           </TabsContent>
 
           <TabsContent value="orders">

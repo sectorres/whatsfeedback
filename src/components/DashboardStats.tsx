@@ -67,7 +67,7 @@ export function DashboardStats() {
       const { count: campanhasAtivasCount } = await supabase
         .from('campaigns')
         .select('*', { count: 'exact', head: true })
-        .in('status', ['draft', 'sending']);
+        .in('status', ['draft', 'sending', 'scheduled']);
 
       // Buscar estatísticas de cargas e pedidos
       const { data: cargasData } = await supabase.functions.invoke("fetch-cargas");
