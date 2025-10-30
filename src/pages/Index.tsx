@@ -1,12 +1,16 @@
+import { useState } from "react";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { ChatInterface } from "@/components/ChatInterface";
 import { CampaignBuilder } from "@/components/CampaignBuilder";
 import { OrderStatusTable } from "@/components/OrderStatusTable";
 import { ApiConfiguration } from "@/components/ApiConfiguration";
+import { WhatsAppConnection } from "@/components/WhatsAppConnection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageSquare, Calendar, Package, Settings } from "lucide-react";
 
 const Index = () => {
+  const [whatsappConnected, setWhatsappConnected] = useState(false);
+
   return (
     <div className="min-h-screen bg-background">
       <DashboardHeader />
@@ -66,7 +70,8 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="campaigns" className="space-y-6">
-            <CampaignBuilder />
+            <WhatsAppConnection onConnectionChange={setWhatsappConnected} />
+            <CampaignBuilder whatsappConnected={whatsappConnected} />
             <Card className="bg-card border">
               <CardHeader>
                 <CardTitle>Campanhas Recentes</CardTitle>
