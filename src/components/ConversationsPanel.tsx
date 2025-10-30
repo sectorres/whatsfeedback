@@ -360,31 +360,33 @@ export function ConversationsPanel() {
             </div>
             <Separator className="mb-4" />
             
-            <ScrollArea className="flex-1 min-h-0 pr-4">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`mb-4 ${
-                    msg.sender_type === 'operator' ? 'text-right' : 'text-left'
-                  }`}
-                >
+            <ScrollArea className="h-[400px] pr-4">
+              <div className="space-y-4">
+                {messages.map((msg) => (
                   <div
-                    className={`inline-block p-3 rounded-lg max-w-[70%] ${
-                      msg.sender_type === 'operator'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
+                    key={msg.id}
+                    className={`mb-4 ${
+                      msg.sender_type === 'operator' ? 'text-right' : 'text-left'
                     }`}
                   >
-                    <p className="text-sm">{msg.message_text}</p>
-                    <p className="text-xs opacity-70 mt-1">
-                      {new Date(msg.created_at).toLocaleTimeString('pt-BR', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
+                    <div
+                      className={`inline-block p-3 rounded-lg max-w-[70%] ${
+                        msg.sender_type === 'operator'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted'
+                      }`}
+                    >
+                      <p className="text-sm">{msg.message_text}</p>
+                      <p className="text-xs opacity-70 mt-1">
+                        {new Date(msg.created_at).toLocaleTimeString('pt-BR', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </ScrollArea>
 
             <div className="flex gap-2 mt-4">
