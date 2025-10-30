@@ -94,6 +94,7 @@ serve(async (req) => {
               customer_name: customerName,
               status: 'active',
               last_message_at: new Date().toISOString(),
+              unread_count: 1
             })
             .select()
             .single();
@@ -104,12 +105,19 @@ serve(async (req) => {
           }
           conversation = newConv;
         } else {
-          // Atualizar última mensagem
+          // Atualizar última mensagem e incrementar contador de não lidas
+          const { data: currentConv } = await supabase
+            .from('conversations')
+            .select('unread_count')
+            .eq('id', conversation.id)
+            .single();
+
           await supabase
             .from('conversations')
             .update({
               last_message_at: new Date().toISOString(),
               status: 'active',
+              unread_count: (currentConv?.unread_count || 0) + 1
             })
             .eq('id', conversation.id);
         }

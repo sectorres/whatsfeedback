@@ -18,6 +18,8 @@ interface Conversation {
   last_message_at: string;
   status: string;
   assigned_to: string | null;
+  unread_count: number;
+  last_read_at: string | null;
 }
 
 interface Message {
@@ -66,6 +68,9 @@ export function ConversationsPanel() {
     if (selectedConversation) {
       loadMessages(selectedConversation.id);
 
+      // Marcar como lida ao abrir
+      markAsRead(selectedConversation.id);
+
       // Realtime para mensagens da conversa selecionada
       const messagesChannel = supabase
         .channel(`messages-${selectedConversation.id}`)
@@ -79,6 +84,15 @@ export function ConversationsPanel() {
           },
           (payload) => {
             setMessages(prev => [...prev, payload.new as Message]);
+            // Incrementar contador de não lidas se for mensagem do cliente
+            if (payload.new.sender_type === 'customer') {
+              supabase
+                .from('conversations')
+                .update({ 
+                  unread_count: selectedConversation.unread_count + 1 
+                })
+                .eq('id', selectedConversation.id);
+            }
           }
         )
         .subscribe();
@@ -119,6 +133,25 @@ export function ConversationsPanel() {
     } else {
       setMessages(data || []);
     }
+  };
+
+  const markAsRead = async (conversationId: string) => {
+    await supabase
+      .from('conversations')
+      .update({ 
+        unread_count: 0,
+        last_read_at: new Date().toISOString()
+      })
+      .eq('id', conversationId);
+    
+    // Atualizar lista local
+    setConversations(prev => 
+      prev.map(conv => 
+        conv.id === conversationId 
+          ? { ...conv, unread_count: 0, last_read_at: new Date().toISOString() }
+          : conv
+      )
+    );
   };
 
   const sendMessage = async () => {
@@ -204,22 +237,36 @@ export function ConversationsPanel() {
             conversations.map((conv) => (
               <div
                 key={conv.id}
-                className={`p-3 rounded-lg cursor-pointer mb-2 transition-colors ${
+                className={`p-3 rounded-lg cursor-pointer mb-2 transition-colors relative ${
                   selectedConversation?.id === conv.id
                     ? 'bg-primary/10'
                     : 'hover:bg-muted'
                 }`}
                 onClick={() => setSelectedConversation(conv)}
               >
-                <div className="font-medium">{conv.customer_name || conv.customer_phone}</div>
-                <div className="text-xs text-muted-foreground">
-                  {conv.customer_phone}
-                </div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {formatDistanceToNow(new Date(conv.last_message_at), {
-                    addSuffix: true,
-                    locale: ptBR
-                  })}
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium">{conv.customer_name || conv.customer_phone}</div>
+                      {conv.unread_count > 0 && (
+                        <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center px-1">
+                          {conv.unread_count}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {conv.customer_phone}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {formatDistanceToNow(new Date(conv.last_message_at), {
+                        addSuffix: true,
+                        locale: ptBR
+                      })}
+                    </div>
+                  </div>
+                  {conv.unread_count > 0 && (
+                    <div className="w-2 h-2 rounded-full bg-destructive" />
+                  )}
                 </div>
               </div>
             ))

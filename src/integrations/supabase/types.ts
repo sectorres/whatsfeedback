@@ -22,7 +22,9 @@ export type Database = {
           customer_phone: string
           id: string
           last_message_at: string
+          last_read_at: string | null
           status: string
+          unread_count: number | null
           updated_at: string
         }
         Insert: {
@@ -32,7 +34,9 @@ export type Database = {
           customer_phone: string
           id?: string
           last_message_at?: string
+          last_read_at?: string | null
           status?: string
+          unread_count?: number | null
           updated_at?: string
         }
         Update: {
@@ -42,7 +46,9 @@ export type Database = {
           customer_phone?: string
           id?: string
           last_message_at?: string
+          last_read_at?: string | null
           status?: string
+          unread_count?: number | null
           updated_at?: string
         }
         Relationships: []
