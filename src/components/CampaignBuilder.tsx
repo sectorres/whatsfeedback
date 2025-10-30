@@ -147,7 +147,14 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
 
     for (let i = 0; i < pedidosParaEnviar.length; i++) {
       const pedido = pedidosParaEnviar[i];
-      const phone = getPhone(pedido);
+      const rawPhone = getPhone(pedido);
+      const phone = formatPhone(rawPhone); // Limpa o telefone antes de enviar
+
+      if (!phone || phone.length < 10) {
+        errorCount++;
+        console.error(`✗ Telefone inválido para ${pedido.cliente?.nome}: ${rawPhone}`);
+        continue;
+      }
 
       try {
         const formattedMessage = messageTemplate
