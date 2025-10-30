@@ -10,10 +10,13 @@ import { ConversationsPanel } from "@/components/ConversationsPanel";
 import { ChangePassword } from "@/components/ChangePassword";
 import { WebhookConfiguration } from "@/components/WebhookConfiguration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { Calendar, Package, Settings, Headphones, LayoutDashboard } from "lucide-react";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
 
 const Index = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
+  const unreadCount = useUnreadCount();
 
   return (
     <div className="min-h-screen bg-background">
@@ -29,6 +32,11 @@ const Index = () => {
             <TabsTrigger value="atendimento" className="flex items-center gap-2">
               <Headphones className="h-4 w-4" />
               Atendimento
+              {unreadCount > 0 && (
+                <Badge variant="destructive" className="ml-1 h-5 min-w-5 flex items-center justify-center px-1.5">
+                  {unreadCount}
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="campaigns" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
