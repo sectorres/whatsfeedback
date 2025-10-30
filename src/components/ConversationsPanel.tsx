@@ -341,7 +341,7 @@ export function ConversationsPanel() {
       </Card>
 
       {/* Área de chat */}
-      <Card className="md:col-span-2 p-4 flex flex-col">
+      <Card className="md:col-span-2 p-4 flex flex-col h-full">
         {selectedConversation ? (
           <>
             <div className="flex items-center justify-between mb-4">
@@ -360,7 +360,7 @@ export function ConversationsPanel() {
             </div>
             <Separator className="mb-4" />
             
-            <ScrollArea className="flex-1 pr-4">
+            <ScrollArea className="flex-1 min-h-0 pr-4">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
