@@ -43,7 +43,6 @@ interface CampaignBuilderProps {
 }
 
 export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => {
-  const [campaignName, setCampaignName] = useState("");
   const [messageTemplate, setMessageTemplate] = useState(
     "TORRES CABRAL - LOGÍSTICA\n\n🚨🚨🚨 *ATENÇÃO* 🚨🚨🚨\n\nOlá {cliente},\n\n*Seu pedido será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega\n✅ Em caso de dúvida, entre em contato conosco ou responda esta mensagem.\n\nPEDIDO: {pedido}\n\n⚠️ Caso esta mensagem tenha sido enviada para o número errado, responda \"NÃO\"\n\n\n📞 114206-5500"
   );
@@ -162,8 +161,13 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       return;
     }
 
-    if (!campaignName || !messageTemplate) {
-      toast.error("Preencha o nome e a mensagem da campanha");
+    if (!messageTemplate) {
+      toast.error("Preencha a mensagem da campanha");
+      return;
+    }
+
+    if (!selectedCarga) {
+      toast.error("Selecione uma carga");
       return;
     }
 
@@ -177,6 +181,10 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     const pedidosParaEnviar = selectedCarga?.pedidos.filter(p => 
       selectedPedidos.has(p.id)
     ) || [];
+
+    // Gerar nome automático: Carga #numero - data hora
+    const now = new Date();
+    const campaignName = `Carga #${selectedCarga.id} - ${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
 
     // Salvar campanha no banco
     try {
@@ -286,7 +294,6 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         toast.error(`Campanha concluída com erros: ${successCount} enviadas, ${errorCount} falharam`);
       }
       
-      setCampaignName("");
       setSelectedPedidos(new Set());
       setEditedPhones({});
     } catch (error) {
@@ -371,17 +378,6 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Nome da Campanha */}
-          <div className="space-y-2">
-            <Label htmlFor="campaign-name">Nome da Campanha</Label>
-            <Input
-              id="campaign-name"
-              placeholder="Ex: Atualização de Status - Setembro 2025"
-              value={campaignName}
-              onChange={(e) => setCampaignName(e.target.value)}
-            />
-          </div>
-
           {/* Filtros de Carga */}
           <div className="grid md:grid-cols-3 gap-4">
             <div className="space-y-2">
