@@ -47,13 +47,16 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   const [messageTemplate, setMessageTemplate] = useState(
     "Olá {cliente}! Seu pedido {pedido} no valor de R$ {valor} está {status}."
   );
-  const [savedTemplates, setSavedTemplates] = useState<Array<{id: string, name: string, template: string}>>([
+  
+  const defaultTemplates = [
     {
       id: "default",
       name: "Padrão - Atualização de Status",
       template: "Olá {cliente}! Seu pedido {pedido} no valor de R$ {valor} está {status}."
     }
-  ]);
+  ];
+
+  const [savedTemplates, setSavedTemplates] = useState<Array<{id: string, name: string, template: string}>>(defaultTemplates);
   const [selectedTemplateId, setSelectedTemplateId] = useState("default");
   const [newTemplateName, setNewTemplateName] = useState("");
   const [cargas, setCargas] = useState<Carga[]>([]);
@@ -63,6 +66,24 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editedPhones, setEditedPhones] = useState<Record<number, string>>({});
   const [sending, setSending] = useState(false);
+
+  // Load templates from localStorage on mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('whatsapp-templates');
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        setSavedTemplates(parsed);
+      } catch (error) {
+        console.error('Error loading templates:', error);
+      }
+    }
+  }, []);
+
+  // Save templates to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('whatsapp-templates', JSON.stringify(savedTemplates));
+  }, [savedTemplates]);
 
   useEffect(() => {
     fetchCargas();
