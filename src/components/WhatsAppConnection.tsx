@@ -57,7 +57,7 @@ export const WhatsAppConnection = ({ onConnectionChange }: WhatsAppConnectionPro
       }
 
       if (data.qrcode?.base64) {
-        setQrCode(`data:image/png;base64,${data.qrcode.base64}`);
+        setQrCode(data.qrcode.base64);
         setIsConnecting(false);
 
         const pollInterval = setInterval(async () => {
