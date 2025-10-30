@@ -113,7 +113,9 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={6}
               />
+              <p className="text-xs text-muted-foreground">Mínimo de 6 caracteres</p>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
