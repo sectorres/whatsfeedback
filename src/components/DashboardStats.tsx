@@ -44,33 +44,60 @@ export function DashboardStats() {
 
   const fetchAllStats = async () => {
     setLoading(true);
+    console.log('DashboardStats: Iniciando fetch de dados...');
     try {
       // Buscar estatísticas de conversas
-      const { count: conversasAtivasCount } = await supabase
+      const { count: conversasAtivasCount, error: conversasAtivasError } = await supabase
         .from('conversations')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'active');
 
-      const { count: conversasTotalCount } = await supabase
+      if (conversasAtivasError) {
+        console.error('Erro ao buscar conversas ativas:', conversasAtivasError);
+      }
+      console.log('Conversas ativas:', conversasAtivasCount);
+
+      const { count: conversasTotalCount, error: conversasTotalError } = await supabase
         .from('conversations')
         .select('*', { count: 'exact', head: true });
+
+      if (conversasTotalError) {
+        console.error('Erro ao buscar total de conversas:', conversasTotalError);
+      }
+      console.log('Total de conversas:', conversasTotalCount);
 
       // Buscar mensagens de hoje
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const { count: mensagensHojeCount } = await supabase
+      const { count: mensagensHojeCount, error: mensagensError } = await supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', today.toISOString());
 
+      if (mensagensError) {
+        console.error('Erro ao buscar mensagens:', mensagensError);
+      }
+      console.log('Mensagens hoje:', mensagensHojeCount);
+
       // Buscar campanhas ativas
-      const { count: campanhasAtivasCount } = await supabase
+      const { count: campanhasAtivasCount, error: campanhasError } = await supabase
         .from('campaigns')
         .select('*', { count: 'exact', head: true })
         .in('status', ['draft', 'sending', 'scheduled']);
 
+      if (campanhasError) {
+        console.error('Erro ao buscar campanhas:', campanhasError);
+      }
+      console.log('Campanhas ativas:', campanhasAtivasCount);
+
       // Buscar estatísticas de cargas e pedidos
-      const { data: cargasData } = await supabase.functions.invoke("fetch-cargas");
+      console.log('Buscando dados de cargas...');
+      const { data: cargasData, error: cargasError } = await supabase.functions.invoke("fetch-cargas");
+
+      if (cargasError) {
+        console.error('Erro ao buscar cargas:', cargasError);
+      }
+      console.log('Dados de cargas:', cargasData);
 
       let pedidosAbertos = 0;
       let pedidosFaturados = 0;
@@ -92,7 +119,7 @@ export function DashboardStats() {
         cargasPendentes = cargas.filter((c: any) => c.status !== "FATU").length;
       }
 
-      setStats({
+      const newStats = {
         conversasAtivas: conversasAtivasCount || 0,
         conversasTotal: conversasTotalCount || 0,
         mensagensHoje: mensagensHojeCount || 0,
@@ -101,11 +128,15 @@ export function DashboardStats() {
         pedidosFaturados,
         totalCargas,
         cargasPendentes
-      });
+      };
+
+      console.log('Stats atualizadas:', newStats);
+      setStats(newStats);
     } catch (error) {
       console.error('Error fetching stats:', error);
     } finally {
       setLoading(false);
+      console.log('DashboardStats: Fetch concluído');
     }
   };
 
