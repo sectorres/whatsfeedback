@@ -40,13 +40,6 @@ export function DashboardStats() {
 
   useEffect(() => {
     fetchAllStats();
-    
-    // Atualizar a cada 10 segundos
-    const interval = setInterval(() => {
-      fetchAllStats();
-    }, 10000);
-
-    return () => clearInterval(interval);
   }, []);
 
   const fetchAllStats = async () => {
