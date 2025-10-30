@@ -68,10 +68,27 @@ export function SatisfactionSurveys() {
   }, [selectedCampaignId]);
 
   const loadCampaigns = async () => {
+    // Buscar todas as campanhas que têm envios
+    const { data: sendsData, error: sendsError } = await supabase
+      .from('campaign_sends')
+      .select('campaign_id');
+
+    if (sendsError) {
+      console.error('Erro ao buscar envios:', sendsError);
+      return;
+    }
+
+    const campaignIds = [...new Set(sendsData?.map(s => s.campaign_id) || [])];
+
+    if (campaignIds.length === 0) {
+      setCampaigns([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('campaigns')
       .select('*')
-      .in('status', ['sent', 'completed'])
+      .in('id', campaignIds)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
