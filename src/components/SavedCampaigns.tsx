@@ -18,10 +18,22 @@ interface Campaign {
   scheduled_at: string | null;
 }
 
+interface CampaignSend {
+  id: string;
+  customer_name: string | null;
+  customer_phone: string;
+  message_sent: string;
+  status: string;
+  error_message: string | null;
+  sent_at: string;
+}
+
 export function SavedCampaigns() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [campaignSends, setCampaignSends] = useState<Record<string, CampaignSend[]>>({});
+  const [loadingSends, setLoadingSends] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchCampaigns();
@@ -64,6 +76,31 @@ export function SavedCampaigns() {
     }
   };
 
+  const fetchCampaignSends = async (campaignId: string) => {
+    setLoadingSends(prev => ({ ...prev, [campaignId]: true }));
+    try {
+      const { data, error } = await supabase
+        .from('campaign_sends')
+        .select('*')
+        .eq('campaign_id', campaignId)
+        .order('sent_at', { ascending: false });
+
+      if (error) throw error;
+      setCampaignSends(prev => ({ ...prev, [campaignId]: data || [] }));
+    } catch (error) {
+      console.error('Error fetching campaign sends:', error);
+    } finally {
+      setLoadingSends(prev => ({ ...prev, [campaignId]: false }));
+    }
+  };
+
+  const handleExpandChange = async (campaignId: string, open: boolean) => {
+    setExpandedId(open ? campaignId : null);
+    if (open && !campaignSends[campaignId]) {
+      await fetchCampaignSends(campaignId);
+    }
+  };
+
   const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
     draft: { label: "Rascunho", variant: "secondary" },
     scheduled: { label: "Agendada", variant: "outline" },
@@ -92,7 +129,7 @@ export function SavedCampaigns() {
               <Collapsible
                 key={campaign.id}
                 open={expandedId === campaign.id}
-                onOpenChange={(open) => setExpandedId(open ? campaign.id : null)}
+                onOpenChange={(open) => handleExpandChange(campaign.id, open)}
               >
                 <div className="bg-muted rounded-lg">
                   <CollapsibleTrigger asChild>
@@ -125,21 +162,60 @@ export function SavedCampaigns() {
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="px-3 pb-3">
-                    <div className="pt-2 border-t space-y-2">
+                    <div className="pt-2 border-t space-y-3">
                       <div>
-                        <p className="text-sm font-medium mb-1">Mensagem:</p>
-                        <p className="text-sm text-muted-foreground whitespace-pre-line bg-background p-3 rounded">
-                          {campaign.message}
-                        </p>
-                      </div>
-                      {campaign.scheduled_at && (
-                        <div>
-                          <p className="text-sm font-medium">Agendada para:</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(campaign.scheduled_at).toLocaleString('pt-BR')}
+                        <p className="text-sm font-medium mb-2">Envios ({campaign.sent_count} total):</p>
+                        {loadingSends[campaign.id] ? (
+                          <div className="flex justify-center p-4">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          </div>
+                        ) : campaignSends[campaign.id]?.length > 0 ? (
+                          <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {campaignSends[campaign.id].map((send) => (
+                              <div
+                                key={send.id}
+                                className={`p-2 rounded text-sm ${
+                                  send.status === 'success'
+                                    ? 'bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800'
+                                    : 'bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-medium truncate">
+                                      {send.customer_name || 'Cliente sem nome'}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {send.customer_phone}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      {formatDistanceToNow(new Date(send.sent_at), {
+                                        addSuffix: true,
+                                        locale: ptBR
+                                      })}
+                                    </p>
+                                  </div>
+                                  <Badge
+                                    variant={send.status === 'success' ? 'default' : 'destructive'}
+                                    className="shrink-0"
+                                  >
+                                    {send.status === 'success' ? '✓ Enviado' : '✗ Falhou'}
+                                  </Badge>
+                                </div>
+                                {send.status === 'failed' && send.error_message && (
+                                  <p className="text-xs text-destructive mt-2">
+                                    Erro: {send.error_message}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center p-4">
+                            Nenhum envio registrado
                           </p>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </CollapsibleContent>
                 </div>

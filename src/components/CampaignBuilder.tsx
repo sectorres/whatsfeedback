@@ -196,20 +196,30 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         const rawPhone = getPhone(pedido);
         const phone = formatPhone(rawPhone);
 
+        const formattedMessage = messageTemplate
+          .replace(/{cliente}/g, pedido.cliente?.nome || "Cliente")
+          .replace(/{pedido}/g, pedido.pedido || "")
+          .replace(/{valor}/g, `${pedido.valor?.toFixed(2) || "0.00"}`)
+          .replace(/{status}/g, statusMap[selectedCarga?.status || ""] || "")
+          .replace(/{notaFiscal}/g, pedido.notaFiscal || "");
+
         if (!phone || phone.length < 10) {
           errorCount++;
           console.error(`✗ Telefone inválido para ${pedido.cliente?.nome}: ${rawPhone}`);
+          
+          // Registrar envio com erro de telefone inválido
+          await supabase.from('campaign_sends').insert({
+            campaign_id: campaign.id,
+            customer_name: pedido.cliente?.nome || "Cliente",
+            customer_phone: rawPhone || 'Não informado',
+            message_sent: formattedMessage,
+            status: 'failed',
+            error_message: 'Telefone inválido'
+          });
           continue;
         }
 
         try {
-          const formattedMessage = messageTemplate
-            .replace(/{cliente}/g, pedido.cliente?.nome || "Cliente")
-            .replace(/{pedido}/g, pedido.pedido || "")
-            .replace(/{valor}/g, `${pedido.valor?.toFixed(2) || "0.00"}`)
-            .replace(/{status}/g, statusMap[selectedCarga?.status || ""] || "")
-            .replace(/{notaFiscal}/g, pedido.notaFiscal || "");
-
           const { error } = await supabase.functions.invoke('whatsapp-send', {
             body: { 
               phone,
@@ -219,11 +229,30 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
 
           if (error) throw error;
 
+          // Registrar envio bem-sucedido
+          await supabase.from('campaign_sends').insert({
+            campaign_id: campaign.id,
+            customer_name: pedido.cliente?.nome || "Cliente",
+            customer_phone: phone,
+            message_sent: formattedMessage,
+            status: 'success'
+          });
+
           successCount++;
           console.log(`✓ Enviado para ${pedido.cliente?.nome}`);
         } catch (error) {
           errorCount++;
           console.error(`✗ Erro ao enviar para ${pedido.cliente?.nome}:`, error);
+          
+          // Registrar envio com erro
+          await supabase.from('campaign_sends').insert({
+            campaign_id: campaign.id,
+            customer_name: pedido.cliente?.nome || "Cliente",
+            customer_phone: phone,
+            message_sent: formattedMessage,
+            status: 'failed',
+            error_message: error instanceof Error ? error.message : String(error)
+          });
         }
 
         if (i < pedidosParaEnviar.length - 1) {

@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      campaign_sends: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          customer_name: string | null
+          customer_phone: string
+          error_message: string | null
+          id: string
+          message_sent: string
+          sent_at: string
+          status: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          customer_name?: string | null
+          customer_phone: string
+          error_message?: string | null
+          id?: string
+          message_sent: string
+          sent_at?: string
+          status?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string
+          error_message?: string | null
+          id?: string
+          message_sent?: string
+          sent_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_sends_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           created_at: string
