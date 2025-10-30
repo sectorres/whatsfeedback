@@ -67,7 +67,6 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="campaigns" className="space-y-6">
-            <WhatsAppConnection onConnectionChange={setWhatsappConnected} />
             <CampaignBuilder whatsappConnected={whatsappConnected} />
             <SavedCampaigns />
           </TabsContent>
@@ -77,6 +76,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="config" className="space-y-6">
+            <WhatsAppConnection onConnectionChange={setWhatsappConnected} />
             <ApiConfiguration />
             <WebhookConfiguration />
             <ChangePassword />

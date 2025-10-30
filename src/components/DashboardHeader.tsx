@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
+import { WhatsAppStatusIndicator } from "@/components/WhatsAppStatusIndicator";
 
 export const DashboardHeader = () => {
   const [loggingOut, setLoggingOut] = useState(false);
@@ -25,14 +26,17 @@ export const DashboardHeader = () => {
             </p>
           </div>
         </div>
-        <Button 
-          variant="outline" 
-          onClick={handleLogout}
-          disabled={loggingOut}
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          {loggingOut ? "Saindo..." : "Sair"}
-        </Button>
+        <div className="flex items-center gap-4">
+          <WhatsAppStatusIndicator />
+          <Button 
+            variant="outline" 
+            onClick={handleLogout}
+            disabled={loggingOut}
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            {loggingOut ? "Saindo..." : "Sair"}
+          </Button>
+        </div>
       </div>
     </header>
   );
