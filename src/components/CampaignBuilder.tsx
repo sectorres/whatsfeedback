@@ -34,6 +34,10 @@ interface Pedido {
   valor: number;
 }
 
+interface PedidoWithEditablePhone extends Pedido {
+  editedPhone?: string;
+}
+
 interface CampaignBuilderProps {
   whatsappConnected: boolean;
 }
@@ -48,6 +52,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   const [selectedCargaId, setSelectedCargaId] = useState<string>("");
   const [selectedPedidos, setSelectedPedidos] = useState<Set<number>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [editedPhones, setEditedPhones] = useState<Record<number, string>>({});
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     fetchCargas();
@@ -101,7 +107,18 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     return phone.replace(/\D/g, "");
   };
 
-  const handleSendCampaign = () => {
+  const updatePhone = (pedidoId: number, phone: string) => {
+    setEditedPhones(prev => ({
+      ...prev,
+      [pedidoId]: phone
+    }));
+  };
+
+  const getPhone = (pedido: Pedido) => {
+    return editedPhones[pedido.id] || pedido.cliente?.celular || pedido.cliente?.telefone || "";
+  };
+
+  const handleSendCampaign = async () => {
     if (!whatsappConnected) {
       toast.error("Conecte o WhatsApp primeiro para enviar campanhas");
       return;
@@ -117,19 +134,33 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       return;
     }
 
-    // Simular envio de mensagens
+    setSending(true);
+    
     const pedidosParaEnviar = selectedCarga?.pedidos.filter(p => 
       selectedPedidos.has(p.id)
     ) || [];
 
     toast.success(`Enviando ${pedidosParaEnviar.length} mensagens...`);
     
-    // Em produção, aqui faria a chamada para edge function de envio
-    setTimeout(() => {
-      toast.success("Campanha enviada com sucesso!");
-      setCampaignName("");
-      setSelectedPedidos(new Set());
-    }, 2000);
+    // Enviar com delay aleatório entre 3 e 8 segundos
+    for (let i = 0; i < pedidosParaEnviar.length; i++) {
+      const pedido = pedidosParaEnviar[i];
+      
+      // Simular envio individual
+      console.log(`Enviando para ${pedido.cliente?.nome} - ${getPhone(pedido)}`);
+      
+      // Delay aleatório entre 3000ms (3s) e 8000ms (8s)
+      if (i < pedidosParaEnviar.length - 1) {
+        const delay = Math.floor(Math.random() * (8000 - 3000 + 1)) + 3000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    setSending(false);
+    toast.success("Campanha enviada com sucesso!");
+    setCampaignName("");
+    setSelectedPedidos(new Set());
+    setEditedPhones({});
   };
 
   const formatDate = (dateStr: string) => {
@@ -264,7 +295,12 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                         </TableCell>
                         <TableCell>{pedido.cliente?.nome || "N/A"}</TableCell>
                         <TableCell>
-                          {pedido.cliente?.celular || pedido.cliente?.telefone || "N/A"}
+                          <Input
+                            value={getPhone(pedido)}
+                            onChange={(e) => updatePhone(pedido.id, e.target.value)}
+                            placeholder="Telefone"
+                            className="h-8"
+                          />
                         </TableCell>
                         <TableCell>R$ {pedido.valor?.toFixed(2) || "0.00"}</TableCell>
                       </TableRow>
@@ -317,10 +353,19 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             <Button
               onClick={handleSendCampaign}
               className="flex-1"
-              disabled={!whatsappConnected || selectedPedidos.size === 0}
+              disabled={!whatsappConnected || selectedPedidos.size === 0 || sending}
             >
-              <Send className="mr-2 h-4 w-4" />
-              Enviar Campanha ({selectedPedidos.size} mensagens)
+              {sending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Enviar Campanha ({selectedPedidos.size} mensagens)
+                </>
+              )}
             </Button>
           </div>
 
