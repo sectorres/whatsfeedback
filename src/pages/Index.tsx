@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { ChatInterface } from "@/components/ChatInterface";
 import { CampaignBuilder } from "@/components/CampaignBuilder";
@@ -6,10 +6,57 @@ import { OrderStatusTable } from "@/components/OrderStatusTable";
 import { ApiConfiguration } from "@/components/ApiConfiguration";
 import { WhatsAppConnection } from "@/components/WhatsAppConnection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageSquare, Calendar, Package, Settings } from "lucide-react";
+import { MessageSquare, Calendar, Package, Settings, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Carga {
+  id: number;
+  pedidos: any[];
+  status: string;
+}
 
 const Index = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
+  const [totalPedidos, setTotalPedidos] = useState(0);
+  const [totalCargas, setTotalCargas] = useState(0);
+  const [pedidosFaturados, setPedidosFaturados] = useState(0);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      setLoadingStats(true);
+      const { data, error } = await supabase.functions.invoke("fetch-cargas");
+
+      if (error) throw error;
+
+      if (data && data.status === "SUCESSO" && data.retorno?.cargas) {
+        const cargas: Carga[] = data.retorno.cargas;
+        
+        // Total de cargas
+        setTotalCargas(cargas.length);
+        
+        // Total de pedidos
+        const totalPeds = cargas.reduce((sum, carga) => sum + (carga.pedidos?.length || 0), 0);
+        setTotalPedidos(totalPeds);
+        
+        // Pedidos faturados
+        const faturados = cargas
+          .filter(c => c.status === "FATU")
+          .reduce((sum, carga) => sum + (carga.pedidos?.length || 0), 0);
+        setPedidosFaturados(faturados);
+      }
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const taxaFaturamento = totalPedidos > 0 ? ((pedidosFaturados / totalPedidos) * 100).toFixed(0) : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -49,20 +96,36 @@ const Index = () => {
                 <h2 className="text-2xl font-bold mb-4">Estatísticas</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-card border rounded-lg p-6">
-                    <p className="text-sm text-muted-foreground">Mensagens Enviadas</p>
-                    <p className="text-3xl font-bold text-primary mt-2">1,234</p>
+                    <p className="text-sm text-muted-foreground">Total de Pedidos</p>
+                    {loadingStats ? (
+                      <Loader2 className="h-8 w-8 animate-spin text-primary mt-2" />
+                    ) : (
+                      <p className="text-3xl font-bold text-primary mt-2">{totalPedidos}</p>
+                    )}
                   </div>
                   <div className="bg-card border rounded-lg p-6">
-                    <p className="text-sm text-muted-foreground">Taxa de Entrega</p>
-                    <p className="text-3xl font-bold text-success mt-2">98%</p>
+                    <p className="text-sm text-muted-foreground">Taxa de Faturamento</p>
+                    {loadingStats ? (
+                      <Loader2 className="h-8 w-8 animate-spin text-success mt-2" />
+                    ) : (
+                      <p className="text-3xl font-bold text-success mt-2">{taxaFaturamento}%</p>
+                    )}
                   </div>
                   <div className="bg-card border rounded-lg p-6">
-                    <p className="text-sm text-muted-foreground">Campanhas Ativas</p>
-                    <p className="text-3xl font-bold text-info mt-2">5</p>
+                    <p className="text-sm text-muted-foreground">Total de Cargas</p>
+                    {loadingStats ? (
+                      <Loader2 className="h-8 w-8 animate-spin text-info mt-2" />
+                    ) : (
+                      <p className="text-3xl font-bold text-info mt-2">{totalCargas}</p>
+                    )}
                   </div>
                   <div className="bg-card border rounded-lg p-6">
-                    <p className="text-sm text-muted-foreground">Respostas</p>
-                    <p className="text-3xl font-bold text-warning mt-2">892</p>
+                    <p className="text-sm text-muted-foreground">Pedidos Faturados</p>
+                    {loadingStats ? (
+                      <Loader2 className="h-8 w-8 animate-spin text-warning mt-2" />
+                    ) : (
+                      <p className="text-3xl font-bold text-warning mt-2">{pedidosFaturados}</p>
+                    )}
                   </div>
                 </div>
               </div>
