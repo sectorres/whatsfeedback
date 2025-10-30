@@ -4,9 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Loader2, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, RefreshCw, Edit2, Check, X } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 interface Campaign {
@@ -36,11 +37,13 @@ export function SavedCampaigns() {
   const [campaignSends, setCampaignSends] = useState<Record<string, CampaignSend[]>>({});
   const [loadingSends, setLoadingSends] = useState<Record<string, boolean>>({});
   const [resending, setResending] = useState<Record<string, boolean>>({});
+  const [editingPhone, setEditingPhone] = useState<string | null>(null);
+  const [editedPhone, setEditedPhone] = useState<string>("");
 
   useEffect(() => {
     fetchCampaigns();
 
-    // Realtime para campanhas
+    // Realtime para campanhas - atualiza automaticamente quando uma nova é criada
     const campaignsChannel = supabase
       .channel('campaigns-changes')
       .on(
@@ -50,16 +53,41 @@ export function SavedCampaigns() {
           schema: 'public',
           table: 'campaigns'
         },
-        () => {
+        (payload) => {
+          console.log('Campaign change detected:', payload);
           fetchCampaigns();
+        }
+      )
+      .subscribe();
+
+    // Realtime para campaign_sends - atualiza quando há novos envios
+    const sendsChannel = supabase
+      .channel('campaign-sends-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'campaign_sends'
+        },
+        (payload) => {
+          console.log('Campaign send change detected:', payload);
+          // Recarregar envios da campanha específica se estiver expandida
+          if (expandedId && payload.new && 'campaign_id' in payload.new) {
+            const campaignId = (payload.new as any).campaign_id;
+            if (campaignId === expandedId) {
+              fetchCampaignSends(campaignId);
+            }
+          }
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(campaignsChannel);
+      supabase.removeChannel(sendsChannel);
     };
-  }, []);
+  }, [expandedId]);
 
   const fetchCampaigns = async () => {
     try {
@@ -103,6 +131,40 @@ export function SavedCampaigns() {
     }
   };
 
+  const startEditPhone = (sendId: string, currentPhone: string) => {
+    setEditingPhone(sendId);
+    setEditedPhone(currentPhone);
+  };
+
+  const cancelEditPhone = () => {
+    setEditingPhone(null);
+    setEditedPhone("");
+  };
+
+  const saveEditedPhone = async (sendId: string, campaignId: string) => {
+    if (!editedPhone.trim()) {
+      toast.error("Número não pode ser vazio");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('campaign_sends')
+        .update({ customer_phone: editedPhone.replace(/\D/g, "") })
+        .eq('id', sendId);
+
+      if (error) throw error;
+
+      toast.success("Número atualizado");
+      setEditingPhone(null);
+      setEditedPhone("");
+      await fetchCampaignSends(campaignId);
+    } catch (error) {
+      console.error('Error updating phone:', error);
+      toast.error("Erro ao atualizar número");
+    }
+  };
+
   const handleResendFailed = async (campaignId: string) => {
     const failedSends = campaignSends[campaignId]?.filter(send => send.status === 'failed') || [];
     
@@ -141,14 +203,18 @@ export function SavedCampaigns() {
         errorCount++;
         console.error(`✗ Erro ao reenviar para ${send.customer_name}:`, error);
         
-        // Atualizar mensagem de erro
-        await supabase
-          .from('campaign_sends')
-          .update({ 
-            error_message: error instanceof Error ? error.message : String(error),
-            sent_at: new Date().toISOString()
-          })
-          .eq('id', send.id);
+        // Atualizar mensagem de erro - não propagar
+        try {
+          await supabase
+            .from('campaign_sends')
+            .update({ 
+              error_message: error instanceof Error ? error.message : String(error),
+              sent_at: new Date().toISOString()
+            })
+            .eq('id', send.id);
+        } catch (dbError) {
+          console.error('Erro ao atualizar registro:', dbError);
+        }
       }
 
       // Delay entre envios
@@ -283,9 +349,48 @@ export function SavedCampaigns() {
                                     <p className="font-medium truncate">
                                       {send.customer_name || 'Cliente sem nome'}
                                     </p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {send.customer_phone}
-                                    </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      {editingPhone === send.id ? (
+                                        <div className="flex items-center gap-1">
+                                          <Input
+                                            value={editedPhone}
+                                            onChange={(e) => setEditedPhone(e.target.value)}
+                                            className="h-6 text-xs w-32"
+                                            autoFocus
+                                          />
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 w-6 p-0"
+                                            onClick={() => saveEditedPhone(send.id, campaign.id)}
+                                          >
+                                            <Check className="h-3 w-3 text-green-600" />
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 w-6 p-0"
+                                            onClick={cancelEditPhone}
+                                          >
+                                            <X className="h-3 w-3 text-red-600" />
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <p className="text-xs text-muted-foreground">
+                                            {send.customer_phone}
+                                          </p>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-5 w-5 p-0"
+                                            onClick={() => startEditPhone(send.id, send.customer_phone)}
+                                          >
+                                            <Edit2 className="h-3 w-3" />
+                                          </Button>
+                                        </>
+                                      )}
+                                    </div>
                                     <p className="text-xs text-muted-foreground mt-1">
                                       {formatDistanceToNow(new Date(send.sent_at), {
                                         addSuffix: true,

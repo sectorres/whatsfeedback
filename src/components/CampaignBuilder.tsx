@@ -260,15 +260,19 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           errorCount++;
           console.error(`✗ Erro ao enviar para ${pedido.cliente?.nome}:`, error);
           
-          // Registrar envio com erro
-          await supabase.from('campaign_sends').insert({
-            campaign_id: campaign.id,
-            customer_name: pedido.cliente?.nome || "Cliente",
-            customer_phone: phone,
-            message_sent: formattedMessage,
-            status: 'failed',
-            error_message: error instanceof Error ? error.message : String(error)
-          });
+          // Registrar envio com erro - não propagar o erro
+          try {
+            await supabase.from('campaign_sends').insert({
+              campaign_id: campaign.id,
+              customer_name: pedido.cliente?.nome || "Cliente",
+              customer_phone: phone,
+              message_sent: formattedMessage,
+              status: 'failed',
+              error_message: error instanceof Error ? error.message : String(error)
+            });
+          } catch (dbError) {
+            console.error('Erro ao salvar registro de falha:', dbError);
+          }
         }
 
         if (i < pedidosParaEnviar.length - 1) {
