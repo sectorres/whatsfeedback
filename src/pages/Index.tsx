@@ -13,10 +13,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Package, Settings, Headphones, LayoutDashboard } from "lucide-react";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
+import { useWhatsAppStatus } from "@/hooks/useWhatsAppStatus";
 
 const Index = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   const unreadCount = useUnreadCount();
+  const { isConnected } = useWhatsAppStatus();
 
   return (
     <div className="min-h-screen bg-background">
@@ -67,7 +69,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="campaigns" className="space-y-6">
-            <CampaignBuilder whatsappConnected={whatsappConnected} />
+            <CampaignBuilder whatsappConnected={isConnected} />
             <SavedCampaigns />
           </TabsContent>
 
