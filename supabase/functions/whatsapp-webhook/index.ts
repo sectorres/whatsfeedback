@@ -19,19 +19,47 @@ serve(async (req) => {
     const payload = await req.json();
     console.log('Webhook received:', JSON.stringify(payload, null, 2));
 
-    // Processar mensagens recebidas do WhatsApp
-    if (payload.event === 'messages.upsert' && payload.data?.messages) {
-      const messages = payload.data.messages;
+    // Detectar evento (corpo ou sufixo da URL quando "Webhook by Event" estiver ativo)
+    const url = new URL(req.url);
+    const pathEvent = url.pathname.split('/').pop()?.toLowerCase();
+    const rawEvent = (payload?.event || pathEvent || '').toLowerCase();
+    const isMessageEvent = rawEvent.includes('message') && rawEvent.includes('upsert');
 
-      for (const msg of messages) {
-        // Ignorar mensagens enviadas por nós
+    // Normalizar estrutura de mensagens (array ou objeto único)
+    let incoming: any[] = [];
+    if (Array.isArray(payload?.data?.messages)) incoming = payload.data.messages;
+    else if (payload?.data?.message) incoming = [payload.data.message];
+    else if (Array.isArray(payload?.messages)) incoming = payload.messages;
+    else if (payload?.data && (payload.data.key || payload.data.message || payload.data.body)) incoming = [payload.data];
+
+    console.log('Parsed event:', rawEvent, 'messages count:', incoming.length);
+
+    if (!isMessageEvent && incoming.length === 0) {
+      // Ignorar eventos não relacionados a mensagens
+      return new Response(
+        JSON.stringify({ success: true, ignored: rawEvent || 'no-event' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    for (const msg of incoming) {
+      try {
+        // Ignorar mensagens enviadas pelo próprio bot
         if (msg.key?.fromMe) continue;
 
-        const customerPhone = msg.key?.remoteJid?.replace('@s.whatsapp.net', '') || '';
-        const messageText = msg.message?.conversation || 
-                          msg.message?.extendedTextMessage?.text || 
-                          '[Mídia recebida]';
-        const customerName = msg.pushName || customerPhone;
+        const remoteJid = msg.key?.remoteJid || msg.remoteJid || msg.from || '';
+        const customerPhone = (remoteJid || '').replace('@s.whatsapp.net', '').replace('@g.us', '');
+
+        const messageText =
+          msg.message?.conversation ||
+          msg.message?.extendedTextMessage?.text ||
+          msg.message?.imageMessage?.caption ||
+          msg.message?.videoMessage?.caption ||
+          msg.body?.text ||
+          msg.body ||
+          '[Mídia recebida]';
+
+        const customerName = msg.pushName || msg.senderName || customerPhone;
 
         console.log(`Processing message from ${customerPhone}: ${messageText}`);
 
@@ -40,7 +68,7 @@ serve(async (req) => {
           .from('conversations')
           .select('*')
           .eq('customer_phone', customerPhone)
-          .single();
+          .maybeSingle();
 
         if (!conversation) {
           const { data: newConv, error: convError } = await supabase
@@ -49,7 +77,7 @@ serve(async (req) => {
               customer_phone: customerPhone,
               customer_name: customerName,
               status: 'active',
-              last_message_at: new Date().toISOString()
+              last_message_at: new Date().toISOString(),
             })
             .select()
             .single();
@@ -63,9 +91,9 @@ serve(async (req) => {
           // Atualizar última mensagem
           await supabase
             .from('conversations')
-            .update({ 
+            .update({
               last_message_at: new Date().toISOString(),
-              status: 'active'
+              status: 'active',
             })
             .eq('id', conversation.id);
         }
@@ -78,12 +106,14 @@ serve(async (req) => {
             sender_type: 'customer',
             sender_name: customerName,
             message_text: messageText,
-            message_status: 'received'
+            message_status: 'received',
           });
 
         if (msgError) {
           console.error('Error inserting message:', msgError);
         }
+      } catch (err) {
+        console.error('Error processing single message:', err);
       }
     }
 
