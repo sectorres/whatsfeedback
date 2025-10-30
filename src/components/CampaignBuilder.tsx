@@ -47,6 +47,15 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   const [messageTemplate, setMessageTemplate] = useState(
     "Olá {cliente}! Seu pedido {pedido} no valor de R$ {valor} está {status}."
   );
+  const [savedTemplates, setSavedTemplates] = useState<Array<{id: string, name: string, template: string}>>([
+    {
+      id: "default",
+      name: "Padrão - Atualização de Status",
+      template: "Olá {cliente}! Seu pedido {pedido} no valor de R$ {valor} está {status}."
+    }
+  ]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("default");
+  const [newTemplateName, setNewTemplateName] = useState("");
   const [cargas, setCargas] = useState<Carga[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedCargaId, setSelectedCargaId] = useState<string>("");
@@ -213,6 +222,54 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     FATU: "Faturada",
   };
 
+  const handleTemplateChange = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    const template = savedTemplates.find(t => t.id === templateId);
+    if (template) {
+      setMessageTemplate(template.template);
+    }
+  };
+
+  const handleSaveTemplate = () => {
+    if (!newTemplateName.trim()) {
+      toast.error("Digite um nome para o template");
+      return;
+    }
+
+    const newTemplate = {
+      id: Date.now().toString(),
+      name: newTemplateName,
+      template: messageTemplate
+    };
+
+    setSavedTemplates([...savedTemplates, newTemplate]);
+    setSelectedTemplateId(newTemplate.id);
+    setNewTemplateName("");
+    toast.success("Template salvo com sucesso!");
+  };
+
+  const handleUpdateTemplate = () => {
+    const updatedTemplates = savedTemplates.map(t => 
+      t.id === selectedTemplateId 
+        ? { ...t, template: messageTemplate }
+        : t
+    );
+    setSavedTemplates(updatedTemplates);
+    toast.success("Template atualizado!");
+  };
+
+  const handleDeleteTemplate = () => {
+    if (selectedTemplateId === "default") {
+      toast.error("Não é possível deletar o template padrão");
+      return;
+    }
+
+    setSavedTemplates(savedTemplates.filter(t => t.id !== selectedTemplateId));
+    setSelectedTemplateId("default");
+    setMessageTemplate(savedTemplates[0].template);
+    toast.success("Template deletado!");
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -346,6 +403,62 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               </div>
             </div>
           )}
+
+          {/* Templates de Mensagem */}
+          <div className="space-y-4 border-t pt-4">
+            <Label>Templates de Mensagem</Label>
+            
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Selecionar Template</Label>
+                <Select value={selectedTemplateId} onValueChange={handleTemplateChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Escolha um template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {savedTemplates.map(template => (
+                      <SelectItem key={template.id} value={template.id}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Salvar Novo Template</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Nome do template"
+                    value={newTemplateName}
+                    onChange={(e) => setNewTemplateName(e.target.value)}
+                  />
+                  <Button onClick={handleSaveTemplate} variant="outline">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleUpdateTemplate} 
+                variant="outline" 
+                size="sm"
+                disabled={selectedTemplateId === "default"}
+              >
+                Atualizar Template Atual
+              </Button>
+              <Button 
+                onClick={handleDeleteTemplate} 
+                variant="outline" 
+                size="sm"
+                disabled={selectedTemplateId === "default"}
+              >
+                Deletar Template
+              </Button>
+            </div>
+          </div>
 
           {/* Template de Mensagem */}
           <div className="space-y-2">
