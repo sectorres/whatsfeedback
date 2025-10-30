@@ -113,6 +113,14 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
 
   const selectedCarga = cargas.find(c => c.id.toString() === selectedCargaId);
 
+  // Selecionar automaticamente todos os pedidos quando uma carga é escolhida
+  useEffect(() => {
+    if (selectedCarga && selectedCarga.pedidos) {
+      const allIds = new Set(selectedCarga.pedidos.map(p => p.id));
+      setSelectedPedidos(allIds);
+    }
+  }, [selectedCargaId, selectedCarga]);
+
   const togglePedido = (pedidoId: number) => {
     const newSelected = new Set(selectedPedidos);
     if (newSelected.has(pedidoId)) {

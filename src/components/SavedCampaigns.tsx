@@ -4,9 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface Campaign {
   id: string;
@@ -34,6 +35,7 @@ export function SavedCampaigns() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [campaignSends, setCampaignSends] = useState<Record<string, CampaignSend[]>>({});
   const [loadingSends, setLoadingSends] = useState<Record<string, boolean>>({});
+  const [resending, setResending] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     fetchCampaigns();
@@ -101,6 +103,84 @@ export function SavedCampaigns() {
     }
   };
 
+  const handleResendFailed = async (campaignId: string) => {
+    const failedSends = campaignSends[campaignId]?.filter(send => send.status === 'failed') || [];
+    
+    if (failedSends.length === 0) {
+      toast.error('Não há envios falhados para reenviar');
+      return;
+    }
+
+    setResending(prev => ({ ...prev, [campaignId]: true }));
+    
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < failedSends.length; i++) {
+      const send = failedSends[i];
+      
+      try {
+        const { error } = await supabase.functions.invoke('whatsapp-send', {
+          body: { 
+            phone: send.customer_phone,
+            message: send.message_sent
+          }
+        });
+
+        if (error) throw error;
+
+        // Atualizar status para sucesso
+        await supabase
+          .from('campaign_sends')
+          .update({ status: 'success', error_message: null, sent_at: new Date().toISOString() })
+          .eq('id', send.id);
+
+        successCount++;
+        console.log(`✓ Reenviado para ${send.customer_name}`);
+      } catch (error) {
+        errorCount++;
+        console.error(`✗ Erro ao reenviar para ${send.customer_name}:`, error);
+        
+        // Atualizar mensagem de erro
+        await supabase
+          .from('campaign_sends')
+          .update({ 
+            error_message: error instanceof Error ? error.message : String(error),
+            sent_at: new Date().toISOString()
+          })
+          .eq('id', send.id);
+      }
+
+      // Delay entre envios
+      if (i < failedSends.length - 1) {
+        const delay = Math.floor(Math.random() * (8000 - 3000 + 1)) + 3000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    // Atualizar contador da campanha
+    const campaign = campaigns.find(c => c.id === campaignId);
+    if (campaign) {
+      const newSentCount = campaign.sent_count + successCount;
+      await supabase
+        .from('campaigns')
+        .update({ sent_count: newSentCount })
+        .eq('id', campaignId);
+    }
+
+    setResending(prev => ({ ...prev, [campaignId]: false }));
+    
+    if (errorCount === 0) {
+      toast.success(`${successCount} mensagens reenviadas com sucesso!`);
+    } else {
+      toast.error(`${successCount} enviadas, ${errorCount} falharam`);
+    }
+    
+    // Recarregar envios
+    await fetchCampaignSends(campaignId);
+    await fetchCampaigns();
+  };
+
   const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
     draft: { label: "Rascunho", variant: "secondary" },
     scheduled: { label: "Agendada", variant: "outline" },
@@ -163,8 +243,26 @@ export function SavedCampaigns() {
                   </CollapsibleTrigger>
                   <CollapsibleContent className="px-3 pb-3">
                     <div className="pt-2 border-t space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium">Envios ({campaign.sent_count} total):</p>
+                        {campaignSends[campaign.id]?.some(send => send.status === 'failed') && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleResendFailed(campaign.id)}
+                            disabled={resending[campaign.id]}
+                            className="gap-2"
+                          >
+                            {resending[campaign.id] ? (
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-3 w-3" />
+                            )}
+                            Reenviar Falhados
+                          </Button>
+                        )}
+                      </div>
                       <div>
-                        <p className="text-sm font-medium mb-2">Envios ({campaign.sent_count} total):</p>
                         {loadingSends[campaign.id] ? (
                           <div className="flex justify-center p-4">
                             <Loader2 className="h-4 w-4 animate-spin" />
