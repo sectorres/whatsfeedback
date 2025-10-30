@@ -170,63 +170,93 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       selectedPedidos.has(p.id)
     ) || [];
 
-    toast.success(`Enviando ${pedidosParaEnviar.length} mensagens...`);
-    
-    let successCount = 0;
-    let errorCount = 0;
+    // Salvar campanha no banco
+    try {
+      const { data: campaign, error: campaignError } = await supabase
+        .from('campaigns')
+        .insert({
+          name: campaignName,
+          message: messageTemplate,
+          status: 'sending',
+          target_type: 'carga',
+          sent_count: 0
+        })
+        .select()
+        .single();
 
-    for (let i = 0; i < pedidosParaEnviar.length; i++) {
-      const pedido = pedidosParaEnviar[i];
-      const rawPhone = getPhone(pedido);
-      const phone = formatPhone(rawPhone); // Limpa o telefone antes de enviar
+      if (campaignError) throw campaignError;
 
-      if (!phone || phone.length < 10) {
-        errorCount++;
-        console.error(`✗ Telefone inválido para ${pedido.cliente?.nome}: ${rawPhone}`);
-        continue;
+      toast.success(`Enviando ${pedidosParaEnviar.length} mensagens...`);
+      
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (let i = 0; i < pedidosParaEnviar.length; i++) {
+        const pedido = pedidosParaEnviar[i];
+        const rawPhone = getPhone(pedido);
+        const phone = formatPhone(rawPhone);
+
+        if (!phone || phone.length < 10) {
+          errorCount++;
+          console.error(`✗ Telefone inválido para ${pedido.cliente?.nome}: ${rawPhone}`);
+          continue;
+        }
+
+        try {
+          const formattedMessage = messageTemplate
+            .replace(/{cliente}/g, pedido.cliente?.nome || "Cliente")
+            .replace(/{pedido}/g, pedido.pedido || "")
+            .replace(/{valor}/g, `${pedido.valor?.toFixed(2) || "0.00"}`)
+            .replace(/{status}/g, statusMap[selectedCarga?.status || ""] || "")
+            .replace(/{notaFiscal}/g, pedido.notaFiscal || "");
+
+          const { error } = await supabase.functions.invoke('whatsapp-send', {
+            body: { 
+              phone,
+              message: formattedMessage
+            }
+          });
+
+          if (error) throw error;
+
+          successCount++;
+          console.log(`✓ Enviado para ${pedido.cliente?.nome}`);
+        } catch (error) {
+          errorCount++;
+          console.error(`✗ Erro ao enviar para ${pedido.cliente?.nome}:`, error);
+        }
+
+        if (i < pedidosParaEnviar.length - 1) {
+          const delay = Math.floor(Math.random() * (8000 - 3000 + 1)) + 3000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
+      
+      // Atualizar campanha com status final
+      await supabase
+        .from('campaigns')
+        .update({
+          status: errorCount === 0 ? 'completed' : 'completed_with_errors',
+          sent_count: successCount
+        })
+        .eq('id', campaign.id);
 
-      try {
-        const formattedMessage = messageTemplate
-          .replace(/{cliente}/g, pedido.cliente?.nome || "Cliente")
-          .replace(/{pedido}/g, pedido.pedido || "")
-          .replace(/{valor}/g, `${pedido.valor?.toFixed(2) || "0.00"}`)
-          .replace(/{status}/g, statusMap[selectedCarga?.status || ""] || "")
-          .replace(/{notaFiscal}/g, pedido.notaFiscal || "");
-
-        const { error } = await supabase.functions.invoke('whatsapp-send', {
-          body: { 
-            phone,
-            message: formattedMessage
-          }
-        });
-
-        if (error) throw error;
-
-        successCount++;
-        console.log(`✓ Enviado para ${pedido.cliente?.nome}`);
-      } catch (error) {
-        errorCount++;
-        console.error(`✗ Erro ao enviar para ${pedido.cliente?.nome}:`, error);
+      setSending(false);
+      
+      if (errorCount === 0) {
+        toast.success(`Campanha enviada com sucesso! ${successCount} mensagens enviadas`);
+      } else {
+        toast.error(`Campanha concluída com erros: ${successCount} enviadas, ${errorCount} falharam`);
       }
-
-      if (i < pedidosParaEnviar.length - 1) {
-        const delay = Math.floor(Math.random() * (8000 - 3000 + 1)) + 3000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
+      
+      setCampaignName("");
+      setSelectedPedidos(new Set());
+      setEditedPhones({});
+    } catch (error) {
+      console.error('Error saving campaign:', error);
+      toast.error('Erro ao salvar campanha');
+      setSending(false);
     }
-    
-    setSending(false);
-    
-    if (errorCount === 0) {
-      toast.success(`Campanha enviada com sucesso! ${successCount} mensagens enviadas`);
-    } else {
-      toast.error(`Campanha concluída com erros: ${successCount} enviadas, ${errorCount} falharam`);
-    }
-    
-    setCampaignName("");
-    setSelectedPedidos(new Set());
-    setEditedPhones({});
   };
 
   const formatDate = (dateStr: string) => {

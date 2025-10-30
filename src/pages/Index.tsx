@@ -2,6 +2,7 @@ import { useState } from "react";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { DashboardStats } from "@/components/DashboardStats";
 import { CampaignBuilder } from "@/components/CampaignBuilder";
+import { CampaignsList } from "@/components/CampaignsList";
 import { OrderStatusTable } from "@/components/OrderStatusTable";
 import { ApiConfiguration } from "@/components/ApiConfiguration";
 import { WhatsAppConnection } from "@/components/WhatsAppConnection";
@@ -9,8 +10,6 @@ import { ConversationsPanel } from "@/components/ConversationsPanel";
 import { ChangePassword } from "@/components/ChangePassword";
 import { WebhookConfiguration } from "@/components/WebhookConfiguration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Calendar, Package, Settings, Headphones, LayoutDashboard } from "lucide-react";
 
 const Index = () => {
@@ -62,30 +61,7 @@ const Index = () => {
           <TabsContent value="campaigns" className="space-y-6">
             <WhatsAppConnection onConnectionChange={setWhatsappConnected} />
             <CampaignBuilder whatsappConnected={whatsappConnected} />
-            <Card className="bg-card border">
-              <CardHeader>
-                <CardTitle>Campanhas Recentes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {[
-                    { name: "Atualização Semanal", status: "Ativa", sent: 234 },
-                    { name: "Status de Entrega", status: "Ativa", sent: 567 },
-                    { name: "Confirmação de Pedido", status: "Pausada", sent: 123 },
-                  ].map((campaign, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <div>
-                        <p className="font-medium">{campaign.name}</p>
-                        <p className="text-sm text-muted-foreground">{campaign.sent} mensagens enviadas</p>
-                      </div>
-                      <Badge variant={campaign.status === "Ativa" ? "default" : "secondary"}>
-                        {campaign.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <CampaignsList />
           </TabsContent>
 
           <TabsContent value="orders">

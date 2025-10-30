@@ -63,6 +63,12 @@ export function DashboardStats() {
         .select('*', { count: 'exact', head: true })
         .gte('created_at', today.toISOString());
 
+      // Buscar campanhas ativas
+      const { count: campanhasAtivasCount } = await supabase
+        .from('campaigns')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['draft', 'sending']);
+
       // Buscar estatísticas de cargas e pedidos
       const { data: cargasData } = await supabase.functions.invoke("fetch-cargas");
 
@@ -90,7 +96,7 @@ export function DashboardStats() {
         conversasAtivas: conversasAtivasCount || 0,
         conversasTotal: conversasTotalCount || 0,
         mensagensHoje: mensagensHojeCount || 0,
-        campanhasAtivas: 0, // Placeholder - implementar quando houver campanhas ativas
+        campanhasAtivas: campanhasAtivasCount || 0,
         pedidosAbertos,
         pedidosFaturados,
         totalCargas,
