@@ -7,6 +7,7 @@ import { ApiConfiguration } from "@/components/ApiConfiguration";
 import { WhatsAppConnection } from "@/components/WhatsAppConnection";
 import { ConversationsPanel } from "@/components/ConversationsPanel";
 import { ChangePassword } from "@/components/ChangePassword";
+import { WebhookConfiguration } from "@/components/WebhookConfiguration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageSquare, Calendar, Package, Settings, Loader2, Headphones } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -175,6 +176,7 @@ const Index = () => {
 
           <TabsContent value="config" className="space-y-6">
             <ApiConfiguration />
+            <WebhookConfiguration />
             <ChangePassword />
           </TabsContent>
         </Tabs>
