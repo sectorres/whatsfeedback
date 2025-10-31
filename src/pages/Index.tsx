@@ -96,6 +96,12 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      <footer className="border-t bg-card mt-12">
+        <div className="container mx-auto px-6 py-4 text-center text-sm text-muted-foreground">
+          Moisés Cavalcante. Versão 1.0
+        </div>
+      </footer>
     </div>
   );
 };
