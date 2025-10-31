@@ -19,8 +19,6 @@ serve(async (req) => {
 
     console.log('Buscando envios de campanha elegíveis para pesquisa de satisfação...');
 
-    // Removido o limite de 1 dia — enviar imediatamente após o envio da campanha
-
     // Primeiro, buscar IDs que já têm pesquisa (somente enviadas ou respondidas)
     const { data: existingSurveys, error: existingSurveysError } = await supabaseClient
       .from('satisfaction_surveys')
@@ -33,8 +31,9 @@ serve(async (req) => {
     }
 
     const existingSurveyIds = existingSurveys?.map(s => s.campaign_send_id) || [];
+    console.log(`Encontradas ${existingSurveys?.length || 0} pesquisas existentes (enviadas/respondidas)`);
 
-    // Buscar envios elegíveis (status success ou sent)
+    // Buscar envios elegíveis (status success ou sent) - SEM filtro de data
     let query = supabaseClient
       .from('campaign_sends')
       .select('*')
@@ -47,10 +46,12 @@ serve(async (req) => {
       throw sendsError;
     }
 
+    console.log(`Encontrados ${eligibleSends?.length || 0} envios com status success/sent`);
+
     // Filtrar no código os que já possuem pesquisa para evitar erros de sintaxe em "not in"
     const sendsToProcess = (eligibleSends || []).filter((s) => !existingSurveyIds.includes(s.id));
 
-    console.log(`Encontrados ${sendsToProcess.length || 0} envios elegíveis`);
+    console.log(`Encontrados ${sendsToProcess.length || 0} envios elegíveis (sem pesquisa enviada/respondida)`);
 
     const surveysSent: any[] = [];
 

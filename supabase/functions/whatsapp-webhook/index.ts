@@ -84,7 +84,7 @@ serve(async (req) => {
         if (ratingMatch) {
           const rating = parseInt(ratingMatch[0]);
           
-          console.log(`Detected rating ${rating} from ${customerPhone}`);
+          console.log(`Detected rating ${rating} from ${customerPhone} (remoteJid: ${remoteJid})`);
           
           // Buscar pesquisa pendente para este telefone
           const { data: surveys, error: surveyError } = await supabase
@@ -100,8 +100,11 @@ serve(async (req) => {
           const pendingSurvey = surveys?.find(s => {
             const db = (s.customer_phone || '').replace(/\D/g, '');
             const remote = customerPhone;
-            return remote.endsWith(db) || db.endsWith(remote);
+            console.log(`Comparing DB phone: ${db} with remote: ${remote}`);
+            return remote.endsWith(db) || db.endsWith(remote) || remote === db;
           });
+
+          console.log(`Pending survey found:`, pendingSurvey ? `ID ${pendingSurvey.id}` : 'None');
 
           if (pendingSurvey) {
             console.log(`Updating survey ${pendingSurvey.id} with rating ${rating}`);
