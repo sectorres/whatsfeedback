@@ -39,8 +39,7 @@ serve(async (req) => {
     let query = supabaseClient
       .from('campaign_sends')
       .select('*')
-      .eq('status', 'sent')
-      .lt('sent_at', oneDayAgo.toISOString());
+      .in('status', ['success', 'sent']);
 
     // Se houver pesquisas existentes, excluir esses IDs
     if (existingSurveyIds.length > 0) {
