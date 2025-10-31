@@ -86,7 +86,7 @@ export default function Login() {
               <Lock className="h-6 w-6 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Sistema de Gestão</CardTitle>
+          <CardTitle className="text-2xl font-bold">WhatsFeedback</CardTitle>
           <CardDescription>
             Entre com suas credenciais para acessar o sistema
           </CardDescription>
