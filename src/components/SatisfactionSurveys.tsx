@@ -78,13 +78,13 @@ export function SatisfactionSurveys() {
 
   useEffect(() => {
     loadCampaigns();
-    loadAllDriverData(); // Carregar dados de motoristas independente de campanha
+    loadAllDriverData();
+    loadInsights(); // Carregar insights ao iniciar
   }, []);
 
   useEffect(() => {
     if (selectedCampaignId) {
       loadSurveys();
-      loadInsights();
     }
   }, [selectedCampaignId]);
 
@@ -847,20 +847,35 @@ export function SatisfactionSurveys() {
               {insights ? (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="font-semibold mb-2">Distribuição de Notas</h3>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold">Distribuição de Notas</h3>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={loadInsights}
+                        className="text-xs"
+                      >
+                        Atualizar
+                      </Button>
+                    </div>
                     <div className="space-y-2">
-                      {Object.entries(insights.rating_distribution).map(([rating, count]) => {
-                        const countNum = Number(count);
-                        return (
-                          <div key={rating} className="flex items-center gap-3">
-                            <span className="w-12 text-sm">{rating} ⭐</span>
-                            <Progress value={(countNum / insights.total_responses) * 100} className="flex-1" />
-                            <span className="text-sm text-muted-foreground w-12 text-right">
-                              {countNum}
-                            </span>
-                          </div>
-                        );
-                      })}
+                      {Object.entries(insights.rating_distribution || {})
+                        .sort(([a], [b]) => Number(b) - Number(a))
+                        .map(([rating, count]) => {
+                          const countNum = Number(count);
+                          const percentage = insights.total_responses > 0 
+                            ? (countNum / insights.total_responses) * 100 
+                            : 0;
+                          return (
+                            <div key={rating} className="flex items-center gap-3">
+                              <span className="w-12 text-sm font-medium">{rating} ⭐</span>
+                              <Progress value={percentage} className="flex-1" />
+                              <span className="text-sm text-muted-foreground w-16 text-right">
+                                {countNum} ({percentage.toFixed(0)}%)
+                              </span>
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
 
