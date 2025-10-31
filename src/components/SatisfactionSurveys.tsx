@@ -272,6 +272,68 @@ export function SatisfactionSurveys() {
   const responsesCount = surveys.filter(s => s.rating !== null).length;
   const responseRate = surveys.length > 0 ? (responsesCount / surveys.length) * 100 : 0;
 
+  // Calcular indicadores por motorista
+  const driverStats = surveys.reduce((acc, survey) => {
+    const sendDetails = campaignSends[survey.campaign_send_id];
+    const driverName = sendDetails?.driver_name;
+    
+    if (driverName && survey.rating !== null) {
+      if (!acc[driverName]) {
+        acc[driverName] = {
+          name: driverName,
+          totalRatings: 0,
+          sumRatings: 0,
+          ratings: [],
+          responseCount: 0,
+          totalSurveys: 0
+        };
+      }
+      acc[driverName].totalRatings++;
+      acc[driverName].sumRatings += survey.rating;
+      acc[driverName].ratings.push(survey.rating);
+      acc[driverName].responseCount++;
+    }
+    
+    // Contar total de pesquisas por motorista
+    if (driverName) {
+      if (!acc[driverName]) {
+        acc[driverName] = {
+          name: driverName,
+          totalRatings: 0,
+          sumRatings: 0,
+          ratings: [],
+          responseCount: 0,
+          totalSurveys: 0
+        };
+      }
+      acc[driverName].totalSurveys++;
+    }
+    
+    return acc;
+  }, {} as Record<string, {
+    name: string;
+    totalRatings: number;
+    sumRatings: number;
+    ratings: number[];
+    responseCount: number;
+    totalSurveys: number;
+  }>);
+
+  const driverMetrics = Object.values(driverStats).map(stat => ({
+    name: stat.name,
+    averageRating: stat.totalRatings > 0 ? (stat.sumRatings / stat.totalRatings) : 0,
+    totalRatings: stat.totalRatings,
+    totalSurveys: stat.totalSurveys,
+    responseRate: stat.totalSurveys > 0 ? (stat.responseCount / stat.totalSurveys) * 100 : 0,
+    distribution: {
+      5: stat.ratings.filter(r => r === 5).length,
+      4: stat.ratings.filter(r => r === 4).length,
+      3: stat.ratings.filter(r => r === 3).length,
+      2: stat.ratings.filter(r => r === 2).length,
+      1: stat.ratings.filter(r => r === 1).length,
+    }
+  })).sort((a, b) => b.averageRating - a.averageRating);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
@@ -392,6 +454,7 @@ export function SatisfactionSurveys() {
       <Tabs defaultValue="responses" className="space-y-4">
         <TabsList>
           <TabsTrigger value="responses">Respostas</TabsTrigger>
+          <TabsTrigger value="drivers">Indicadores por Motorista</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
         </TabsList>
 
@@ -499,6 +562,91 @@ export function SatisfactionSurveys() {
                       </Card>
                     );
                   })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="drivers" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Desempenho dos Motoristas</CardTitle>
+              <CardDescription>
+                Avaliações e indicadores por motorista de entrega
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {driverMetrics.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhuma avaliação de motorista ainda
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {driverMetrics.map((driver, index) => (
+                    <Card key={driver.name} className="bg-muted/30">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
+                              #{index + 1}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-base">{driver.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {driver.totalRatings} avaliações de {driver.totalSurveys} entregas
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <div className="flex items-center gap-1">
+                                <Star className={`h-5 w-5 ${getRatingColor(driver.averageRating)} fill-current`} />
+                                <span className={`text-xl font-bold ${getRatingColor(driver.averageRating)}`}>
+                                  {driver.averageRating.toFixed(1)}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {driver.responseRate.toFixed(0)}% responderam
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">Distribuição de Notas:</p>
+                          <div className="grid grid-cols-5 gap-2">
+                            {[5, 4, 3, 2, 1].map((rating) => (
+                              <div key={rating} className="text-center">
+                                <div className="text-xs font-medium mb-1">
+                                  {rating}★
+                                </div>
+                                <div className="h-16 bg-muted rounded flex items-end justify-center overflow-hidden">
+                                  <div 
+                                    className={`w-full transition-all ${
+                                      rating >= 4 ? 'bg-green-500' : 
+                                      rating === 3 ? 'bg-yellow-500' : 
+                                      'bg-red-500'
+                                    }`}
+                                    style={{ 
+                                      height: driver.totalRatings > 0 
+                                        ? `${(driver.distribution[rating as keyof typeof driver.distribution] / driver.totalRatings) * 100}%` 
+                                        : '0%',
+                                      minHeight: driver.distribution[rating as keyof typeof driver.distribution] > 0 ? '8px' : '0'
+                                    }}
+                                  />
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {driver.distribution[rating as keyof typeof driver.distribution]}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               )}
             </CardContent>
