@@ -44,7 +44,7 @@ const Index = () => {
             </TabsTrigger>
             <TabsTrigger value="campaigns" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              Campanhas
+              Notificação de entrega
             </TabsTrigger>
             <TabsTrigger value="satisfaction" className="flex items-center gap-2">
               <Star className="h-4 w-4" />
