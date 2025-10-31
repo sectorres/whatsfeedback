@@ -231,10 +231,10 @@ export function ConversationsPanel() {
   };
 
   return (
-    <div className="grid md:grid-cols-3 gap-4 h-[calc(100vh-200px)]">
+    <div className="grid md:grid-cols-3 gap-4 h-[calc(100vh-200px)] min-h-0">
       {/* Lista de conversas */}
-      <Card className="p-4 flex flex-col h-full">
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "active" | "archived")}>
+      <Card className="p-4 flex flex-col h-full min-h-0 overflow-hidden">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "active" | "archived")} className="flex flex-col h-full min-h-0">
           <TabsList className="grid w-full grid-cols-2 mb-2">
             <TabsTrigger value="active" className="gap-2">
               <MessageCircle className="h-4 w-4" />
@@ -248,8 +248,8 @@ export function ConversationsPanel() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="active" className="mt-0">
-            <ScrollArea className="flex-1 min-h-0">
+          <TabsContent value="active" className="mt-0 flex-1 min-h-0">
+            <ScrollArea className="h-full">
               {loading ? (
                 <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin" />
@@ -299,8 +299,8 @@ export function ConversationsPanel() {
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="archived" className="mt-0">
-            <ScrollArea className="flex-1 min-h-0">
+          <TabsContent value="archived" className="mt-0 flex-1 min-h-0">
+            <ScrollArea className="h-full">
               {loading ? (
                 <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin" />
@@ -341,7 +341,7 @@ export function ConversationsPanel() {
       </Card>
 
       {/* Área de chat */}
-      <Card className="md:col-span-2 p-4 flex flex-col h-full">
+      <Card className="md:col-span-2 p-4 flex flex-col h-full min-h-0 overflow-hidden">
         {selectedConversation ? (
           <>
             <div className="flex items-center justify-between mb-4">
