@@ -19,27 +19,40 @@ serve(async (req) => {
 
     console.log('Buscando envios de campanha elegíveis para pesquisa de satisfação...');
 
-    // Primeiro, buscar IDs que já têm pesquisa (somente enviadas ou respondidas)
-    const { data: existingSurveys, error: existingSurveysError } = await supabaseClient
+    // 1. Buscar pesquisas existentes que já foram respondidas (não reenviar)
+    const { data: respondedSurveys, error: respondedError } = await supabaseClient
       .from('satisfaction_surveys')
-      .select('campaign_send_id, status')
-      .in('status', ['sent', 'responded']);
+      .select('campaign_send_id')
+      .eq('status', 'responded');
 
-    if (existingSurveysError) {
-      console.error('Erro ao buscar pesquisas existentes:', existingSurveysError);
-      throw existingSurveysError;
+    if (respondedError) {
+      console.error('Erro ao buscar pesquisas respondidas:', respondedError);
+      throw respondedError;
     }
 
-    const existingSurveyIds = existingSurveys?.map(s => s.campaign_send_id) || [];
-    console.log(`Encontradas ${existingSurveys?.length || 0} pesquisas existentes (enviadas/respondidas)`);
+    const respondedSurveyIds = respondedSurveys?.map(s => s.campaign_send_id) || [];
+    console.log(`Encontradas ${respondedSurveys?.length || 0} pesquisas respondidas (não reenviar)`);
 
-    // Buscar envios elegíveis (status success ou sent) - SEM filtro de data
-    let query = supabaseClient
+    // 2. Buscar pesquisas falhadas ou sem resposta há mais de 30 minutos
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    
+    const { data: retryableSurveys, error: retryError } = await supabaseClient
+      .from('satisfaction_surveys')
+      .select('*')
+      .or(`status.eq.failed,and(status.eq.sent,sent_at.lt.${thirtyMinutesAgo})`);
+
+    if (retryError) {
+      console.error('Erro ao buscar pesquisas para reenvio:', retryError);
+      throw retryError;
+    }
+
+    console.log(`Encontradas ${retryableSurveys?.length || 0} pesquisas para reenvio (falhadas ou sem resposta há 30+ min)`);
+
+    // 3. Buscar envios elegíveis (status success ou sent) sem pesquisa
+    const { data: eligibleSends, error: sendsError } = await supabaseClient
       .from('campaign_sends')
       .select('*')
       .in('status', ['success', 'sent']);
-
-    const { data: eligibleSends, error: sendsError } = await query;
 
     if (sendsError) {
       console.error('Erro ao buscar envios:', sendsError);
@@ -48,29 +61,64 @@ serve(async (req) => {
 
     console.log(`Encontrados ${eligibleSends?.length || 0} envios com status success/sent`);
 
-    // Filtrar no código os que já possuem pesquisa para evitar erros de sintaxe em "not in"
-    const sendsToProcess = (eligibleSends || []).filter((s) => !existingSurveyIds.includes(s.id));
+    // Filtrar envios que não têm pesquisa respondida
+    const sendsToProcess = (eligibleSends || []).filter((s) => !respondedSurveyIds.includes(s.id));
 
-    console.log(`Encontrados ${sendsToProcess.length || 0} envios elegíveis (sem pesquisa enviada/respondida)`);
+    console.log(`Encontrados ${sendsToProcess.length || 0} envios elegíveis (sem pesquisa respondida)`);
 
     const surveysSent: any[] = [];
+    const surveysResent: any[] = [];
+    const newSurveys: any[] = [];
 
+    // Processar novos envios
     for (const send of sendsToProcess) {
-      // Criar registro de pesquisa
-      const { data: survey, error: surveyError } = await supabaseClient
+      // Verificar se já existe pesquisa para este envio
+      const { data: existingSurvey } = await supabaseClient
         .from('satisfaction_surveys')
-        .insert({
-          campaign_send_id: send.id,
-          customer_phone: send.customer_phone,
-          customer_name: send.customer_name,
-          status: 'sent'
-        })
-        .select()
-        .single();
+        .select('*')
+        .eq('campaign_send_id', send.id)
+        .maybeSingle();
 
-      if (surveyError) {
-        console.error('Erro ao criar pesquisa:', surveyError);
-        continue;
+      let survey = existingSurvey;
+
+      if (!existingSurvey) {
+        // Criar nova pesquisa
+        const { data: newSurvey, error: surveyError } = await supabaseClient
+          .from('satisfaction_surveys')
+          .insert({
+            campaign_send_id: send.id,
+            customer_phone: send.customer_phone,
+            customer_name: send.customer_name,
+            status: 'sent',
+            sent_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (surveyError) {
+          console.error('Erro ao criar pesquisa:', surveyError);
+          continue;
+        }
+        survey = newSurvey;
+        newSurveys.push(survey);
+      } else {
+        // Atualizar pesquisa existente para reenvio
+        const { data: updatedSurvey, error: updateError } = await supabaseClient
+          .from('satisfaction_surveys')
+          .update({ 
+            status: 'sent',
+            sent_at: new Date().toISOString()
+          })
+          .eq('id', existingSurvey.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('Erro ao atualizar pesquisa:', updateError);
+          continue;
+        }
+        survey = updatedSurvey;
+        surveysResent.push(survey);
       }
 
       // Enviar mensagem via WhatsApp
@@ -113,11 +161,17 @@ Responda apenas com o número da sua avaliação.`;
       }
     }
 
+    const totalSent = surveysSent.length;
+    const totalNew = newSurveys.length;
+    const totalResent = surveysResent.length;
+
     return new Response(
       JSON.stringify({ 
         success: true, 
-        surveys_sent: surveysSent.length,
-        message: `${surveysSent.length} pesquisas enviadas com sucesso`
+        surveys_sent: totalSent,
+        new_surveys: totalNew,
+        resent_surveys: totalResent,
+        message: `${totalSent} pesquisas enviadas (${totalNew} novas, ${totalResent} reenviadas)`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

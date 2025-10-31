@@ -185,9 +185,19 @@ export function SatisfactionSurveys() {
 
       if (error) throw error;
 
+      const details = [];
+      if (data.new_surveys > 0) {
+        details.push(`${data.new_surveys} nova${data.new_surveys > 1 ? 's' : ''}`);
+      }
+      if (data.resent_surveys > 0) {
+        details.push(`${data.resent_surveys} reenviada${data.resent_surveys > 1 ? 's' : ''}`);
+      }
+
       toast({
         title: "Pesquisas enviadas!",
-        description: data.message,
+        description: data.surveys_sent > 0 
+          ? `${data.surveys_sent} pesquisa${data.surveys_sent > 1 ? 's' : ''} enviada${data.surveys_sent > 1 ? 's' : ''} (${details.join(', ')})`
+          : "Nenhuma pesquisa pendente para enviar",
       });
 
       loadSurveys();
