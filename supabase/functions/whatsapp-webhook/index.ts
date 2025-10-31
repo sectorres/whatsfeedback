@@ -96,10 +96,12 @@ serve(async (req) => {
 
           console.log(`Found ${surveys?.length || 0} pending surveys`);
 
-          // Encontrar a pesquisa que corresponde ao telefone (comparando apenas dígitos)
-          const pendingSurvey = surveys?.find(s => 
-            s.customer_phone.replace(/\D/g, '') === customerPhone
-          );
+          // Encontrar a pesquisa que corresponde ao telefone (comparando apenas dígitos e ignorando DDI)
+          const pendingSurvey = surveys?.find(s => {
+            const db = (s.customer_phone || '').replace(/\D/g, '');
+            const remote = customerPhone;
+            return remote.endsWith(db) || db.endsWith(remote);
+          });
 
           if (pendingSurvey) {
             console.log(`Updating survey ${pendingSurvey.id} with rating ${rating}`);

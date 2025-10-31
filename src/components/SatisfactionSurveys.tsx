@@ -8,6 +8,7 @@ import { Star, TrendingUp, TrendingDown, Minus, Loader2, BarChart3, Send } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Campaign {
   id: string;
@@ -54,6 +55,7 @@ export function SatisfactionSurveys() {
   const [loading, setLoading] = useState(false);
   const [generatingInsights, setGeneratingInsights] = useState(false);
   const [sendingSurveys, setSendingSurveys] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -290,32 +292,36 @@ export function SatisfactionSurveys() {
 
       {selectedCampaignId && campaignSends && Object.keys(campaignSends).length > 0 && (
         <Card className="bg-muted/50">
-          <CardHeader>
-            <CardTitle className="text-lg">Prévia dos Envios desta Campanha</CardTitle>
-            <CardDescription>
-              Clientes que receberão ou receberam a pesquisa
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {Object.values(campaignSends).slice(0, 5).map((send) => (
-                <div key={send.id} className="flex items-center justify-between p-2 bg-background rounded-md text-sm">
-                  <div className="flex-1">
-                    <p className="font-medium">{send.customer_name}</p>
-                    <p className="text-xs text-muted-foreground">{send.customer_phone}</p>
-                  </div>
-                  <div className="text-right text-xs text-muted-foreground">
-                    {send.message_sent?.match(/PEDIDO:\s*([^\n]+)/)?.[1] || 'N/A'}
-                  </div>
-                </div>
-              ))}
-              {Object.keys(campaignSends).length > 5 && (
-                <p className="text-xs text-muted-foreground text-center pt-2">
-                  + {Object.keys(campaignSends).length - 5} clientes
-                </p>
-              )}
+          <CardHeader className="flex flex-row items-center justify-between py-3">
+            <div>
+              <CardTitle className="text-lg">Prévia dos Envios desta Campanha</CardTitle>
+              <CardDescription>
+                {Object.keys(campaignSends).length} clientes
+              </CardDescription>
             </div>
-          </CardContent>
+            <Button variant="outline" size="sm" onClick={() => setShowPreview((v) => !v)}>
+              {showPreview ? 'Ocultar prévia' : 'Mostrar prévia'}
+            </Button>
+          </CardHeader>
+          {showPreview && (
+            <CardContent>
+              <ScrollArea className="h-56 pr-2">
+                <div className="space-y-2">
+                  {Object.values(campaignSends).map((send) => (
+                    <div key={send.id} className="grid grid-cols-3 items-center gap-2 p-2 bg-background rounded-md text-xs">
+                      <div className="truncate">
+                        <p className="font-medium truncate">{send.customer_name}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{send.customer_phone}</p>
+                      </div>
+                      <div className="col-span-2 text-right text-[11px] text-muted-foreground truncate">
+                        {send.message_sent?.match(/PEDIDO:\s*([^\n]+)/)?.[1] || 'Pedido N/A'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          )}
         </Card>
       )}
 
