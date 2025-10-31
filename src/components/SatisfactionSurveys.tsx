@@ -4,7 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Star, TrendingUp, TrendingDown, Minus, Loader2, BarChart3, Send, ChevronDown, ChevronUp } from "lucide-react";
+import { Star, TrendingUp, TrendingDown, Minus, Loader2, BarChart3, Send, ChevronDown, ChevronUp, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
@@ -59,6 +64,13 @@ export function SatisfactionSurveys() {
   const [sendingSurveys, setSendingSurveys] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
+  
+  // Estados para filtro de data
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(
+    new Date(new Date().setDate(new Date().getDate() - 30))
+  );
+  const [dateTo, setDateTo] = useState<Date | undefined>(new Date());
+  
   const { toast } = useToast();
 
   useEffect(() => {
@@ -272,8 +284,25 @@ export function SatisfactionSurveys() {
   const responsesCount = surveys.filter(s => s.rating !== null).length;
   const responseRate = surveys.length > 0 ? (responsesCount / surveys.length) * 100 : 0;
 
-  // Calcular indicadores por motorista
-  const driverStats = surveys.reduce((acc, survey) => {
+  // Filtrar surveys por data
+  const filteredSurveysByDate = surveys.filter(survey => {
+    if (!dateFrom && !dateTo) return true;
+    const surveyDate = new Date(survey.sent_at);
+    
+    if (dateFrom && dateTo) {
+      return surveyDate >= dateFrom && surveyDate <= new Date(dateTo.setHours(23, 59, 59, 999));
+    }
+    if (dateFrom) {
+      return surveyDate >= dateFrom;
+    }
+    if (dateTo) {
+      return surveyDate <= new Date(dateTo.setHours(23, 59, 59, 999));
+    }
+    return true;
+  });
+
+  // Calcular indicadores por motorista com base nas surveys filtradas por data
+  const driverStats = filteredSurveysByDate.reduce((acc, survey) => {
     const sendDetails = campaignSends[survey.campaign_send_id];
     const driverName = sendDetails?.driver_name;
     
@@ -571,10 +600,50 @@ export function SatisfactionSurveys() {
         <TabsContent value="drivers" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Desempenho dos Motoristas</CardTitle>
-              <CardDescription>
-                Avaliações e indicadores por motorista de entrega
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Desempenho dos Motoristas</CardTitle>
+                  <CardDescription>
+                    Avaliações e indicadores por motorista de entrega
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateFrom ? format(dateFrom, "dd/MM/yyyy", { locale: ptBR }) : "Data inicial"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateFrom}
+                        onSelect={setDateFrom}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateTo ? format(dateTo, "dd/MM/yyyy", { locale: ptBR }) : "Data final"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateTo}
+                        onSelect={setDateTo}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {driverMetrics.length === 0 ? (
