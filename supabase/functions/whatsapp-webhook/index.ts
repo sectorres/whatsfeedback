@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { normalizePhone, comparePhones } from "../_shared/phone-utils.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -62,7 +63,10 @@ serve(async (req) => {
 
         // Extrair telefone (suporta diferentes estruturas)
         const remoteJid = msg.key?.remoteJid || msg.remoteJid || msg.from || '';
-        const customerPhone = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '').replace(/\D/g, '');
+        const rawPhone = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+        const customerPhone = normalizePhone(rawPhone);
+        
+        console.log('Raw phone from webhook:', rawPhone, '-> Normalized:', customerPhone);
 
         // Extrair texto da mensagem
         const messageText =
@@ -96,12 +100,11 @@ serve(async (req) => {
 
           console.log(`Found ${surveys?.length || 0} pending surveys`);
 
-          // Encontrar a pesquisa que corresponde ao telefone (comparando apenas dígitos e ignorando DDI)
+          // Encontrar a pesquisa que corresponde ao telefone usando comparação normalizada
           const pendingSurvey = surveys?.find(s => {
-            const db = (s.customer_phone || '').replace(/\D/g, '');
-            const remote = customerPhone;
-            console.log(`Comparing DB phone: ${db} with remote: ${remote}`);
-            return remote.endsWith(db) || db.endsWith(remote) || remote === db;
+            const match = comparePhones(s.customer_phone || '', customerPhone);
+            console.log(`Comparing DB phone: ${s.customer_phone} with remote: ${customerPhone} -> ${match ? 'MATCH' : 'NO MATCH'}`);
+            return match;
           });
 
           console.log(`Pending survey found:`, pendingSurvey ? `ID ${pendingSurvey.id}` : 'None');

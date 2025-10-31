@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { formatPhoneForWhatsApp } from "../_shared/phone-utils.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,13 +23,9 @@ serve(async (req) => {
 
     console.log('Sending WhatsApp message:', { phone, messageLength: message.length });
 
-    // Format phone number (remove non-digits and add country code if missing)
-    let cleanPhone = phone.replace(/\D/g, '');
-    
-    // Add Brazil country code (55) if not present
-    if (!cleanPhone.startsWith('55') && cleanPhone.length >= 10) {
-      cleanPhone = '55' + cleanPhone;
-    }
+    // Normalizar e formatar número de telefone
+    const cleanPhone = formatPhoneForWhatsApp(phone);
+    console.log('Normalized phone:', cleanPhone);
     
     // Send message via Evolution API
     const response = await fetch(
