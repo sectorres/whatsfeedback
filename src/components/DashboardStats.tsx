@@ -13,6 +13,7 @@ import {
   AlertCircle,
   TrendingUp
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Stats {
   conversasAtivas: number;
@@ -46,66 +47,39 @@ export function DashboardStats() {
     setLoading(true);
     console.log('DashboardStats: Iniciando fetch de dados...');
     try {
-      // Buscar estatísticas de conversas
-      const { count: conversasAtivasCount, error: conversasAtivasError } = await supabase
-        .from('conversations')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'active');
+      // Buscar todas as estatísticas em paralelo
+      const [
+        conversasAtivasResult,
+        conversasTotalResult,
+        mensagensResult,
+        campanhasResult,
+        cargasResult
+      ] = await Promise.all([
+        supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('conversations').select('*', { count: 'exact', head: true }),
+        supabase.from('messages').select('*', { count: 'exact', head: true }).gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()),
+        supabase.from('campaigns').select('*', { count: 'exact', head: true }).in('status', ['draft', 'sending', 'scheduled']),
+        supabase.functions.invoke("fetch-cargas", {
+          body: {
+            dataInicial: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().slice(0, 10).replace(/-/g, ''),
+            dataFinal: new Date().toISOString().slice(0, 10).replace(/-/g, '')
+          }
+        })
+      ]);
 
-      if (conversasAtivasError) {
-        console.error('Erro ao buscar conversas ativas:', conversasAtivasError);
-      }
-      console.log('Conversas ativas:', conversasAtivasCount);
-
-      const { count: conversasTotalCount, error: conversasTotalError } = await supabase
-        .from('conversations')
-        .select('*', { count: 'exact', head: true });
-
-      if (conversasTotalError) {
-        console.error('Erro ao buscar total de conversas:', conversasTotalError);
-      }
-      console.log('Total de conversas:', conversasTotalCount);
-
-      // Buscar mensagens de hoje
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const { count: mensagensHojeCount, error: mensagensError } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', today.toISOString());
-
-      if (mensagensError) {
-        console.error('Erro ao buscar mensagens:', mensagensError);
-      }
-      console.log('Mensagens hoje:', mensagensHojeCount);
-
-      // Buscar campanhas ativas
-      const { count: campanhasAtivasCount, error: campanhasError } = await supabase
-        .from('campaigns')
-        .select('*', { count: 'exact', head: true })
-        .in('status', ['draft', 'sending', 'scheduled']);
-
-      if (campanhasError) {
-        console.error('Erro ao buscar campanhas:', campanhasError);
-      }
-      console.log('Campanhas ativas:', campanhasAtivasCount);
-
-      // Buscar estatísticas de cargas e pedidos
-      console.log('Buscando dados de cargas...');
-      const { data: cargasData, error: cargasError } = await supabase.functions.invoke("fetch-cargas");
-
-      if (cargasError) {
-        console.error('Erro ao buscar cargas:', cargasError);
-      }
-      console.log('Dados de cargas:', cargasData);
+      console.log('Conversas ativas:', conversasAtivasResult.count);
+      console.log('Total de conversas:', conversasTotalResult.count);
+      console.log('Mensagens hoje:', mensagensResult.count);
+      console.log('Campanhas ativas:', campanhasResult.count);
+      console.log('Dados de cargas:', cargasResult.data);
 
       let pedidosAbertos = 0;
       let pedidosFaturados = 0;
       let totalCargas = 0;
       let cargasPendentes = 0;
 
-      if (cargasData?.status === "SUCESSO" && cargasData.retorno?.cargas) {
-        const cargas = cargasData.retorno.cargas;
+      if (cargasResult.data?.status === "SUCESSO" && cargasResult.data.retorno?.cargas) {
+        const cargas = cargasResult.data.retorno.cargas;
         totalCargas = cargas.length;
         
         pedidosAbertos = cargas
@@ -120,10 +94,10 @@ export function DashboardStats() {
       }
 
       const newStats = {
-        conversasAtivas: conversasAtivasCount || 0,
-        conversasTotal: conversasTotalCount || 0,
-        mensagensHoje: mensagensHojeCount || 0,
-        campanhasAtivas: campanhasAtivasCount || 0,
+        conversasAtivas: conversasAtivasResult.count || 0,
+        conversasTotal: conversasTotalResult.count || 0,
+        mensagensHoje: mensagensResult.count || 0,
+        campanhasAtivas: campanhasResult.count || 0,
         pedidosAbertos,
         pedidosFaturados,
         totalCargas,
@@ -134,6 +108,7 @@ export function DashboardStats() {
       setStats(newStats);
     } catch (error) {
       console.error('Error fetching stats:', error);
+      toast.error('Erro ao carregar estatísticas');
     } finally {
       setLoading(false);
       console.log('DashboardStats: Fetch concluído');

@@ -36,7 +36,19 @@ export const OrderStatusTable = () => {
       setLoading(true);
       console.log('Fetching cargas from API...');
       
-      const { data, error } = await supabase.functions.invoke('fetch-cargas');
+      // Últimos 30 dias
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+      
+      const formatDate = (date: Date) => date.toISOString().slice(0, 10).replace(/-/g, '');
+      
+      const { data, error } = await supabase.functions.invoke('fetch-cargas', {
+        body: {
+          dataInicial: formatDate(startDate),
+          dataFinal: formatDate(endDate)
+        }
+      });
 
       if (error) {
         console.error('Error fetching cargas:', error);
@@ -47,7 +59,6 @@ export const OrderStatusTable = () => {
       if (data && data.status === 'SUCESSO' && data.retorno?.cargas) {
         console.log('Cargas loaded:', data.retorno.cargas.length);
         setCargas(data.retorno.cargas);
-        toast.success(`${data.retorno.cargas.length} cargas carregadas`);
       } else {
         console.error('Invalid response format:', data);
         toast.error('Formato de resposta inválido');
