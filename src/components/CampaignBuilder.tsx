@@ -233,7 +233,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       for (let i = 0; i < pedidosParaEnviar.length; i++) {
         const pedido = pedidosParaEnviar[i];
         const rawPhone = getPhone(pedido);
-        const phone = formatPhone(rawPhone);
+        const phone = formatPhone(rawPhone); // normalizado sem DDI e sem zeros à esquerda
 
         const formattedMessage = messageTemplate
           .replace(/{cliente}/g, pedido.cliente?.nome || "Cliente")
