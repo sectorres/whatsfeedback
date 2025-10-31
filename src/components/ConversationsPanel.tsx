@@ -361,7 +361,7 @@ export function ConversationsPanel() {
             <Separator className="mb-4" />
             
             <ScrollArea className="flex-1 min-h-0 pr-4">
-              <div className="space-y-4">
+              <div className="space-y-4 pb-4">
                 {messages.map((msg) => (
                   <div
                     key={msg.id}
@@ -370,13 +370,13 @@ export function ConversationsPanel() {
                     }`}
                   >
                     <div
-                      className={`inline-block p-3 rounded-lg max-w-[70%] ${
+                      className={`inline-block p-3 rounded-lg max-w-[70%] break-words ${
                         msg.sender_type === 'operator'
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted'
                       }`}
                     >
-                      <p className="text-sm">{msg.message_text}</p>
+                      <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>
                       <p className="text-xs opacity-70 mt-1">
                         {new Date(msg.created_at).toLocaleTimeString('pt-BR', {
                           hour: '2-digit',
