@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { normalizePhone } from "@/lib/phone-utils";
 
 interface Campaign {
   id: string;
@@ -148,9 +149,12 @@ export function SavedCampaigns() {
     }
 
     try {
+      // Normalizar telefone ao salvar
+      const normalizedPhone = normalizePhone(editedPhone);
+      
       const { error } = await supabase
         .from('campaign_sends')
-        .update({ customer_phone: editedPhone.replace(/\D/g, "") })
+        .update({ customer_phone: normalizedPhone })
         .eq('id', sendId);
 
       if (error) throw error;

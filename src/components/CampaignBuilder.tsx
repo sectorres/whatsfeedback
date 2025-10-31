@@ -16,6 +16,7 @@ import { Loader2 } from "lucide-react";
 import { Calendar } from "./ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
+import { normalizePhone } from "@/lib/phone-utils";
 
 interface Carga {
   id: number;
@@ -162,7 +163,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   };
 
   const formatPhone = (phone: string) => {
-    return phone.replace(/\D/g, "");
+    // Usar normalização consistente em toda a aplicação
+    return normalizePhone(phone);
   };
 
   const updatePhone = (pedidoId: number, phone: string) => {
