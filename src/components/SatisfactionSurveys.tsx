@@ -372,10 +372,27 @@ export function SatisfactionSurveys() {
         return acc;
       }, {} as Record<string, any>);
 
+      // Buscar as campanhas correspondentes
+      const campaignIds = [...new Set((sendsData || []).map(s => s.campaign_id))];
+      const { data: campaignsData, error: campaignsError } = await supabase
+        .from('campaigns')
+        .select('id, name')
+        .in('id', campaignIds);
+
+      if (campaignsError) throw campaignsError;
+
+      // Criar mapa de campanhas
+      const campaignsMap = (campaignsData || []).reduce((acc, campaign) => {
+        acc[campaign.id] = campaign;
+        return acc;
+      }, {} as Record<string, any>);
+
       // Preparar dados para exportação
       const exportData = surveysData.map(survey => {
         const send = sendsMap[survey.campaign_send_id];
+        const campaign = send ? campaignsMap[send.campaign_id] : null;
         return {
+          'Pedido': campaign?.name || 'N/A',
           'Data da Avaliação': survey.responded_at 
             ? format(new Date(survey.responded_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
             : 'N/A',
@@ -394,6 +411,7 @@ export function SatisfactionSurveys() {
 
       // Ajustar largura das colunas
       const colWidths = [
+        { wch: 25 }, // Pedido
         { wch: 20 }, // Data
         { wch: 25 }, // Cliente
         { wch: 20 }, // Motorista
