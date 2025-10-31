@@ -57,9 +57,12 @@ export function SatisfactionSurveys() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [allSurveys, setAllSurveys] = useState<Survey[]>([]); // Todas as surveys para indicadores
   const [campaignSends, setCampaignSends] = useState<Record<string, CampaignSend>>({});
+  const [allCampaignSends, setAllCampaignSends] = useState<Record<string, CampaignSend>>({}); // Todos os envios
   const [insights, setInsights] = useState<Insight | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingDriverData, setLoadingDriverData] = useState(false);
   const [generatingInsights, setGeneratingInsights] = useState(false);
   const [sendingSurveys, setSendingSurveys] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -75,6 +78,7 @@ export function SatisfactionSurveys() {
 
   useEffect(() => {
     loadCampaigns();
+    loadAllDriverData(); // Carregar dados de motoristas independente de campanha
   }, []);
 
   useEffect(() => {
@@ -174,6 +178,42 @@ export function SatisfactionSurveys() {
       console.error('Erro ao carregar pesquisas:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAllDriverData = async () => {
+    setLoadingDriverData(true);
+    try {
+      // Buscar todos os envios de campanha
+      const { data: sends, error: sendsError } = await supabase
+        .from('campaign_sends')
+        .select('*');
+
+      if (sendsError) throw sendsError;
+
+      const sendIds = sends?.map(s => s.id) || [];
+      
+      // Criar mapa de todos os envios
+      const sendsMap: Record<string, CampaignSend> = {};
+      sends?.forEach(send => {
+        sendsMap[send.id] = send;
+      });
+      setAllCampaignSends(sendsMap);
+
+      // Buscar todas as pesquisas
+      const { data: allSurveysData, error: surveysError } = await supabase
+        .from('satisfaction_surveys')
+        .select('*')
+        .in('campaign_send_id', sendIds)
+        .order('sent_at', { ascending: false });
+
+      if (!surveysError && allSurveysData) {
+        setAllSurveys(allSurveysData);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados de motoristas:', error);
+    } finally {
+      setLoadingDriverData(false);
     }
   };
 
@@ -284,26 +324,30 @@ export function SatisfactionSurveys() {
   const responsesCount = surveys.filter(s => s.rating !== null).length;
   const responseRate = surveys.length > 0 ? (responsesCount / surveys.length) * 100 : 0;
 
-  // Filtrar surveys por data
-  const filteredSurveysByDate = surveys.filter(survey => {
+  // Filtrar TODAS as surveys por data para indicadores de motorista
+  const filteredSurveysByDate = allSurveys.filter(survey => {
     if (!dateFrom && !dateTo) return true;
     const surveyDate = new Date(survey.sent_at);
     
     if (dateFrom && dateTo) {
-      return surveyDate >= dateFrom && surveyDate <= new Date(dateTo.setHours(23, 59, 59, 999));
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      return surveyDate >= dateFrom && surveyDate <= endDate;
     }
     if (dateFrom) {
       return surveyDate >= dateFrom;
     }
     if (dateTo) {
-      return surveyDate <= new Date(dateTo.setHours(23, 59, 59, 999));
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      return surveyDate <= endDate;
     }
     return true;
   });
 
-  // Calcular indicadores por motorista com base nas surveys filtradas por data
+  // Calcular indicadores por motorista usando TODAS as surveys (filtradas por data)
   const driverStats = filteredSurveysByDate.reduce((acc, survey) => {
-    const sendDetails = campaignSends[survey.campaign_send_id];
+    const sendDetails = allCampaignSends[survey.campaign_send_id];
     const driverName = sendDetails?.driver_name;
     
     if (driverName && survey.rating !== null) {
@@ -604,7 +648,7 @@ export function SatisfactionSurveys() {
                 <div>
                   <CardTitle>Desempenho dos Motoristas</CardTitle>
                   <CardDescription>
-                    Avaliações e indicadores por motorista de entrega
+                    Avaliações de todas as campanhas filtradas por período
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -646,9 +690,13 @@ export function SatisfactionSurveys() {
               </div>
             </CardHeader>
             <CardContent>
-              {driverMetrics.length === 0 ? (
+              {loadingDriverData ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : driverMetrics.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
-                  Nenhuma avaliação de motorista ainda
+                  Nenhuma avaliação de motorista no período selecionado
                 </p>
               ) : (
                 <div className="space-y-4">
