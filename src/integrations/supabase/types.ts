@@ -204,7 +204,7 @@ export type Database = {
       satisfaction_insights: {
         Row: {
           average_rating: number | null
-          campaign_id: string
+          campaign_id: string | null
           created_at: string
           generated_at: string
           id: string
@@ -215,7 +215,7 @@ export type Database = {
         }
         Insert: {
           average_rating?: number | null
-          campaign_id: string
+          campaign_id?: string | null
           created_at?: string
           generated_at?: string
           id?: string
@@ -226,7 +226,7 @@ export type Database = {
         }
         Update: {
           average_rating?: number | null
-          campaign_id?: string
+          campaign_id?: string | null
           created_at?: string
           generated_at?: string
           id?: string
