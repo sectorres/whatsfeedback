@@ -68,34 +68,58 @@ export function SatisfactionSurveys() {
   }, [selectedCampaignId]);
 
   const loadCampaigns = async () => {
-    // Buscar todas as campanhas que têm envios
-    const { data: sendsData, error: sendsError } = await supabase
-      .from('campaign_sends')
-      .select('campaign_id');
+    try {
+      // Buscar todas as campanhas que têm envios
+      const { data: sendsData, error: sendsError } = await supabase
+        .from('campaign_sends')
+        .select('campaign_id');
 
-    if (sendsError) {
-      console.error('Erro ao buscar envios:', sendsError);
-      return;
-    }
+      if (sendsError) {
+        console.error('Erro ao buscar envios:', sendsError);
+        toast({
+          title: "Erro ao carregar campanhas",
+          description: sendsError.message,
+          variant: "destructive",
+        });
+        return;
+      }
 
-    const campaignIds = [...new Set(sendsData?.map(s => s.campaign_id) || [])];
+      const campaignIds = [...new Set(sendsData?.map(s => s.campaign_id) || [])];
 
-    if (campaignIds.length === 0) {
-      setCampaigns([]);
-      return;
-    }
+      if (campaignIds.length === 0) {
+        console.log('Nenhuma campanha com envios encontrada');
+        setCampaigns([]);
+        return;
+      }
 
-    const { data, error } = await supabase
-      .from('campaigns')
-      .select('*')
-      .in('id', campaignIds)
-      .order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .in('id', campaignIds)
+        .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      setCampaigns(data);
-      if (data.length > 0 && !selectedCampaignId) {
+      if (error) {
+        console.error('Erro ao buscar campanhas:', error);
+        toast({
+          title: "Erro ao carregar campanhas",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Campanhas carregadas:', data?.length || 0);
+      setCampaigns(data || []);
+      if (data && data.length > 0 && !selectedCampaignId) {
         setSelectedCampaignId(data[0].id);
       }
+    } catch (error) {
+      console.error('Erro ao carregar campanhas:', error);
+      toast({
+        title: "Erro ao carregar campanhas",
+        description: "Ocorreu um erro inesperado",
+        variant: "destructive",
+      });
     }
   };
 
@@ -263,6 +287,37 @@ export function SatisfactionSurveys() {
           </SelectContent>
         </Select>
       </div>
+
+      {selectedCampaignId && campaignSends && Object.keys(campaignSends).length > 0 && (
+        <Card className="bg-muted/50">
+          <CardHeader>
+            <CardTitle className="text-lg">Prévia dos Envios desta Campanha</CardTitle>
+            <CardDescription>
+              Clientes que receberão ou receberam a pesquisa
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {Object.values(campaignSends).slice(0, 5).map((send) => (
+                <div key={send.id} className="flex items-center justify-between p-2 bg-background rounded-md text-sm">
+                  <div className="flex-1">
+                    <p className="font-medium">{send.customer_name}</p>
+                    <p className="text-xs text-muted-foreground">{send.customer_phone}</p>
+                  </div>
+                  <div className="text-right text-xs text-muted-foreground">
+                    {send.message_sent?.match(/PEDIDO:\s*([^\n]+)/)?.[1] || 'N/A'}
+                  </div>
+                </div>
+              ))}
+              {Object.keys(campaignSends).length > 5 && (
+                <p className="text-xs text-muted-foreground text-center pt-2">
+                  + {Object.keys(campaignSends).length - 5} clientes
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
