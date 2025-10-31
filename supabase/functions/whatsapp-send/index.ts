@@ -40,7 +40,7 @@ serve(async (req) => {
           'apikey': EVOLUTION_API_KEY,
         },
         body: JSON.stringify({
-          number: `${cleanPhone}@s.whatsapp.net`,
+          number: cleanPhone,
           text: message,
         })
       }
