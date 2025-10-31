@@ -17,6 +17,16 @@ import { Calendar } from "./ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
 import { normalizePhone } from "@/lib/phone-utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 
 interface Carga {
   id: number;
@@ -70,6 +80,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editedPhones, setEditedPhones] = useState<Record<number, string>>({});
   const [sending, setSending] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   
   // Datas padrão: hoje até hoje + 30 dias
   const [startDate, setStartDate] = useState<Date>(() => new Date());
@@ -713,7 +724,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           {/* Botões de Ação */}
           <div className="flex gap-2">
             <Button
-              onClick={handleSendCampaign}
+              onClick={() => setShowConfirmDialog(true)}
               className="flex-1"
               disabled={!whatsappConnected || selectedPedidos.size === 0 || sending}
             >
@@ -730,6 +741,25 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               )}
             </Button>
           </div>
+
+          {/* Diálogo de Confirmação */}
+          <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirma o envio da campanha?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Serão enviadas {selectedPedidos.size} mensagens para os clientes selecionados.
+                  Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleSendCampaign}>
+                  Confirmar Envio
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {!whatsappConnected && (
             <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
