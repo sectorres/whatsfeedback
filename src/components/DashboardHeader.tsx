@@ -14,14 +14,14 @@ export const DashboardHeader = () => {
 
   return (
     <header className="border-b bg-card">
-      <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <User className="h-5 w-5 text-primary" />
+      <div className="container mx-auto px-6 py-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+            <User className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">WhatsFeedback</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-lg font-bold">WhatsFeedback</h1>
+            <p className="text-xs text-muted-foreground">
               Gerenciamento de WhatsApp e Pedidos
             </p>
           </div>
