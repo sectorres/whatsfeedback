@@ -27,7 +27,7 @@ const Index = () => {
       <DashboardHeader />
       
       <main className="container mx-auto px-6 py-4">
-        <Tabs defaultValue="dashboard" className="space-y-6">
+        <Tabs defaultValue="dashboard" className="space-y-3">
           <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
             <TabsTrigger value="dashboard" className="flex items-center gap-1.5 text-xs sm:text-sm">
               <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
@@ -64,10 +64,10 @@ const Index = () => {
             <DashboardStats />
           </TabsContent>
 
-          <TabsContent value="atendimento" className="space-y-6">
+          <TabsContent value="atendimento" className="space-y-2">
             <div>
-              <h2 className="text-2xl font-bold mb-4">Atendimento ao Cliente</h2>
-              <p className="text-muted-foreground mb-6">
+              <h2 className="text-xl font-bold mb-2">Atendimento ao Cliente</h2>
+              <p className="text-muted-foreground mb-3 text-sm">
                 Gerencie conversas e responda mensagens dos clientes em tempo real
               </p>
               <ConversationsPanel />
