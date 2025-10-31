@@ -112,12 +112,12 @@ serve(async (req) => {
           if (pendingSurvey) {
             console.log(`Updating survey ${pendingSurvey.id} with rating ${rating}`);
             
-            // Atualizar a pesquisa com a nota
+            // Atualizar a pesquisa com a nota e marcar como aguardando feedback
             const { error: updateError } = await supabase
               .from('satisfaction_surveys')
               .update({
                 rating: rating,
-                status: 'responded',
+                status: 'awaiting_feedback',
                 responded_at: new Date().toISOString()
               })
               .eq('id', pendingSurvey.id);
@@ -125,22 +125,63 @@ serve(async (req) => {
             if (updateError) {
               console.error('Error updating survey:', updateError);
             } else {
-              console.log(`Survey response recorded: ${customerPhone} rated ${rating}`);
+              console.log(`Survey rating recorded: ${customerPhone} rated ${rating}`);
               
-              // Enviar mensagem de agradecimento
+              // Pedir feedback opcional
               try {
                 await supabase.functions.invoke('whatsapp-send', {
                   body: {
                     phone: customerPhone,
-                    message: `Obrigado pela sua avaliação! Sua opinião é muito importante para nós. 🙏`
+                    message: `Obrigado pela sua nota! 🙏\n\nGostaria de deixar uma avaliação ou comentário adicional? Se sim, por favor escreva abaixo. Caso contrário, pode ignorar esta mensagem.`
                   }
                 });
-              } catch (thankError) {
-                console.error('Error sending thank you message:', thankError);
+              } catch (feedbackError) {
+                console.error('Error sending feedback request:', feedbackError);
               }
             }
           } else {
             console.log(`No pending survey found for ${customerPhone}`);
+          }
+        }
+
+        // Verificar se é um feedback para pesquisa que já tem nota
+        const { data: surveyAwaitingFeedback } = await supabase
+          .from('satisfaction_surveys')
+          .select('*')
+          .eq('status', 'awaiting_feedback')
+          .order('responded_at', { ascending: false })
+          .limit(100);
+
+        const feedbackSurvey = surveyAwaitingFeedback?.find(s => 
+          comparePhones(s.customer_phone || '', customerPhone)
+        );
+
+        if (feedbackSurvey && !ratingMatch) {
+          console.log(`Processing feedback for survey ${feedbackSurvey.id}`);
+          
+          // Atualizar com o feedback
+          const { error: feedbackError } = await supabase
+            .from('satisfaction_surveys')
+            .update({
+              feedback: messageText,
+              status: 'responded'
+            })
+            .eq('id', feedbackSurvey.id);
+
+          if (!feedbackError) {
+            console.log(`Feedback recorded for survey ${feedbackSurvey.id}`);
+            
+            // Agradecer pelo feedback
+            try {
+              await supabase.functions.invoke('whatsapp-send', {
+                body: {
+                  phone: customerPhone,
+                  message: `Muito obrigado pela sua avaliação! Sua opinião é muito importante para nós. 🙏✨`
+                }
+              });
+            } catch (thankError) {
+              console.error('Error sending thank you message:', thankError);
+            }
           }
         }
 
