@@ -11,7 +11,9 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  TrendingUp
+  TrendingUp,
+  Star,
+  BarChart3
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,6 +26,9 @@ interface Stats {
   pedidosFaturados: number;
   totalCargas: number;
   cargasPendentes: number;
+  totalRespostas: number;
+  taxaResposta: number;
+  mediaAvaliacao: number;
 }
 
 export function DashboardStats() {
@@ -35,7 +40,10 @@ export function DashboardStats() {
     pedidosAbertos: 0,
     pedidosFaturados: 0,
     totalCargas: 0,
-    cargasPendentes: 0
+    cargasPendentes: 0,
+    totalRespostas: 0,
+    taxaResposta: 0,
+    mediaAvaliacao: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -53,7 +61,8 @@ export function DashboardStats() {
         conversasTotalResult,
         mensagensResult,
         campanhasResult,
-        cargasResult
+        cargasResult,
+        surveysResult
       ] = await Promise.all([
         supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('conversations').select('*', { count: 'exact', head: true }),
@@ -64,7 +73,8 @@ export function DashboardStats() {
             dataInicial: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().slice(0, 10).replace(/-/g, ''),
             dataFinal: new Date().toISOString().slice(0, 10).replace(/-/g, '')
           }
-        })
+        }),
+        supabase.from('satisfaction_surveys').select('rating, status')
       ]);
 
       console.log('Conversas ativas:', conversasAtivasResult.count);
@@ -93,6 +103,15 @@ export function DashboardStats() {
         cargasPendentes = cargas.filter((c: any) => c.status !== "FATU").length;
       }
 
+      // Processar dados de pesquisas de satisfação
+      const surveys = surveysResult.data || [];
+      const totalSurveys = surveys.length;
+      const responsesWithRating = surveys.filter((s: any) => s.rating !== null);
+      const totalRespostas = responsesWithRating.length;
+      const taxaResposta = totalSurveys > 0 ? (totalRespostas / totalSurveys) * 100 : 0;
+      const sumRatings = responsesWithRating.reduce((sum: number, s: any) => sum + (s.rating || 0), 0);
+      const mediaAvaliacao = totalRespostas > 0 ? sumRatings / totalRespostas : 0;
+
       const newStats = {
         conversasAtivas: conversasAtivasResult.count || 0,
         conversasTotal: conversasTotalResult.count || 0,
@@ -101,7 +120,10 @@ export function DashboardStats() {
         pedidosAbertos,
         pedidosFaturados,
         totalCargas,
-        cargasPendentes
+        cargasPendentes,
+        totalRespostas,
+        taxaResposta,
+        mediaAvaliacao
       };
 
       console.log('Stats atualizadas:', newStats);
@@ -127,18 +149,27 @@ export function DashboardStats() {
     icon: any; 
     color?: string;
     subtitle?: string;
-  }) => (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className={`h-4 w-4 ${color}`} />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{loading ? "..." : value}</div>
-        {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
-      </CardContent>
-    </Card>
-  );
+  }) => {
+    const displayValue = loading ? "..." : 
+      (title === "Taxa de Resposta" ? subtitle || value : 
+       title === "Média de Avaliação" ? subtitle || value : 
+       value);
+    
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">{title}</CardTitle>
+          <Icon className={`h-4 w-4 ${color}`} />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{displayValue}</div>
+          {subtitle && title !== "Taxa de Resposta" && title !== "Média de Avaliação" && (
+            <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -175,6 +206,30 @@ export function DashboardStats() {
           icon={Truck}
           color="text-orange-600"
           subtitle={`${stats.cargasPendentes} pendentes`}
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <StatCard
+          title="Total de Respostas"
+          value={stats.totalRespostas}
+          icon={Star}
+          color="text-yellow-600"
+          subtitle="pesquisas respondidas"
+        />
+        <StatCard
+          title="Taxa de Resposta"
+          value={stats.taxaResposta}
+          icon={TrendingUp}
+          color="text-blue-600"
+          subtitle={loading ? "" : `${stats.taxaResposta.toFixed(1)}%`}
+        />
+        <StatCard
+          title="Média de Avaliação"
+          value={stats.mediaAvaliacao}
+          icon={BarChart3}
+          color="text-green-600"
+          subtitle={loading ? "" : stats.mediaAvaliacao > 0 ? `${stats.mediaAvaliacao.toFixed(1)}/5` : "-"}
         />
       </div>
 
