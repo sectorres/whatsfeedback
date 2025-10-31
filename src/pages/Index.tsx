@@ -28,35 +28,35 @@ const Index = () => {
       
       <main className="container mx-auto px-6 py-8">
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:w-[900px]">
-            <TabsTrigger value="dashboard" className="flex items-center gap-2">
-              <LayoutDashboard className="h-4 w-4" />
-              Dashboard
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
+            <TabsTrigger value="dashboard" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Dashboard</span>
             </TabsTrigger>
-            <TabsTrigger value="atendimento" className="flex items-center gap-2">
-              <Headphones className="h-4 w-4" />
-              Atendimento
+            <TabsTrigger value="atendimento" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <Headphones className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Atendimento</span>
               {unreadCount > 0 && (
                 <Badge variant="destructive" className="ml-1 h-5 min-w-5 flex items-center justify-center px-1.5">
                   {unreadCount}
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="campaigns" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Notificação de entrega
+            <TabsTrigger value="campaigns" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <Calendar className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Notificações</span>
             </TabsTrigger>
-            <TabsTrigger value="satisfaction" className="flex items-center gap-2">
-              <Star className="h-4 w-4" />
-              Satisfação
+            <TabsTrigger value="satisfaction" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <Star className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Satisfação</span>
             </TabsTrigger>
-            <TabsTrigger value="orders" className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              Pedidos
+            <TabsTrigger value="orders" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <Package className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Pedidos</span>
             </TabsTrigger>
-            <TabsTrigger value="config" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Configurações
+            <TabsTrigger value="config" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <Settings className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Configurações</span>
             </TabsTrigger>
           </TabsList>
 
