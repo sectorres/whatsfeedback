@@ -34,6 +34,14 @@ const Index = () => {
               <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Dashboard</span>
             </TabsTrigger>
+            <TabsTrigger value="campaigns" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <Calendar className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Aviso de entregas</span>
+            </TabsTrigger>
+            <TabsTrigger value="satisfaction" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <Star className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Pesquisa de satisfação</span>
+            </TabsTrigger>
             <TabsTrigger value="atendimento" className="flex items-center gap-1.5 text-xs sm:text-sm">
               <Headphones className="h-4 w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Atendimento</span>
@@ -42,14 +50,6 @@ const Index = () => {
                   {unreadCount}
                 </Badge>
               )}
-            </TabsTrigger>
-            <TabsTrigger value="campaigns" className="flex items-center gap-1.5 text-xs sm:text-sm">
-              <Calendar className="h-4 w-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Notificações</span>
-            </TabsTrigger>
-            <TabsTrigger value="satisfaction" className="flex items-center gap-1.5 text-xs sm:text-sm">
-              <Star className="h-4 w-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Satisfação</span>
             </TabsTrigger>
             <TabsTrigger value="orders" className="flex items-center gap-1.5 text-xs sm:text-sm">
               <Package className="h-4 w-4 flex-shrink-0" />
