@@ -21,23 +21,32 @@ serve(async (req) => {
 
     console.log('Buscando respostas de satisfação para período:', dateFrom, 'até', dateTo);
 
-    // Buscar respostas de satisfação do período
-    let query = supabaseClient
-      .from('satisfaction_surveys')
-      .select('*')
-      .not('rating', 'is', null);
+    // Buscar todos os campaign_sends do período
+    let sendsQuery = supabaseClient
+      .from('campaign_sends')
+      .select('*');
 
     if (dateFrom) {
-      query = query.gte('sent_at', dateFrom);
+      sendsQuery = sendsQuery.gte('sent_at', dateFrom);
     }
 
     if (dateTo) {
       const endDate = new Date(dateTo);
       endDate.setHours(23, 59, 59, 999);
-      query = query.lte('sent_at', endDate.toISOString());
+      sendsQuery = sendsQuery.lte('sent_at', endDate.toISOString());
     }
 
-    const { data: surveys, error: surveysError } = await query;
+    const { data: campaignSends, error: sendsError } = await sendsQuery;
+    if (sendsError) throw sendsError;
+
+    const sendIds = campaignSends?.map(s => s.id) || [];
+
+    // Buscar respostas de satisfação do período
+    const { data: surveys, error: surveysError } = await supabaseClient
+      .from('satisfaction_surveys')
+      .select('*')
+      .in('campaign_send_id', sendIds)
+      .not('rating', 'is', null);
 
     if (surveysError) throw surveysError;
 
@@ -64,34 +73,56 @@ serve(async (req) => {
       '5': ratings.filter(r => r === 5).length,
     };
 
-    // Preparar dados para IA
+    // Criar mapa de motoristas
+    const driverMap: Record<string, { ratings: number[], feedbacks: string[] }> = {};
+    
+    for (const survey of surveys) {
+      const send = campaignSends?.find(s => s.id === survey.campaign_send_id);
+      const driverName = send?.driver_name;
+      
+      if (driverName) {
+        if (!driverMap[driverName]) {
+          driverMap[driverName] = { ratings: [], feedbacks: [] };
+        }
+        driverMap[driverName].ratings.push(survey.rating);
+        if (survey.feedback) {
+          driverMap[driverName].feedbacks.push(survey.feedback);
+        }
+      }
+    }
+
+    // Preparar dados de motoristas para o prompt
+    const driverStats = Object.entries(driverMap).map(([name, data]) => {
+      const avg = data.ratings.reduce((a, b) => a + b, 0) / data.ratings.length;
+      return `${name}: ${data.ratings.length} avaliações, média ${avg.toFixed(1)}/5`;
+    }).join('\n');
+
+    // Preparar feedbacks gerais
     const feedbacks = surveys
       .filter(s => s.feedback)
       .map(s => `Avaliação ${s.rating}/5: ${s.feedback}`)
+      .slice(0, 10) // Limitar a 10 feedbacks
       .join('\n');
 
-    const prompt = `Você é um analista de satisfação do cliente. Analise os seguintes dados de uma pesquisa de satisfação:
+    const prompt = `Analise os dados de satisfação do cliente e forneça insights RESUMIDOS:
 
-Total de Respostas: ${totalResponses}
-Média de Avaliação: ${averageRating.toFixed(2)}/5
+DADOS GERAIS:
+- Total de Respostas: ${totalResponses}
+- Média Geral: ${averageRating.toFixed(2)}/5
+- Distribuição: 5★(${ratingDistribution['5']}) 4★(${ratingDistribution['4']}) 3★(${ratingDistribution['3']}) 2★(${ratingDistribution['2']}) 1★(${ratingDistribution['1']})
 
-Distribuição de Notas:
-- 1 estrela (Muito insatisfeito): ${ratingDistribution['1']} respostas
-- 2 estrelas (Insatisfeito): ${ratingDistribution['2']} respostas
-- 3 estrelas (Neutro): ${ratingDistribution['3']} respostas
-- 4 estrelas (Satisfeito): ${ratingDistribution['4']} respostas
-- 5 estrelas (Muito satisfeito): ${ratingDistribution['5']} respostas
+MOTORISTAS:
+${driverStats}
 
-${feedbacks ? `Feedbacks dos clientes:\n${feedbacks}` : ''}
+${feedbacks ? `FEEDBACKS RECENTES:\n${feedbacks}` : ''}
 
-Por favor, forneça:
-1. Uma análise detalhada do sentimento geral dos clientes
-2. Pontos fortes identificados
-3. Áreas que precisam de melhoria
-4. Recomendações específicas e acionáveis
-5. Tendências ou padrões observados
+Forneça uma análise CONCISA (máximo 300 palavras) com:
+1. Resumo do sentimento geral (2-3 linhas)
+2. Avaliação de cada motorista (1 linha por motorista com pontos fortes/fracos)
+3. Principais oportunidades de melhoria (3-4 bullet points)
+4. Recomendações específicas (2-3 ações prioritárias)
 
-Seja específico, objetivo e forneça insights práticos.`;
+Seja direto, objetivo e acionável.`;
 
     console.log('Gerando insights com IA...');
 
@@ -109,10 +140,11 @@ Seja específico, objetivo e forneça insights práticos.`;
         messages: [
           { 
             role: 'system', 
-            content: 'Você é um especialista em análise de satisfação do cliente. Forneça insights profundos, acionáveis e bem estruturados.' 
+            content: 'Você é um analista de satisfação do cliente. Forneça insights resumidos, diretos e acionáveis.' 
           },
           { role: 'user', content: prompt }
         ],
+        max_tokens: 500, // Limitar tokens para resposta mais concisa
       }),
     });
 
