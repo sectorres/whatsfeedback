@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      blacklist: {
+        Row: {
+          added_at: string
+          created_at: string
+          id: string
+          phone: string
+          reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          added_at?: string
+          created_at?: string
+          id?: string
+          phone: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          added_at?: string
+          created_at?: string
+          id?: string
+          phone?: string
+          reason?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       campaign_sends: {
         Row: {
           campaign_id: string
