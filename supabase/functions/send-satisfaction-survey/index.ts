@@ -21,10 +21,11 @@ serve(async (req) => {
 
     // Removido o limite de 1 dia — enviar imediatamente após o envio da campanha
 
-    // Primeiro, buscar IDs que já têm pesquisa
+    // Primeiro, buscar IDs que já têm pesquisa (somente enviadas ou respondidas)
     const { data: existingSurveys, error: existingSurveysError } = await supabaseClient
       .from('satisfaction_surveys')
-      .select('campaign_send_id');
+      .select('campaign_send_id, status')
+      .in('status', ['sent', 'responded']);
 
     if (existingSurveysError) {
       console.error('Erro ao buscar pesquisas existentes:', existingSurveysError);
