@@ -84,18 +84,26 @@ serve(async (req) => {
         if (ratingMatch) {
           const rating = parseInt(ratingMatch[0]);
           
+          console.log(`Detected rating ${rating} from ${customerPhone}`);
+          
           // Buscar pesquisa pendente para este telefone
-          const { data: pendingSurvey, error: surveyError } = await supabase
+          const { data: surveys, error: surveyError } = await supabase
             .from('satisfaction_surveys')
             .select('*')
-            .eq('customer_phone', customerPhone)
             .eq('status', 'sent')
             .is('rating', null)
-            .order('sent_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .order('sent_at', { ascending: false });
 
-          if (pendingSurvey && !surveyError) {
+          console.log(`Found ${surveys?.length || 0} pending surveys`);
+
+          // Encontrar a pesquisa que corresponde ao telefone (comparando apenas dígitos)
+          const pendingSurvey = surveys?.find(s => 
+            s.customer_phone.replace(/\D/g, '') === customerPhone
+          );
+
+          if (pendingSurvey) {
+            console.log(`Updating survey ${pendingSurvey.id} with rating ${rating}`);
+            
             // Atualizar a pesquisa com a nota
             const { error: updateError } = await supabase
               .from('satisfaction_surveys')
@@ -115,7 +123,7 @@ serve(async (req) => {
               try {
                 await supabase.functions.invoke('whatsapp-send', {
                   body: {
-                    number: customerPhone,
+                    phone: customerPhone,
                     message: `Obrigado pela sua avaliação! Sua opinião é muito importante para nós. 🙏`
                   }
                 });
@@ -123,6 +131,8 @@ serve(async (req) => {
                 console.error('Error sending thank you message:', thankError);
               }
             }
+          } else {
+            console.log(`No pending survey found for ${customerPhone}`);
           }
         }
 
