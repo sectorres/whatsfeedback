@@ -127,9 +127,6 @@ export default function Login() {
                 "Entrar"
               )}
             </Button>
-            <p className="text-xs text-center text-muted-foreground mt-4">
-              Credenciais padrão: admin@admin.com / 31218112
-            </p>
           </form>
         </CardContent>
       </Card>

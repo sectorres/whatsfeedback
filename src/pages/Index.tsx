@@ -10,6 +10,7 @@ import { ConversationsPanel } from "@/components/ConversationsPanel";
 import { ChangePassword } from "@/components/ChangePassword";
 import { WebhookConfiguration } from "@/components/WebhookConfiguration";
 import { BlacklistManager } from "@/components/BlacklistManager";
+import { SendDelayConfig } from "@/components/SendDelayConfig";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Package, Settings, Headphones, LayoutDashboard, Star } from "lucide-react";
@@ -90,6 +91,7 @@ const Index = () => {
 
           <TabsContent value="config" className="space-y-6">
             <WhatsAppConnection onConnectionChange={setWhatsappConnected} />
+            <SendDelayConfig />
             <ApiConfiguration />
             <WebhookConfiguration />
             <ChangePassword />
