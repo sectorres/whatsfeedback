@@ -159,6 +159,10 @@ Responda apenas com o número da sua avaliação.`;
           .update({ status: 'failed' })
           .eq('id', survey.id);
       }
+
+      // Delay aleatório entre 5 e 60 segundos entre envios
+      const delay = Math.floor(Math.random() * (60000 - 5000 + 1)) + 5000;
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
 
     const totalSent = surveysSent.length;

@@ -27,6 +27,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import { Progress } from "./ui/progress";
 
 interface Carga {
   id: number;
@@ -81,6 +89,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   const [editedPhones, setEditedPhones] = useState<Record<number, string>>({});
   const [sending, setSending] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
+  const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, success: 0, failed: 0, blocked: 0 });
   
   // Datas padrão: hoje até hoje + 30 dias
   const [startDate, setStartDate] = useState<Date>(() => new Date());
@@ -210,11 +220,15 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       return;
     }
 
+    setShowConfirmDialog(false);
     setSending(true);
+    setShowProgressDialog(true);
     
     const pedidosParaEnviar = selectedCarga?.pedidos.filter(p => 
       selectedPedidos.has(p.id)
     ) || [];
+
+    setSendProgress({ current: 0, total: pedidosParaEnviar.length, success: 0, failed: 0, blocked: 0 });
 
     // Gerar nome automático: Carga #numero - data hora
     const now = new Date();
@@ -240,6 +254,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       
       let successCount = 0;
       let errorCount = 0;
+      let blockedCount = 0;
 
       for (let i = 0; i < pedidosParaEnviar.length; i++) {
         const pedido = pedidosParaEnviar[i];
@@ -267,6 +282,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             error_message: 'Telefone inválido',
             driver_name: selectedCarga?.nomeMotorista || null
           });
+          
+          setSendProgress(prev => ({ ...prev, current: i + 1, failed: prev.failed + 1 }));
           continue;
         }
 
@@ -278,7 +295,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           .maybeSingle();
 
         if (blacklisted) {
-          errorCount++;
+          blockedCount++;
           console.log(`⊘ Bloqueado por blacklist: ${pedido.cliente?.nome}`);
           
           // Registrar como bloqueado pela blacklist
@@ -291,6 +308,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             error_message: 'Bloqueado pela blacklist',
             driver_name: selectedCarga?.nomeMotorista || null
           });
+          
+          setSendProgress(prev => ({ ...prev, current: i + 1, blocked: prev.blocked + 1 }));
           continue;
         }
 
@@ -315,6 +334,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           });
 
           successCount++;
+          setSendProgress(prev => ({ ...prev, current: i + 1, success: prev.success + 1 }));
           console.log(`✓ Enviado para ${pedido.cliente?.nome}`);
         } catch (error) {
           errorCount++;
@@ -334,10 +354,13 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           } catch (dbError) {
             console.error('Erro ao salvar registro de falha:', dbError);
           }
+          
+          setSendProgress(prev => ({ ...prev, current: i + 1, failed: prev.failed + 1 }));
         }
 
         if (i < pedidosParaEnviar.length - 1) {
-          const delay = Math.floor(Math.random() * (8000 - 3000 + 1)) + 3000;
+          // Delay aleatório entre 5 e 60 segundos
+          const delay = Math.floor(Math.random() * (60000 - 5000 + 1)) + 5000;
           await new Promise(resolve => setTimeout(resolve, delay));
         }
       }
@@ -352,11 +375,12 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         .eq('id', campaign.id);
 
       setSending(false);
+      setShowProgressDialog(false);
       
-      if (errorCount === 0) {
+      if (errorCount === 0 && blockedCount === 0) {
         toast.success(`Campanha enviada com sucesso! ${successCount} mensagens enviadas`);
       } else {
-        toast.error(`Campanha concluída com erros: ${successCount} enviadas, ${errorCount} falharam`);
+        toast.error(`Campanha concluída: ${successCount} enviadas, ${blockedCount} bloqueadas, ${errorCount} falharam`);
       }
       
       setSelectedPedidos(new Set());
@@ -365,6 +389,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       console.error('Error saving campaign:', error);
       toast.error('Erro ao salvar campanha');
       setSending(false);
+      setShowProgressDialog(false);
     }
   };
 
@@ -760,6 +785,47 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {/* Diálogo de Progresso */}
+          <Dialog open={showProgressDialog} onOpenChange={setShowProgressDialog}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Enviando Campanha</DialogTitle>
+                <DialogDescription>
+                  Acompanhe o progresso do envio em tempo real
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Progresso</span>
+                    <span className="font-medium">{sendProgress.current} / {sendProgress.total}</span>
+                  </div>
+                  <Progress value={(sendProgress.current / sendProgress.total) * 100} />
+                </div>
+                
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="space-y-1">
+                    <div className="text-2xl font-bold text-green-600">{sendProgress.success}</div>
+                    <div className="text-xs text-muted-foreground">Enviadas</div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-2xl font-bold text-orange-600">{sendProgress.blocked}</div>
+                    <div className="text-xs text-muted-foreground">Bloqueadas</div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-2xl font-bold text-red-600">{sendProgress.failed}</div>
+                    <div className="text-xs text-muted-foreground">Falharam</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Aguarde enquanto as mensagens são enviadas...</span>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {!whatsappConnected && (
             <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
