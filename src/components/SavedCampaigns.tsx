@@ -259,6 +259,12 @@ export function SavedCampaigns() {
     completed_with_errors: { label: "Concluída c/ Erros", variant: "destructive" }
   };
 
+  const sendStatusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+    success: { label: "✓ Enviado", variant: "default" },
+    failed: { label: "✗ Falhou", variant: "destructive" },
+    blocked: { label: "⊘ Bloqueado", variant: "secondary" }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -340,11 +346,13 @@ export function SavedCampaigns() {
                         ) : campaignSends[campaign.id]?.length > 0 ? (
                           <div className="space-y-2 max-h-60 overflow-y-auto">
                             {campaignSends[campaign.id].map((send) => (
-                              <div
+                                <div
                                 key={send.id}
                                 className={`p-2 rounded text-sm ${
                                   send.status === 'success'
                                     ? 'bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800'
+                                    : send.status === 'blocked'
+                                    ? 'bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800'
                                     : 'bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800'
                                 }`}
                               >
@@ -403,15 +411,15 @@ export function SavedCampaigns() {
                                     </p>
                                   </div>
                                   <Badge
-                                    variant={send.status === 'success' ? 'default' : 'destructive'}
+                                    variant={sendStatusMap[send.status]?.variant || 'secondary'}
                                     className="shrink-0"
                                   >
-                                    {send.status === 'success' ? '✓ Enviado' : '✗ Falhou'}
+                                    {sendStatusMap[send.status]?.label || send.status}
                                   </Badge>
                                 </div>
-                                {send.status === 'failed' && send.error_message && (
-                                  <p className="text-xs text-destructive mt-2">
-                                    Erro: {send.error_message}
+                                {(send.status === 'failed' || send.status === 'blocked') && send.error_message && (
+                                  <p className={`text-xs mt-2 ${send.status === 'blocked' ? 'text-yellow-700 dark:text-yellow-500' : 'text-destructive'}`}>
+                                    {send.status === 'blocked' ? '⊘ ' : 'Erro: '}{send.error_message}
                                   </p>
                                 )}
                               </div>

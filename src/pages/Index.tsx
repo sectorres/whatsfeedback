@@ -9,6 +9,7 @@ import { WhatsAppConnection } from "@/components/WhatsAppConnection";
 import { ConversationsPanel } from "@/components/ConversationsPanel";
 import { ChangePassword } from "@/components/ChangePassword";
 import { WebhookConfiguration } from "@/components/WebhookConfiguration";
+import { BlacklistManager } from "@/components/BlacklistManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Package, Settings, Headphones, LayoutDashboard, Star } from "lucide-react";
@@ -76,6 +77,7 @@ const Index = () => {
           <TabsContent value="campaigns" className="space-y-6">
             <CampaignBuilder whatsappConnected={isConnected} />
             <SavedCampaigns />
+            <BlacklistManager />
           </TabsContent>
 
           <TabsContent value="satisfaction">

@@ -259,6 +259,30 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           continue;
         }
 
+        // Verificar se o número está na blacklist
+        const { data: blacklisted } = await supabase
+          .from('blacklist')
+          .select('id')
+          .eq('phone', phone)
+          .maybeSingle();
+
+        if (blacklisted) {
+          errorCount++;
+          console.log(`⊘ Bloqueado por blacklist: ${pedido.cliente?.nome}`);
+          
+          // Registrar como bloqueado pela blacklist
+          await supabase.from('campaign_sends').insert({
+            campaign_id: campaign.id,
+            customer_name: pedido.cliente?.nome || "Cliente",
+            customer_phone: phone,
+            message_sent: formattedMessage,
+            status: 'blocked',
+            error_message: 'Bloqueado pela blacklist',
+            driver_name: selectedCarga?.nomeMotorista || null
+          });
+          continue;
+        }
+
         try {
           const { error } = await supabase.functions.invoke('whatsapp-send', {
             body: { 

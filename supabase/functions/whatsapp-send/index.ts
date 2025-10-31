@@ -16,9 +16,15 @@ serve(async (req) => {
     const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
     const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
     const EVOLUTION_INSTANCE_NAME = Deno.env.get('EVOLUTION_INSTANCE_NAME');
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY || !EVOLUTION_INSTANCE_NAME) {
       throw new Error('Evolution API credentials not configured');
+    }
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('Supabase credentials not configured');
     }
 
     console.log('Sending WhatsApp message:', { phone, messageLength: message.length });
@@ -26,6 +32,25 @@ serve(async (req) => {
     // Normalizar e formatar número de telefone
     const cleanPhone = formatPhoneForWhatsApp(phone);
     console.log('Normalized phone:', cleanPhone);
+
+    // Verificar blacklist antes de enviar
+    const blacklistResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/blacklist?phone=eq.${cleanPhone}`,
+      {
+        headers: {
+          'apikey': SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+        }
+      }
+    );
+
+    if (blacklistResponse.ok) {
+      const blacklistData = await blacklistResponse.json();
+      if (blacklistData && blacklistData.length > 0) {
+        console.log('Phone is blacklisted:', cleanPhone);
+        throw new Error('Número bloqueado pela blacklist');
+      }
+    }
     
     // Send message via Evolution API
     const response = await fetch(
