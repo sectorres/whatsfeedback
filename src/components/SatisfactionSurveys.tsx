@@ -391,8 +391,19 @@ export function SatisfactionSurveys() {
       const exportData = surveysData.map(survey => {
         const send = sendsMap[survey.campaign_send_id];
         const campaign = send ? campaignsMap[send.campaign_id] : null;
+        
+        // Extrair número do pedido da mensagem
+        let numeroPedido = 'N/A';
+        if (send?.message_sent) {
+          const pedidoMatch = send.message_sent.match(/PEDIDO:\s*([^\n]+)/i);
+          if (pedidoMatch) {
+            numeroPedido = pedidoMatch[1].trim();
+          }
+        }
+        
         return {
-          'Pedido': campaign?.name || 'N/A',
+          'Carga': campaign?.name || 'N/A',
+          'Pedido': numeroPedido,
           'Data da Avaliação': survey.responded_at 
             ? format(new Date(survey.responded_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
             : 'N/A',
@@ -411,7 +422,8 @@ export function SatisfactionSurveys() {
 
       // Ajustar largura das colunas
       const colWidths = [
-        { wch: 25 }, // Pedido
+        { wch: 25 }, // Carga
+        { wch: 20 }, // Pedido
         { wch: 20 }, // Data
         { wch: 25 }, // Cliente
         { wch: 20 }, // Motorista
