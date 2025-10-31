@@ -19,9 +19,7 @@ serve(async (req) => {
 
     console.log('Buscando envios de campanha elegíveis para pesquisa de satisfação...');
 
-    // Buscar envios de campanha que foram enviados há mais de 1 dia e ainda não têm pesquisa
-    const oneDayAgo = new Date();
-    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+    // Removido o limite de 1 dia — enviar imediatamente após o envio da campanha
 
     // Primeiro, buscar IDs que já têm pesquisa
     const { data: existingSurveys, error: existingSurveysError } = await supabaseClient
@@ -35,16 +33,11 @@ serve(async (req) => {
 
     const existingSurveyIds = existingSurveys?.map(s => s.campaign_send_id) || [];
 
-    // Buscar envios elegíveis
+    // Buscar envios elegíveis (status success ou sent)
     let query = supabaseClient
       .from('campaign_sends')
       .select('*')
       .in('status', ['success', 'sent']);
-
-    // Se houver pesquisas existentes, excluir esses IDs
-    if (existingSurveyIds.length > 0) {
-      query = query.not('id', 'in', `(${existingSurveyIds.join(',')})`);
-    }
 
     const { data: eligibleSends, error: sendsError } = await query;
 
@@ -53,11 +46,14 @@ serve(async (req) => {
       throw sendsError;
     }
 
-    console.log(`Encontrados ${eligibleSends?.length || 0} envios elegíveis`);
+    // Filtrar no código os que já possuem pesquisa para evitar erros de sintaxe em "not in"
+    const sendsToProcess = (eligibleSends || []).filter((s) => !existingSurveyIds.includes(s.id));
 
-    const surveysSent = [];
+    console.log(`Encontrados ${sendsToProcess.length || 0} envios elegíveis`);
 
-    for (const send of eligibleSends || []) {
+    const surveysSent: any[] = [];
+
+    for (const send of sendsToProcess) {
       // Criar registro de pesquisa
       const { data: survey, error: surveyError } = await supabaseClient
         .from('satisfaction_surveys')
@@ -76,23 +72,22 @@ serve(async (req) => {
       }
 
       // Enviar mensagem via WhatsApp
-      const surveyMessage = `Olá${send.customer_name ? ' ' + send.customer_name : ''}! 
+      const surveyMessage = `Olá${send.customer_name ? ' ' + send.customer_name : ''}!
 
-Gostaríamos de saber sua opinião sobre a entrega dos seus produtos.
+De uma nota de 1 a 5 para a entrega de seus produtos.
 
-Por favor, avalie de 1 a 5:
 1️⃣ - Muito insatisfeito
 2️⃣ - Insatisfeito  
 3️⃣ - Neutro
 4️⃣ - Satisfeito
 5️⃣ - Muito satisfeito
 
-*Responda apenas com o número da sua avaliação.*`;
+Responda apenas com o número da sua avaliação.`;
 
       try {
         const { data: whatsappResponse, error: whatsappError } = await supabaseClient.functions.invoke('whatsapp-send', {
           body: {
-            number: send.customer_phone,
+            phone: send.customer_phone, // Corrigido: a função espera "phone"
             message: surveyMessage
           }
         });
@@ -109,6 +104,10 @@ Por favor, avalie de 1 a 5:
         }
       } catch (error) {
         console.error('Erro no envio WhatsApp:', error);
+        await supabaseClient
+          .from('satisfaction_surveys')
+          .update({ status: 'failed' })
+          .eq('id', survey.id);
       }
     }
 
