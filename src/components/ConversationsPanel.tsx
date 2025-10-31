@@ -231,7 +231,7 @@ export function ConversationsPanel() {
   };
 
   return (
-    <div className="grid md:grid-cols-3 gap-4 h-[600px]">
+    <div className="grid md:grid-cols-3 gap-4 h-[500px]">
       {/* Lista de conversas */}
       <Card className="p-4">
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "active" | "archived")}>
@@ -249,7 +249,7 @@ export function ConversationsPanel() {
           </TabsList>
 
           <TabsContent value="active" className="mt-0">
-            <ScrollArea className="h-[500px]">
+            <ScrollArea className="h-[400px]">
               {loading ? (
                 <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin" />
@@ -300,7 +300,7 @@ export function ConversationsPanel() {
           </TabsContent>
 
           <TabsContent value="archived" className="mt-0">
-            <ScrollArea className="h-[500px]">
+            <ScrollArea className="h-[400px]">
               {loading ? (
                 <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin" />
@@ -360,7 +360,7 @@ export function ConversationsPanel() {
             </div>
             <Separator className="mb-4" />
             
-            <ScrollArea className="h-[400px] pr-4">
+            <ScrollArea className="h-[300px] pr-4">
               <div className="space-y-4">
                 {messages.map((msg) => (
                   <div
