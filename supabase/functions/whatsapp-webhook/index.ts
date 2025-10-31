@@ -79,6 +79,53 @@ serve(async (req) => {
 
         console.log(`Processing message from ${customerPhone}: ${messageText}`);
 
+        // Verificar se é uma resposta a pesquisa de satisfação (número de 1 a 5)
+        const ratingMatch = messageText.trim().match(/^[1-5]$/);
+        if (ratingMatch) {
+          const rating = parseInt(ratingMatch[0]);
+          
+          // Buscar pesquisa pendente para este telefone
+          const { data: pendingSurvey, error: surveyError } = await supabase
+            .from('satisfaction_surveys')
+            .select('*')
+            .eq('customer_phone', customerPhone)
+            .eq('status', 'sent')
+            .is('rating', null)
+            .order('sent_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (pendingSurvey && !surveyError) {
+            // Atualizar a pesquisa com a nota
+            const { error: updateError } = await supabase
+              .from('satisfaction_surveys')
+              .update({
+                rating: rating,
+                status: 'responded',
+                responded_at: new Date().toISOString()
+              })
+              .eq('id', pendingSurvey.id);
+
+            if (updateError) {
+              console.error('Error updating survey:', updateError);
+            } else {
+              console.log(`Survey response recorded: ${customerPhone} rated ${rating}`);
+              
+              // Enviar mensagem de agradecimento
+              try {
+                await supabase.functions.invoke('whatsapp-send', {
+                  body: {
+                    number: customerPhone,
+                    message: `Obrigado pela sua avaliação! Sua opinião é muito importante para nós. 🙏`
+                  }
+                });
+              } catch (thankError) {
+                console.error('Error sending thank you message:', thankError);
+              }
+            }
+          }
+        }
+
         // Buscar ou criar conversa
         let { data: conversation } = await supabase
           .from('conversations')
