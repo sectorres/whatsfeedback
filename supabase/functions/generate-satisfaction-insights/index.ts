@@ -12,35 +12,32 @@ serve(async (req) => {
   }
 
   try {
-    const { campaignId } = await req.json();
-
-    if (!campaignId) {
-      throw new Error('Campaign ID é obrigatório');
-    }
+    const { dateFrom, dateTo } = await req.json();
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log('Buscando respostas de satisfação para campanha:', campaignId);
+    console.log('Buscando respostas de satisfação para período:', dateFrom, 'até', dateTo);
 
-    // Buscar todos os envios da campanha
-    const { data: campaignSends, error: sendsError } = await supabaseClient
-      .from('campaign_sends')
-      .select('id')
-      .eq('campaign_id', campaignId);
-
-    if (sendsError) throw sendsError;
-
-    const sendIds = campaignSends?.map(s => s.id) || [];
-
-    // Buscar respostas de satisfação
-    const { data: surveys, error: surveysError } = await supabaseClient
+    // Buscar respostas de satisfação do período
+    let query = supabaseClient
       .from('satisfaction_surveys')
       .select('*')
-      .in('campaign_send_id', sendIds)
       .not('rating', 'is', null);
+
+    if (dateFrom) {
+      query = query.gte('sent_at', dateFrom);
+    }
+
+    if (dateTo) {
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      query = query.lte('sent_at', endDate.toISOString());
+    }
+
+    const { data: surveys, error: surveysError } = await query;
 
     if (surveysError) throw surveysError;
 
@@ -48,7 +45,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: 'Nenhuma resposta encontrada para esta campanha' 
+          message: 'Nenhuma resposta encontrada para o período selecionado' 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -136,7 +133,7 @@ Seja específico, objetivo e forneça insights práticos.`;
     const { data: savedInsight, error: insightError } = await supabaseClient
       .from('satisfaction_insights')
       .insert({
-        campaign_id: campaignId,
+        campaign_id: null, // Não é mais vinculado a uma campanha específica
         total_responses: totalResponses,
         average_rating: averageRating,
         rating_distribution: ratingDistribution,

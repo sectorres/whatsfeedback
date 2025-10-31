@@ -218,10 +218,10 @@ export function SatisfactionSurveys() {
   };
 
   const loadInsights = async () => {
+    // Carregar o insight mais recente (não filtrado por campanha)
     const { data, error } = await supabase
       .from('satisfaction_insights')
       .select('*')
-      .eq('campaign_id', selectedCampaignId)
       .order('generated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -268,12 +268,13 @@ export function SatisfactionSurveys() {
   };
 
   const generateInsights = async () => {
-    if (!selectedCampaignId) return;
-
     setGeneratingInsights(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-satisfaction-insights', {
-        body: { campaignId: selectedCampaignId }
+        body: { 
+          dateFrom: dateFrom?.toISOString(),
+          dateTo: dateTo?.toISOString()
+        }
       });
 
       if (error) throw error;
@@ -772,25 +773,75 @@ export function SatisfactionSurveys() {
 
         <TabsContent value="insights" className="space-y-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Análise de Insights</CardTitle>
-                <CardDescription>
-                  Análise detalhada gerada por IA
-                </CardDescription>
+            <CardHeader>
+              <div className="flex flex-row items-center justify-between mb-4">
+                <div>
+                  <CardTitle>Análise de Insights</CardTitle>
+                  <CardDescription>
+                    Análise detalhada gerada por IA sobre o período selecionado
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={generateInsights} 
+                  disabled={generatingInsights}
+                  className="gap-2"
+                >
+                  {generatingInsights ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <BarChart3 className="h-4 w-4" />
+                  )}
+                  Gerar Insights
+                </Button>
               </div>
-              <Button 
-                onClick={generateInsights} 
-                disabled={generatingInsights || responsesCount === 0}
-                className="gap-2"
-              >
-                {generatingInsights ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <BarChart3 className="h-4 w-4" />
-                )}
-                Gerar Insights
-              </Button>
+              
+              <div className="flex flex-wrap gap-3 pt-2 border-t">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !dateFrom && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateFrom ? format(dateFrom, "PPP", { locale: ptBR }) : "Data início"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateFrom}
+                      onSelect={setDateFrom}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !dateTo && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateTo ? format(dateTo, "PPP", { locale: ptBR }) : "Data fim"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateTo}
+                      onSelect={setDateTo}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </CardHeader>
             <CardContent>
               {insights ? (
@@ -826,9 +877,7 @@ export function SatisfactionSurveys() {
                 </div>
               ) : (
                 <p className="text-center text-muted-foreground py-8">
-                  {responsesCount === 0 
-                    ? "Aguardando respostas dos clientes para gerar insights"
-                    : "Clique em 'Gerar Insights' para analisar os dados"}
+                  Selecione o período e clique em 'Gerar Insights' para analisar os dados
                 </p>
               )}
             </CardContent>
