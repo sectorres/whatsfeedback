@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Star, TrendingUp, TrendingDown, Minus, Loader2, BarChart3, Send } from "lucide-react";
+import { Star, TrendingUp, TrendingDown, Minus, Loader2, BarChart3, Send, ChevronDown, ChevronUp } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface Campaign {
   id: string;
@@ -56,6 +57,7 @@ export function SatisfactionSurveys() {
   const [generatingInsights, setGeneratingInsights] = useState(false);
   const [sendingSurveys, setSendingSurveys] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -259,6 +261,18 @@ export function SatisfactionSurveys() {
     return <Minus className="h-5 w-5 text-yellow-600" />;
   };
 
+  const extractDriverName = (message: string) => {
+    const match = message?.match(/MOTORISTA:\s*([^\n]+)/);
+    return match ? match[1].trim() : null;
+  };
+
+  const toggleCard = (surveyId: string) => {
+    setExpandedCards(prev => ({
+      ...prev,
+      [surveyId]: !prev[surveyId]
+    }));
+  };
+
   const responsesCount = surveys.filter(s => s.rating !== null).length;
   const responseRate = surveys.length > 0 ? (responsesCount / surveys.length) * 100 : 0;
 
@@ -406,70 +420,87 @@ export function SatisfactionSurveys() {
                 <div className="space-y-4">
                   {surveys.map((survey) => {
                     const sendDetails = campaignSends[survey.campaign_send_id];
+                    const driverName = extractDriverName(sendDetails?.message_sent || '');
+                    const isExpanded = expandedCards[survey.id] || false;
+                    
                     return (
-                      <div
-                        key={survey.id}
-                        className="flex flex-col gap-3 p-4 border rounded-lg"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 space-y-2">
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold text-lg">
-                                {survey.customer_name || sendDetails?.customer_name || 'Cliente'}
-                              </p>
-                              {survey.rating && (
-                                <div className="flex items-center gap-1">
-                                  <span className={`text-xl font-bold ${getRatingColor(survey.rating)}`}>
-                                    {survey.rating}
-                                  </span>
-                                  <Star className={`h-5 w-5 ${getRatingColor(survey.rating)}`} />
-                                </div>
-                              )}
+                      <Card key={survey.id}>
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-3 flex-wrap">
+                                <p className="font-semibold text-base">
+                                  {survey.customer_name || sendDetails?.customer_name || 'Cliente'}
+                                </p>
+                                {survey.rating && (
+                                  <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded">
+                                    <Star className={`h-4 w-4 ${getRatingColor(survey.rating)} fill-current`} />
+                                    <span className={`text-sm font-bold ${getRatingColor(survey.rating)}`}>
+                                      {survey.rating}/5
+                                    </span>
+                                  </div>
+                                )}
+                                {driverName && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Motorista: {driverName}
+                                  </Badge>
+                                )}
+                              </div>
+                              
+                              <div className="text-xs text-muted-foreground space-y-1">
+                                <p>{survey.customer_phone || sendDetails?.customer_phone}</p>
+                                <p>Enviado: {new Date(survey.sent_at).toLocaleString('pt-BR')}</p>
+                                {survey.responded_at && (
+                                  <p className="text-green-600">
+                                    Respondido: {new Date(survey.responded_at).toLocaleString('pt-BR')}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                             
-                            <div className="text-sm text-muted-foreground space-y-1">
-                              <p className="flex items-center gap-2">
-                                <span className="font-medium">Telefone:</span>
-                                {survey.customer_phone || sendDetails?.customer_phone}
-                              </p>
-                              <p className="flex items-center gap-2">
-                                <span className="font-medium">Enviado em:</span>
-                                {new Date(survey.sent_at).toLocaleString('pt-BR')}
-                              </p>
-                              {survey.responded_at && (
-                                <p className="flex items-center gap-2">
-                                  <span className="font-medium">Respondido em:</span>
-                                  {new Date(survey.responded_at).toLocaleString('pt-BR')}
-                                </p>
-                              )}
-                            </div>
-
-                            {sendDetails?.message_sent && (
-                              <div className="mt-2 p-3 bg-muted rounded-md">
-                                <p className="text-xs font-medium text-muted-foreground mb-1">
-                                  Mensagem da campanha:
-                                </p>
-                                <p className="text-sm">{sendDetails.message_sent}</p>
-                              </div>
-                            )}
-
-                            {survey.feedback && (
-                              <div className="mt-2 p-3 bg-primary/5 border border-primary/20 rounded-md">
-                                <p className="text-xs font-medium text-primary mb-1">
-                                  Feedback do cliente:
-                                </p>
-                                <p className="text-sm italic">&quot;{survey.feedback}&quot;</p>
-                              </div>
+                            {!survey.rating && (
+                              <Badge variant="outline" className="ml-4">
+                                {survey.status === 'sent' ? 'Pendente' : 'Enviado'}
+                              </Badge>
                             )}
                           </div>
-                          
-                          {!survey.rating && (
-                            <Badge variant="outline" className="ml-4">
-                              {survey.status === 'sent' ? 'Pendente' : 'Enviado'}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
+
+                          <Collapsible open={isExpanded} onOpenChange={() => toggleCard(survey.id)}>
+                            {(sendDetails?.message_sent || survey.feedback) && (
+                              <CollapsibleTrigger asChild>
+                                <Button variant="ghost" size="sm" className="w-full justify-between h-8 text-xs">
+                                  <span>Ver detalhes</span>
+                                  {isExpanded ? (
+                                    <ChevronUp className="h-4 w-4" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </CollapsibleTrigger>
+                            )}
+                            
+                            <CollapsibleContent className="space-y-3 mt-3">
+                              {sendDetails?.message_sent && (
+                                <div className="p-3 bg-muted rounded-md">
+                                  <p className="text-xs font-medium text-muted-foreground mb-1">
+                                    Mensagem da campanha:
+                                  </p>
+                                  <p className="text-xs whitespace-pre-wrap">{sendDetails.message_sent}</p>
+                                </div>
+                              )}
+
+                              {survey.feedback && (
+                                <div className="p-3 bg-primary/5 border border-primary/20 rounded-md">
+                                  <p className="text-xs font-medium text-primary mb-1">
+                                    Feedback do cliente:
+                                  </p>
+                                  <p className="text-sm italic">&quot;{survey.feedback}&quot;</p>
+                                </div>
+                              )}
+                            </CollapsibleContent>
+                          </Collapsible>
+                        </CardContent>
+                      </Card>
                     );
                   })}
                 </div>
