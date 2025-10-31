@@ -29,7 +29,7 @@ const Index = () => {
       
       <main className="container mx-auto px-6 py-4">
         <Tabs defaultValue="dashboard" className="space-y-3">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex bg-primary text-primary-foreground">
             <TabsTrigger value="dashboard" className="flex items-center gap-1.5 text-xs sm:text-sm">
               <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Dashboard</span>
