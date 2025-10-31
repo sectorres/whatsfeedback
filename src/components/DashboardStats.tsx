@@ -180,78 +180,109 @@ export function DashboardStats() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Conversas Ativas"
-          value={stats.conversasAtivas}
-          icon={MessageSquare}
-          color="text-blue-600"
-          subtitle={`${stats.conversasTotal} total`}
-        />
-        <StatCard
-          title="Mensagens Hoje"
-          value={stats.mensagensHoje}
-          icon={Send}
-          color="text-green-600"
-        />
-        <StatCard
-          title="Campanhas Ativas"
-          value={stats.campanhasAtivas}
-          icon={Calendar}
-          color="text-purple-600"
-        />
-        <StatCard
-          title="Total de Cargas"
-          value={stats.totalCargas}
-          icon={Truck}
-          color="text-orange-600"
-          subtitle={`${stats.cargasPendentes} pendentes`}
-        />
+      {/* Seção: Atendimento */}
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-lg font-semibold">Atendimento</h3>
+          <p className="text-sm text-muted-foreground">Conversas e mensagens com clientes</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <StatCard
+            title="Conversas Ativas"
+            value={stats.conversasAtivas}
+            icon={MessageSquare}
+            color="text-blue-600"
+            subtitle={`${stats.conversasTotal} total`}
+          />
+          <StatCard
+            title="Mensagens Hoje"
+            value={stats.mensagensHoje}
+            icon={Send}
+            color="text-green-600"
+          />
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          title="Total de Respostas"
-          value={stats.totalRespostas}
-          icon={Star}
-          color="text-yellow-600"
-          subtitle="pesquisas respondidas"
-        />
-        <StatCard
-          title="Taxa de Resposta"
-          value={stats.taxaResposta}
-          icon={TrendingUp}
-          color="text-blue-600"
-          subtitle={loading ? "" : `${stats.taxaResposta.toFixed(1)}%`}
-        />
-        <StatCard
-          title="Média de Avaliação"
-          value={stats.mediaAvaliacao}
-          icon={BarChart3}
-          color="text-green-600"
-          subtitle={loading ? "" : stats.mediaAvaliacao > 0 ? `${stats.mediaAvaliacao.toFixed(1)}/5` : "-"}
-        />
+      {/* Seção: Pesquisas de Satisfação */}
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-lg font-semibold">Pesquisas de Satisfação</h3>
+          <p className="text-sm text-muted-foreground">Feedback e avaliações dos clientes</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <StatCard
+            title="Total de Respostas"
+            value={stats.totalRespostas}
+            icon={Star}
+            color="text-yellow-600"
+            subtitle="pesquisas respondidas"
+          />
+          <StatCard
+            title="Taxa de Resposta"
+            value={stats.taxaResposta}
+            icon={TrendingUp}
+            color="text-blue-600"
+            subtitle={loading ? "" : `${stats.taxaResposta.toFixed(1)}%`}
+          />
+          <StatCard
+            title="Média de Avaliação"
+            value={stats.mediaAvaliacao}
+            icon={BarChart3}
+            color="text-green-600"
+            subtitle={loading ? "" : stats.mediaAvaliacao > 0 ? `${stats.mediaAvaliacao.toFixed(1)}/5` : "-"}
+          />
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          title="Pedidos Abertos"
-          value={stats.pedidosAbertos}
-          icon={Clock}
-          color="text-yellow-600"
-        />
-        <StatCard
-          title="Pedidos Faturados"
-          value={stats.pedidosFaturados}
-          icon={CheckCircle2}
-          color="text-green-600"
-        />
-        <StatCard
-          title="Total de Pedidos"
-          value={stats.pedidosAbertos + stats.pedidosFaturados}
-          icon={Package}
-          color="text-blue-600"
-        />
+      {/* Seção: Campanhas */}
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-lg font-semibold">Campanhas</h3>
+          <p className="text-sm text-muted-foreground">Avisos de entrega e notificações</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-1">
+          <StatCard
+            title="Campanhas Ativas"
+            value={stats.campanhasAtivas}
+            icon={Calendar}
+            color="text-purple-600"
+          />
+        </div>
+      </div>
+
+      {/* Seção: Cargas e Pedidos */}
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-lg font-semibold">Cargas e Pedidos</h3>
+          <p className="text-sm text-muted-foreground">Gestão de cargas e status de pedidos</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            title="Total de Cargas"
+            value={stats.totalCargas}
+            icon={Truck}
+            color="text-orange-600"
+            subtitle={`${stats.cargasPendentes} pendentes`}
+          />
+          <StatCard
+            title="Cargas Pendentes"
+            value={stats.cargasPendentes}
+            icon={Clock}
+            color="text-yellow-600"
+          />
+          <StatCard
+            title="Pedidos Abertos"
+            value={stats.pedidosAbertos}
+            icon={AlertCircle}
+            color="text-yellow-600"
+          />
+          <StatCard
+            title="Pedidos Faturados"
+            value={stats.pedidosFaturados}
+            icon={CheckCircle2}
+            color="text-green-600"
+          />
+        </div>
       </div>
     </div>
   );
