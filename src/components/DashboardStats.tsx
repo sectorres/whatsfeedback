@@ -13,7 +13,9 @@ import {
   AlertCircle,
   TrendingUp,
   Star,
-  BarChart3
+  BarChart3,
+  XCircle,
+  ShieldOff
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -29,6 +31,8 @@ interface Stats {
   totalRespostas: number;
   taxaResposta: number;
   mediaAvaliacao: number;
+  mensagensFalhadas: number;
+  contatosBloqueados: number;
 }
 
 export function DashboardStats() {
@@ -43,7 +47,9 @@ export function DashboardStats() {
     cargasPendentes: 0,
     totalRespostas: 0,
     taxaResposta: 0,
-    mediaAvaliacao: 0
+    mediaAvaliacao: 0,
+    mensagensFalhadas: 0,
+    contatosBloqueados: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -62,7 +68,9 @@ export function DashboardStats() {
         mensagensResult,
         campanhasResult,
         cargasResult,
-        surveysResult
+        surveysResult,
+        campaignSendsResult,
+        blacklistResult
       ] = await Promise.all([
         supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('conversations').select('*', { count: 'exact', head: true }),
@@ -74,7 +82,9 @@ export function DashboardStats() {
             dataFinal: new Date().toISOString().slice(0, 10).replace(/-/g, '')
           }
         }),
-        supabase.from('satisfaction_surveys').select('rating, status')
+        supabase.from('satisfaction_surveys').select('rating, status'),
+        supabase.from('campaign_sends').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
+        supabase.from('blacklist').select('*', { count: 'exact', head: true })
       ]);
 
       console.log('Conversas ativas:', conversasAtivasResult.count);
@@ -112,6 +122,10 @@ export function DashboardStats() {
       const sumRatings = responsesWithRating.reduce((sum: number, s: any) => sum + (s.rating || 0), 0);
       const mediaAvaliacao = totalRespostas > 0 ? sumRatings / totalRespostas : 0;
 
+      // Processar mensagens falhadas e blacklist
+      const mensagensFalhadas = campaignSendsResult.count || 0;
+      const contatosBloqueados = blacklistResult.count || 0;
+
       const newStats = {
         conversasAtivas: conversasAtivasResult.count || 0,
         conversasTotal: conversasTotalResult.count || 0,
@@ -123,7 +137,9 @@ export function DashboardStats() {
         cargasPendentes,
         totalRespostas,
         taxaResposta,
-        mediaAvaliacao
+        mediaAvaliacao,
+        mensagensFalhadas,
+        contatosBloqueados
       };
 
       console.log('Stats atualizadas:', newStats);
@@ -240,12 +256,24 @@ export function DashboardStats() {
           <h3 className="text-lg font-semibold">Campanhas</h3>
           <p className="text-sm text-muted-foreground">Avisos de entrega e notificações</p>
         </div>
-        <div className="grid gap-4 md:grid-cols-1">
+        <div className="grid gap-4 md:grid-cols-3">
           <StatCard
             title="Campanhas Ativas"
             value={stats.campanhasAtivas}
             icon={Calendar}
             color="text-purple-600"
+          />
+          <StatCard
+            title="Envios Falhados"
+            value={stats.mensagensFalhadas}
+            icon={XCircle}
+            color="text-red-600"
+          />
+          <StatCard
+            title="Contatos Bloqueados"
+            value={stats.contatosBloqueados}
+            icon={ShieldOff}
+            color="text-orange-600"
           />
         </div>
       </div>
