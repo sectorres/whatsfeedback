@@ -97,32 +97,50 @@ serve(async (req) => {
       return `${name}: ${data.ratings.length} avaliações, média ${avg.toFixed(1)}/5`;
     }).join('\n');
 
-    // Preparar feedbacks gerais
+    // Preparar feedbacks gerais (incluindo motorista)
     const feedbacks = surveys
       .filter(s => s.feedback)
-      .map(s => `Avaliação ${s.rating}/5: ${s.feedback}`)
-      .slice(0, 10) // Limitar a 10 feedbacks
+      .map(s => {
+        const send = campaignSends?.find(cs => cs.id === s.campaign_send_id);
+        const driverName = send?.driver_name || 'N/A';
+        return `[${driverName}] Nota ${s.rating}/5: "${s.feedback}"`;
+      })
+      .slice(0, 15) // Aumentar para 15 feedbacks
       .join('\n');
 
-    const prompt = `Analise os dados de satisfação do cliente e forneça insights RESUMIDOS:
+    const prompt = `Analise os dados de satisfação do cliente e forneça insights detalhados e bem formatados:
 
-DADOS GERAIS:
+📊 DADOS GERAIS:
 - Total de Respostas: ${totalResponses}
 - Média Geral: ${averageRating.toFixed(2)}/5
 - Distribuição: 5★(${ratingDistribution['5']}) 4★(${ratingDistribution['4']}) 3★(${ratingDistribution['3']}) 2★(${ratingDistribution['2']}) 1★(${ratingDistribution['1']})
 
-MOTORISTAS:
+👥 DESEMPENHO POR MOTORISTA:
 ${driverStats}
 
-${feedbacks ? `FEEDBACKS RECENTES:\n${feedbacks}` : ''}
+${feedbacks ? `💬 FEEDBACKS DOS CLIENTES:\n${feedbacks}` : ''}
 
-Forneça uma análise CONCISA (máximo 300 palavras) com:
-1. Resumo do sentimento geral (2-3 linhas)
-2. Avaliação de cada motorista (1 linha por motorista com pontos fortes/fracos)
-3. Principais oportunidades de melhoria (3-4 bullet points)
-4. Recomendações específicas (2-3 ações prioritárias)
+Forneça uma análise ESTRUTURADA E BEM FORMATADA (máximo 500 palavras) com:
 
-Seja direto, objetivo e acionável.`;
+1. 📈 RESUMO EXECUTIVO (3-4 linhas)
+   - Sentimento geral dos clientes
+   - Tendências principais observadas
+
+2. 🎯 ANÁLISE POR MOTORISTA
+   - Avalie CADA motorista individualmente
+   - Destaque pontos fortes e áreas de melhoria
+   - Mencione feedbacks específicos relevantes quando aplicável
+
+3. ⚠️ PRINCIPAIS OPORTUNIDADES DE MELHORIA
+   - Liste 4-5 pontos de atenção prioritários
+   - Base-se nos feedbacks dos clientes
+   - Seja específico e acionável
+
+4. ✅ RECOMENDAÇÕES ESTRATÉGICAS
+   - 3-4 ações concretas e prioritárias
+   - Indique impacto esperado de cada ação
+
+Use emojis, formatação clara com quebras de linha e seja objetivo mas completo. Analise profundamente os feedbacks fornecidos.`;
 
     console.log('Gerando insights com IA...');
 
@@ -140,11 +158,11 @@ Seja direto, objetivo e acionável.`;
         messages: [
           { 
             role: 'system', 
-            content: 'Você é um analista de satisfação do cliente. Forneça insights resumidos, diretos e acionáveis.' 
+            content: 'Você é um analista sênior de satisfação do cliente. Forneça insights detalhados, bem estruturados e acionáveis com formatação clara e uso de emojis para melhor visualização.' 
           },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 500, // Limitar tokens para resposta mais concisa
+        max_tokens: 1000, // Aumentar tokens para análise mais completa
       }),
     });
 

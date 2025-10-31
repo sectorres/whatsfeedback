@@ -42,6 +42,7 @@ interface CampaignSend {
   customer_phone: string;
   message_sent: string;
   driver_name: string | null;
+  campaign_id: string;
 }
 
 interface Insight {
@@ -570,11 +571,26 @@ export function SatisfactionSurveys() {
             <SelectValue placeholder="Selecione uma campanha" />
           </SelectTrigger>
           <SelectContent>
-            {campaigns.map((campaign) => (
-              <SelectItem key={campaign.id} value={campaign.id}>
-                {campaign.name}
-              </SelectItem>
-            ))}
+            {campaigns.map((campaign) => {
+              // Verificar se há pesquisas enviadas para esta campanha
+              const hasSurveys = allSurveys.some(survey => {
+                const send = allCampaignSends[survey.campaign_send_id];
+                return send?.campaign_id === campaign.id;
+              });
+              
+              return (
+                <SelectItem key={campaign.id} value={campaign.id}>
+                  <div className="flex items-center gap-2">
+                    <span>{campaign.name}</span>
+                    {hasSurveys && (
+                      <Badge variant="default" className="ml-2 text-[10px] h-4 px-1">
+                        Enviada
+                      </Badge>
+                    )}
+                  </div>
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
       </div>
@@ -732,8 +748,8 @@ export function SatisfactionSurveys() {
                           </div>
 
                           <Collapsible open={isExpanded} onOpenChange={() => toggleCard(survey.id)}>
-                            {(sendDetails?.message_sent || survey.feedback) && (
-                              <CollapsibleTrigger asChild>
+                            {survey.feedback && (
+                            <CollapsibleTrigger asChild>
                                 <Button variant="ghost" size="sm" className="w-full justify-between h-8 text-xs">
                                   <span>Ver detalhes</span>
                                   {isExpanded ? (
@@ -746,15 +762,6 @@ export function SatisfactionSurveys() {
                             )}
                             
                             <CollapsibleContent className="space-y-3 mt-3">
-                              {sendDetails?.message_sent && (
-                                <div className="p-3 bg-muted rounded-md">
-                                  <p className="text-xs font-medium text-muted-foreground mb-1">
-                                    Mensagem da campanha:
-                                  </p>
-                                  <p className="text-xs whitespace-pre-wrap">{sendDetails.message_sent}</p>
-                                </div>
-                              )}
-
                               {survey.feedback && (
                                 <div className="p-3 bg-primary/5 border border-primary/20 rounded-md">
                                   <p className="text-xs font-medium text-primary mb-1">
@@ -1026,9 +1033,13 @@ export function SatisfactionSurveys() {
                   </div>
 
                   <div>
-                    <h3 className="font-semibold mb-2">Análise Detalhada</h3>
-                    <div className="prose prose-sm max-w-none">
-                      <p className="whitespace-pre-wrap text-sm">{insights.insights}</p>
+                    <h3 className="font-semibold mb-3 text-lg">Análise Detalhada</h3>
+                    <div className="space-y-4 p-4 bg-muted/30 rounded-lg border">
+                      <div className="prose prose-sm max-w-none text-foreground">
+                        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                          {insights.insights}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
