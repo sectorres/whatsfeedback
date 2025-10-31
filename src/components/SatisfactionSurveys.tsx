@@ -35,6 +35,7 @@ interface CampaignSend {
   customer_name: string;
   customer_phone: string;
   message_sent: string;
+  driver_name: string | null;
 }
 
 interface Insight {
@@ -261,11 +262,6 @@ export function SatisfactionSurveys() {
     return <Minus className="h-5 w-5 text-yellow-600" />;
   };
 
-  const extractDriverName = (message: string) => {
-    const match = message?.match(/MOTORISTA:\s*([^\n]+)/);
-    return match ? match[1].trim() : null;
-  };
-
   const toggleCard = (surveyId: string) => {
     setExpandedCards(prev => ({
       ...prev,
@@ -420,7 +416,7 @@ export function SatisfactionSurveys() {
                 <div className="space-y-4">
                   {surveys.map((survey) => {
                     const sendDetails = campaignSends[survey.campaign_send_id];
-                    const driverName = extractDriverName(sendDetails?.message_sent || '');
+                    const driverName = sendDetails?.driver_name;
                     const isExpanded = expandedCards[survey.id] || false;
                     
                     return (

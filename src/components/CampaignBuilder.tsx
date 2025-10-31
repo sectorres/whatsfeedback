@@ -251,7 +251,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             customer_phone: rawPhone || 'Não informado',
             message_sent: formattedMessage,
             status: 'failed',
-            error_message: 'Telefone inválido'
+            error_message: 'Telefone inválido',
+            driver_name: selectedCarga?.nomeMotorista || null
           });
           continue;
         }
@@ -272,7 +273,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             customer_name: pedido.cliente?.nome || "Cliente",
             customer_phone: phone,
             message_sent: formattedMessage,
-            status: 'success'
+            status: 'success',
+            driver_name: selectedCarga?.nomeMotorista || null
           });
 
           successCount++;
@@ -289,7 +291,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               customer_phone: phone,
               message_sent: formattedMessage,
               status: 'failed',
-              error_message: error instanceof Error ? error.message : String(error)
+              error_message: error instanceof Error ? error.message : String(error),
+              driver_name: selectedCarga?.nomeMotorista || null
             });
           } catch (dbError) {
             console.error('Erro ao salvar registro de falha:', dbError);

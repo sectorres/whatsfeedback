@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           customer_name: string | null
           customer_phone: string
+          driver_name: string | null
           error_message: string | null
           id: string
           message_sent: string
@@ -31,6 +32,7 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           customer_phone: string
+          driver_name?: string | null
           error_message?: string | null
           id?: string
           message_sent: string
@@ -42,6 +44,7 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           customer_phone?: string
+          driver_name?: string | null
           error_message?: string | null
           id?: string
           message_sent?: string
