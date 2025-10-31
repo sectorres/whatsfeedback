@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Star, TrendingUp, TrendingDown, Minus, Loader2, BarChart3, Send, ChevronDown, ChevronUp, CalendarIcon } from "lucide-react";
+import { Star, TrendingUp, TrendingDown, Minus, Loader2, BarChart3, Send, ChevronDown, ChevronUp, CalendarIcon, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import * as XLSX from 'xlsx';
 
 interface Campaign {
   id: string;
@@ -320,6 +321,108 @@ export function SatisfactionSurveys() {
       ...prev,
       [surveyId]: !prev[surveyId]
     }));
+  };
+
+  const exportToExcel = async () => {
+    try {
+      setLoading(true);
+
+      // Buscar todas as surveys no período selecionado
+      let query = supabase
+        .from('satisfaction_surveys')
+        .select('*')
+        .not('rating', 'is', null)
+        .order('responded_at', { ascending: false });
+
+      if (dateFrom) {
+        query = query.gte('responded_at', dateFrom.toISOString());
+      }
+
+      if (dateTo) {
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        query = query.lte('responded_at', endDate.toISOString());
+      }
+
+      const { data: surveysData, error: surveysError } = await query;
+
+      if (surveysError) throw surveysError;
+
+      if (!surveysData || surveysData.length === 0) {
+        toast({
+          title: "Nenhum dado encontrado",
+          description: "Não há avaliações no período selecionado",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Buscar os campaign_sends correspondentes
+      const sendIds = surveysData.map(s => s.campaign_send_id);
+      const { data: sendsData, error: sendsError } = await supabase
+        .from('campaign_sends')
+        .select('*')
+        .in('id', sendIds);
+
+      if (sendsError) throw sendsError;
+
+      // Criar mapa de sends
+      const sendsMap = (sendsData || []).reduce((acc, send) => {
+        acc[send.id] = send;
+        return acc;
+      }, {} as Record<string, any>);
+
+      // Preparar dados para exportação
+      const exportData = surveysData.map(survey => {
+        const send = sendsMap[survey.campaign_send_id];
+        return {
+          'Data da Avaliação': survey.responded_at 
+            ? format(new Date(survey.responded_at), "dd/MM/yyyy HH:mm", { locale: ptBR })
+            : 'N/A',
+          'Cliente': survey.customer_name || 'N/A',
+          'Motorista': send?.driver_name || 'N/A',
+          'Nota': survey.rating || 'N/A',
+          'Feedback': survey.feedback || '',
+          'Telefone': survey.customer_phone || 'N/A',
+        };
+      });
+
+      // Criar workbook e worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Pesquisas de Satisfação');
+
+      // Ajustar largura das colunas
+      const colWidths = [
+        { wch: 20 }, // Data
+        { wch: 25 }, // Cliente
+        { wch: 20 }, // Motorista
+        { wch: 8 },  // Nota
+        { wch: 40 }, // Feedback
+        { wch: 18 }, // Telefone
+      ];
+      ws['!cols'] = colWidths;
+
+      // Gerar nome do arquivo
+      const fileName = `pesquisas_satisfacao_${format(new Date(), "dd-MM-yyyy_HH-mm")}.xlsx`;
+
+      // Fazer download
+      XLSX.writeFile(wb, fileName);
+
+      toast({
+        title: "Exportação concluída!",
+        description: `${surveysData.length} avaliações exportadas`,
+      });
+    } catch (error) {
+      console.error('Erro ao exportar:', error);
+      toast({
+        title: "Erro ao exportar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const responsesCount = surveys.filter(s => s.rating !== null).length;
@@ -687,6 +790,19 @@ export function SatisfactionSurveys() {
                       />
                     </PopoverContent>
                   </Popover>
+                  <Button
+                    onClick={exportToExcel}
+                    disabled={loading}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
+                    Exportar Excel
+                  </Button>
                 </div>
               </div>
             </CardHeader>
