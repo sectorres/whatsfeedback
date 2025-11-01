@@ -153,7 +153,6 @@ export function DashboardStats() {
         const campaignSendId = survey.campaign_send_id;
         if (!campaignSendId) return;
         
-        // Buscar driver_name do campaign_send (vamos fazer isso depois de forma otimizada)
         const existing = driverRatings.get(campaignSendId) || { sum: 0, count: 0 };
         existing.sum += survey.rating || 0;
         existing.count += 1;
@@ -189,31 +188,31 @@ export function DashboardStats() {
         .sort((a, b) => b.avg_rating - a.avg_rating)
         .slice(0, 5);
 
-      // Processar palavras-chave dos feedbacks
-      const positiveWords = ['ótimo', 'excelente', 'bom', 'boa', 'perfeito', 'rapido', 'rápido', 'educado', 'atencioso', 'profissional', 'pontual', 'cuidadoso', 'gentil', 'eficiente', 'parabens', 'parabéns', 'obrigado', 'obrigada', 'satisfeito', 'satisfeita', 'recomendo', 'melhor', 'top', 'tranquilo', 'caprichoso'];
-      const negativeWords = ['ruim', 'péssimo', 'pessimo', 'demorado', 'atrasado', 'mal', 'grosso', 'rude', 'amassado', 'quebrado', 'danificado', 'problema', 'reclamação', 'reclamacao', 'insatisfeito', 'insatisfeita', 'horrível', 'terrível', 'nunca', 'mais', 'descuidado', 'irresponsável', 'frio'];
+      // Analisar palavras-chave com IA
+      let positiveKeywords: KeywordCount[] = [];
+      let negativeKeywords: KeywordCount[] = [];
 
       const feedbacks = allSurveys
-        .filter((s: any) => s.feedback)
-        .map((s: any) => s.feedback.toLowerCase());
+        .filter((s: any) => s.feedback && s.feedback.trim())
+        .map((s: any) => s.feedback);
 
-      const countKeywords = (words: string[]) => {
-        const counts = new Map<string, number>();
-        feedbacks.forEach((feedback: string) => {
-          words.forEach(word => {
-            if (feedback.includes(word)) {
-              counts.set(word, (counts.get(word) || 0) + 1);
-            }
-          });
-        });
-        return Array.from(counts.entries())
-          .map(([word, count]) => ({ word, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 8);
-      };
+      if (feedbacks.length > 0) {
+        try {
+          const { data: keywordsData, error: keywordsError } = await supabase.functions.invoke(
+            'analyze-feedback-keywords',
+            { body: { feedbacks } }
+          );
 
-      const positiveKeywords = countKeywords(positiveWords);
-      const negativeKeywords = countKeywords(negativeWords);
+          if (!keywordsError && keywordsData) {
+            positiveKeywords = keywordsData.positiveKeywords || [];
+            negativeKeywords = keywordsData.negativeKeywords || [];
+          } else {
+            console.error('Erro ao analisar palavras-chave:', keywordsError);
+          }
+        } catch (error) {
+          console.error('Erro ao chamar análise de palavras-chave:', error);
+        }
+      }
 
       const newStats = {
         conversasAtivas: conversasAtivasResult.count || 0,

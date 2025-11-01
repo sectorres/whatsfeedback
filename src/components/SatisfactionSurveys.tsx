@@ -686,6 +686,11 @@ export function SatisfactionSurveys() {
                               </div>
                               
                               <div className="text-xs text-muted-foreground space-y-1">
+                                {sendDetails?.message_sent && (
+                                  <p className="font-medium text-primary">
+                                    Pedido: {sendDetails.message_sent.match(/PEDIDO:\s*([^\n]+)/i)?.[1]?.trim() || 'N/A'}
+                                  </p>
+                                )}
                                 <p>{survey.customer_phone || sendDetails?.customer_phone}</p>
                                 <p>Enviado: {new Date(survey.sent_at).toLocaleString('pt-BR')}</p>
                                 {survey.responded_at && (
