@@ -37,36 +37,24 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // Call edge function to validate IP and login
+      const { data, error } = await supabase.functions.invoke('login-with-ip-check', {
+        body: { email, password }
       });
 
-      if (error) {
-        // Se o usuário não existe, criar automaticamente se for admin
-        if (error.message.includes("Invalid") && email === "admin@admin.com") {
-          const { error: signUpError } = await supabase.auth.signUp({
-            email: "admin@admin.com",
-            password: "31218112",
-          });
+      if (error) throw error;
 
-          if (signUpError) {
-            throw signUpError;
-          }
+      if (data.error) {
+        toast.error(data.error);
+        return;
+      }
 
-          // Tentar login novamente
-          const { error: loginError } = await supabase.auth.signInWithPassword({
-            email: "admin@admin.com",
-            password: "31218112",
-          });
-
-          if (loginError) throw loginError;
-
-          toast.success("Usuário admin criado e autenticado!");
-        } else {
-          throw error;
-        }
-      } else {
+      // Set session manually
+      if (data.session) {
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
         toast.success("Login realizado com sucesso!");
       }
     } catch (error: any) {

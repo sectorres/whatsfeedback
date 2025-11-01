@@ -17,6 +17,7 @@ import { Calendar, Package, Settings, Headphones, LayoutDashboard, Star } from "
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { useWhatsAppStatus } from "@/hooks/useWhatsAppStatus";
 import { SatisfactionSurveys } from "@/components/SatisfactionSurveys";
+import { IpWhitelistManager } from "@/components/IpWhitelistManager";
 
 const Index = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
@@ -91,6 +92,7 @@ const Index = () => {
 
           <TabsContent value="config" className="space-y-6">
             <WhatsAppConnection onConnectionChange={setWhatsappConnected} />
+            <IpWhitelistManager />
             <SendDelayConfig />
             <ApiConfiguration />
             <WebhookConfiguration />

@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      allowed_ips: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          ip_address: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          ip_address: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          ip_address?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       blacklist: {
         Row: {
           added_at: string
