@@ -19,6 +19,17 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+interface DriverRating {
+  driver_name: string;
+  avg_rating: number;
+  total_ratings: number;
+}
+
+interface KeywordCount {
+  word: string;
+  count: number;
+}
+
 interface Stats {
   conversasAtivas: number;
   conversasTotal: number;
@@ -33,6 +44,9 @@ interface Stats {
   mediaAvaliacao: number;
   mensagensFalhadas: number;
   contatosBloqueados: number;
+  topDrivers: DriverRating[];
+  positiveKeywords: KeywordCount[];
+  negativeKeywords: KeywordCount[];
 }
 
 export function DashboardStats() {
@@ -49,7 +63,10 @@ export function DashboardStats() {
     taxaResposta: 0,
     mediaAvaliacao: 0,
     mensagensFalhadas: 0,
-    contatosBloqueados: 0
+    contatosBloqueados: 0,
+    topDrivers: [],
+    positiveKeywords: [],
+    negativeKeywords: []
   });
   const [loading, setLoading] = useState(true);
 
@@ -70,7 +87,8 @@ export function DashboardStats() {
         cargasResult,
         surveysResult,
         campaignSendsResult,
-        blacklistResult
+        blacklistResult,
+        allSurveysResult
       ] = await Promise.all([
         supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('conversations').select('*', { count: 'exact', head: true }),
@@ -84,7 +102,8 @@ export function DashboardStats() {
         }),
         supabase.from('satisfaction_surveys').select('rating, status'),
         supabase.from('campaign_sends').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
-        supabase.from('blacklist').select('*', { count: 'exact', head: true })
+        supabase.from('blacklist').select('*', { count: 'exact', head: true }),
+        supabase.from('satisfaction_surveys').select('*').not('rating', 'is', null)
       ]);
 
       console.log('Conversas ativas:', conversasAtivasResult.count);
@@ -126,6 +145,76 @@ export function DashboardStats() {
       const mensagensFalhadas = campaignSendsResult.count || 0;
       const contatosBloqueados = blacklistResult.count || 0;
 
+      // Processar top 5 motoristas
+      const allSurveys = allSurveysResult.data || [];
+      const driverRatings = new Map<string, { sum: number; count: number }>();
+      
+      allSurveys.forEach((survey: any) => {
+        const campaignSendId = survey.campaign_send_id;
+        if (!campaignSendId) return;
+        
+        // Buscar driver_name do campaign_send (vamos fazer isso depois de forma otimizada)
+        const existing = driverRatings.get(campaignSendId) || { sum: 0, count: 0 };
+        existing.sum += survey.rating || 0;
+        existing.count += 1;
+        driverRatings.set(campaignSendId, existing);
+      });
+
+      // Buscar campaign_sends para obter driver_name
+      const campaignSendIds = Array.from(driverRatings.keys());
+      const { data: campaignSendsData } = await supabase
+        .from('campaign_sends')
+        .select('id, driver_name')
+        .in('id', campaignSendIds);
+
+      const driverStats = new Map<string, { sum: number; count: number }>();
+      
+      campaignSendsData?.forEach((send: any) => {
+        if (!send.driver_name) return;
+        const ratings = driverRatings.get(send.id);
+        if (!ratings) return;
+
+        const existing = driverStats.get(send.driver_name) || { sum: 0, count: 0 };
+        existing.sum += ratings.sum;
+        existing.count += ratings.count;
+        driverStats.set(send.driver_name, existing);
+      });
+
+      const topDrivers: DriverRating[] = Array.from(driverStats.entries())
+        .map(([driver_name, stats]) => ({
+          driver_name,
+          avg_rating: stats.sum / stats.count,
+          total_ratings: stats.count
+        }))
+        .sort((a, b) => b.avg_rating - a.avg_rating)
+        .slice(0, 5);
+
+      // Processar palavras-chave dos feedbacks
+      const positiveWords = ['ótimo', 'excelente', 'bom', 'boa', 'perfeito', 'rapido', 'rápido', 'educado', 'atencioso', 'profissional', 'pontual', 'cuidadoso', 'gentil', 'eficiente', 'parabens', 'parabéns', 'obrigado', 'obrigada', 'satisfeito', 'satisfeita', 'recomendo', 'melhor', 'top', 'tranquilo', 'caprichoso'];
+      const negativeWords = ['ruim', 'péssimo', 'pessimo', 'demorado', 'atrasado', 'mal', 'grosso', 'rude', 'amassado', 'quebrado', 'danificado', 'problema', 'reclamação', 'reclamacao', 'insatisfeito', 'insatisfeita', 'horrível', 'terrível', 'nunca', 'mais', 'descuidado', 'irresponsável', 'frio'];
+
+      const feedbacks = allSurveys
+        .filter((s: any) => s.feedback)
+        .map((s: any) => s.feedback.toLowerCase());
+
+      const countKeywords = (words: string[]) => {
+        const counts = new Map<string, number>();
+        feedbacks.forEach((feedback: string) => {
+          words.forEach(word => {
+            if (feedback.includes(word)) {
+              counts.set(word, (counts.get(word) || 0) + 1);
+            }
+          });
+        });
+        return Array.from(counts.entries())
+          .map(([word, count]) => ({ word, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 8);
+      };
+
+      const positiveKeywords = countKeywords(positiveWords);
+      const negativeKeywords = countKeywords(negativeWords);
+
       const newStats = {
         conversasAtivas: conversasAtivasResult.count || 0,
         conversasTotal: conversasTotalResult.count || 0,
@@ -139,7 +228,10 @@ export function DashboardStats() {
         taxaResposta,
         mediaAvaliacao,
         mensagensFalhadas,
-        contatosBloqueados
+        contatosBloqueados,
+        topDrivers,
+        positiveKeywords,
+        negativeKeywords
       };
 
       console.log('Stats atualizadas:', newStats);
@@ -240,13 +332,90 @@ export function DashboardStats() {
             color="text-blue-600"
             subtitle={loading ? "" : `${stats.taxaResposta.toFixed(1)}%`}
           />
-          <StatCard
-            title="Média de Avaliação"
-            value={stats.mediaAvaliacao}
-            icon={BarChart3}
-            color="text-green-600"
-            subtitle={loading ? "" : stats.mediaAvaliacao > 0 ? `${stats.mediaAvaliacao.toFixed(1)}/5` : "-"}
-          />
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Média de Avaliação</CardTitle>
+              <BarChart3 className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {loading ? "..." : stats.mediaAvaliacao > 0 ? `${stats.mediaAvaliacao.toFixed(1)}/5` : "-"}
+              </div>
+              {!loading && stats.topDrivers.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Top 5 Motoristas</p>
+                  {stats.topDrivers.map((driver, index) => (
+                    <div key={driver.driver_name} className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1.5">
+                        <span className="font-semibold text-primary">#{index + 1}</span>
+                        <span className="truncate max-w-[120px]">{driver.driver_name}</span>
+                      </span>
+                      <span className="font-bold text-green-600">{driver.avg_rating.toFixed(1)}⭐</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Novos cards de palavras-chave */}
+        <div className="grid gap-4 md:grid-cols-2 mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-green-600" />
+                Palavras Positivas mais Mencionadas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <p className="text-muted-foreground text-sm">Carregando...</p>
+              ) : stats.positiveKeywords.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {stats.positiveKeywords.map(keyword => (
+                    <div 
+                      key={keyword.word} 
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-full"
+                    >
+                      <span className="text-sm font-medium text-green-700 dark:text-green-300">{keyword.word}</span>
+                      <span className="text-xs font-bold text-green-600 dark:text-green-400">×{keyword.count}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">Nenhum feedback positivo registrado</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                Palavras Negativas mais Mencionadas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <p className="text-muted-foreground text-sm">Carregando...</p>
+              ) : stats.negativeKeywords.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {stats.negativeKeywords.map(keyword => (
+                    <div 
+                      key={keyword.word} 
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-full"
+                    >
+                      <span className="text-sm font-medium text-red-700 dark:text-red-300">{keyword.word}</span>
+                      <span className="text-xs font-bold text-red-600 dark:text-red-400">×{keyword.count}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">Nenhum feedback negativo registrado</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
