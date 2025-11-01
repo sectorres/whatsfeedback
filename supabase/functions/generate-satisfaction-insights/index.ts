@@ -108,39 +108,40 @@ serve(async (req) => {
       .slice(0, 15) // Aumentar para 15 feedbacks
       .join('\n');
 
-    const prompt = `Analise os dados de satisfação do cliente e forneça insights detalhados e bem formatados:
+    const prompt = `Analise os dados de satisfação e identifique RESPONSABILIDADES (Entregador, Loja ou Vendedor):
 
-📊 DADOS GERAIS:
-- Total de Respostas: ${totalResponses}
-- Média Geral: ${averageRating.toFixed(2)}/5
+📊 DADOS:
+- Total: ${totalResponses} | Média: ${averageRating.toFixed(1)}/5
 - Distribuição: 5★(${ratingDistribution['5']}) 4★(${ratingDistribution['4']}) 3★(${ratingDistribution['3']}) 2★(${ratingDistribution['2']}) 1★(${ratingDistribution['1']})
 
-👥 DESEMPENHO POR MOTORISTA:
+👥 MOTORISTAS:
 ${driverStats}
 
-${feedbacks ? `💬 FEEDBACKS DOS CLIENTES:\n${feedbacks}` : ''}
+${feedbacks ? `💬 FEEDBACKS:\n${feedbacks}` : ''}
 
-Forneça uma análise ESTRUTURADA E BEM FORMATADA (máximo 500 palavras) com:
+Forneça análise OBJETIVA (máx 250 palavras):
 
-1. 📈 RESUMO EXECUTIVO (3-4 linhas)
-   - Sentimento geral dos clientes
-   - Tendências principais observadas
+1. 📊 RESUMO (2 linhas)
+   - Avaliação geral
 
-2. 🎯 ANÁLISE POR MOTORISTA
-   - Avalie CADA motorista individualmente
-   - Destaque pontos fortes e áreas de melhoria
-   - Mencione feedbacks específicos relevantes quando aplicável
+2. 👤 ENTREGADOR
+   - Problemas: [listar]
+   - Motoristas críticos: [nomes e notas]
 
-3. ⚠️ PRINCIPAIS OPORTUNIDADES DE MELHORIA
-   - Liste 4-5 pontos de atenção prioritários
-   - Base-se nos feedbacks dos clientes
-   - Seja específico e acionável
+3. 🏪 LOJA
+   - Problemas logísticos: [listar]
+   - Impacto: [descrever]
 
-4. ✅ RECOMENDAÇÕES ESTRATÉGICAS
-   - 3-4 ações concretas e prioritárias
-   - Indique impacto esperado de cada ação
+4. 💼 VENDEDOR
+   - Problemas comerciais: [listar]
+   - Impacto: [descrever]
 
-Use emojis, formatação clara com quebras de linha e seja objetivo mas completo. Analise profundamente os feedbacks fornecidos.`;
+5. ✅ AÇÕES (3 máximo)
+   - [Ação 1 + responsável]
+   - [Ação 2 + responsável]
+   - [Ação 3 + responsável]
+
+Seja DIRETO e use emojis.`;
 
     console.log('Gerando insights com IA...');
 
@@ -158,11 +159,11 @@ Use emojis, formatação clara com quebras de linha e seja objetivo mas completo
         messages: [
           { 
             role: 'system', 
-            content: 'Você é um analista sênior de satisfação do cliente. Forneça insights detalhados, bem estruturados e acionáveis com formatação clara e uso de emojis para melhor visualização.' 
+            content: 'Você é um analista objetivo de logística. Identifique problemas por área (Entregador, Loja, Vendedor) de forma BREVE e DIRETA. Use formatação clara e emojis.' 
           },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 1000, // Aumentar tokens para análise mais completa
+        max_tokens: 600,
       }),
     });
 
