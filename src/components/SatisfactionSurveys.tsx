@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Star, TrendingUp, TrendingDown, Minus, Loader2, BarChart3, Send, ChevronDown, ChevronUp, CalendarIcon, Download } from "lucide-react";
+import { Star, TrendingUp, TrendingDown, Minus, Loader2, BarChart3, Send, ChevronDown, ChevronUp, CalendarIcon, Download, List } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import * as XLSX from 'xlsx';
 import { SurveyManagement } from "@/components/SurveyManagement";
 
@@ -70,6 +71,8 @@ export function SatisfactionSurveys() {
   const [sendingSurveys, setSendingSurveys] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
+  const [showManagementDialog, setShowManagementDialog] = useState(false);
+  const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
   
   // Estados para filtro de data
   const [dateFrom, setDateFrom] = useState<Date | undefined>(
@@ -238,10 +241,23 @@ export function SatisfactionSurveys() {
 
   const sendSurveys = async () => {
     setSendingSurveys(true);
+    setSendProgress({ current: 0, total: 0, success: 0, failed: 0 });
+    
     try {
+      // Iniciar o progresso
+      setSendProgress({ current: 0, total: 1, success: 0, failed: 0 });
+      
       const { data, error } = await supabase.functions.invoke('send-satisfaction-survey');
 
       if (error) throw error;
+
+      // Atualizar o progresso final
+      setSendProgress({
+        current: data.surveys_sent || 0,
+        total: data.surveys_sent || 0,
+        success: data.surveys_sent || 0,
+        failed: data.failed_surveys || 0
+      });
 
       const details = [];
       if (data.new_surveys > 0) {
@@ -250,6 +266,12 @@ export function SatisfactionSurveys() {
       if (data.resent_surveys > 0) {
         details.push(`${data.resent_surveys} reenviada${data.resent_surveys > 1 ? 's' : ''}`);
       }
+      if (data.failed_surveys > 0) {
+        details.push(`${data.failed_surveys} falha${data.failed_surveys > 1 ? 's' : ''}`);
+      }
+
+      // Aguardar 2 segundos antes de fechar
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       toast({
         title: "Pesquisas enviadas!",
@@ -545,25 +567,35 @@ export function SatisfactionSurveys() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
           <h2 className="text-3xl font-bold tracking-tight mb-2">Pesquisas de Satisfação</h2>
           <p className="text-muted-foreground">
             Acompanhe e analise o feedback dos seus clientes
           </p>
         </div>
-        <Button 
-          onClick={sendSurveys} 
-          disabled={sendingSurveys}
-          className="gap-2"
-        >
-          {sendingSurveys ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Send className="h-4 w-4" />
-          )}
-          Enviar Pesquisas Pendentes
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button 
+            onClick={sendSurveys} 
+            disabled={sendingSurveys}
+            className="gap-2"
+          >
+            {sendingSurveys ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
+            Enviar Pesquisas Pendentes
+          </Button>
+          <Button 
+            onClick={() => setShowManagementDialog(true)}
+            variant="outline"
+            className="gap-2"
+          >
+            <List className="h-4 w-4" />
+            Gerenciamento de Envios
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-4">
@@ -1023,6 +1055,56 @@ export function SatisfactionSurveys() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dialog de Gerenciamento */}
+      <Dialog open={showManagementDialog} onOpenChange={setShowManagementDialog}>
+        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gerenciamento de Envios</DialogTitle>
+            <DialogDescription>
+              Selecione e envie pesquisas individualmente
+            </DialogDescription>
+          </DialogHeader>
+          <SurveyManagement />
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Progresso */}
+      <Dialog open={sendingSurveys} onOpenChange={(open) => !open && setSendingSurveys(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviando Pesquisas</DialogTitle>
+            <DialogDescription>
+              Acompanhe o progresso do envio em tempo real
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Progresso</span>
+                <span className="font-medium">{sendProgress.current} / {sendProgress.total}</span>
+              </div>
+              <Progress value={sendProgress.total > 0 ? (sendProgress.current / sendProgress.total) * 100 : 0} />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div className="space-y-1">
+                <div className="text-2xl font-bold text-green-600">{sendProgress.success}</div>
+                <div className="text-xs text-muted-foreground">Enviadas</div>
+              </div>
+              <div className="space-y-1">
+                <div className="text-2xl font-bold text-red-600">{sendProgress.failed}</div>
+                <div className="text-xs text-muted-foreground">Falharam</div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Aguarde enquanto as pesquisas são enviadas...</span>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
