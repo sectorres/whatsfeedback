@@ -371,32 +371,56 @@ export function DashboardStats() {
               {loading ? (
                 <p className="text-muted-foreground text-sm">Carregando...</p>
               ) : stats.positiveKeywords.length > 0 ? (
-                <div className="h-[180px] overflow-y-auto flex flex-wrap gap-2 content-start items-start">
+                <div className="h-[200px] relative overflow-hidden bg-gradient-to-br from-green-50/30 to-transparent dark:from-green-950/20 rounded-lg">
                   {stats.positiveKeywords.map((keyword, index) => {
                     const maxCount = Math.max(...stats.positiveKeywords.map(k => k.count));
-                    const scale = 0.75 + (keyword.count / maxCount) * 0.7;
+                    const minSize = 11;
+                    const maxSize = 26;
+                    const fontSize = minSize + ((keyword.count / maxCount) * (maxSize - minSize));
+                    
+                    // Posicionamento pseudo-aleatório baseado no índice
+                    const positions = [
+                      { top: '15%', left: '10%' },
+                      { top: '45%', left: '60%' },
+                      { top: '25%', left: '75%' },
+                      { top: '65%', left: '15%' },
+                      { top: '70%', left: '70%' },
+                      { top: '35%', left: '30%' },
+                      { top: '55%', left: '45%' },
+                      { top: '10%', left: '50%' },
+                    ];
+                    const position = positions[index % positions.length];
+                    
+                    const greenShades = [
+                      'text-green-600 dark:text-green-400',
+                      'text-green-700 dark:text-green-300',
+                      'text-green-500 dark:text-green-500',
+                      'text-emerald-600 dark:text-emerald-400',
+                    ];
+                    const colorClass = greenShades[index % greenShades.length];
                     
                     return (
                       <div 
                         key={`${keyword.word}-${index}`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-full transition-all hover:scale-110 cursor-default shrink-0"
+                        className={`absolute transition-all duration-300 hover:scale-110 cursor-default animate-fade-in ${colorClass}`}
                         style={{
-                          transform: `scale(${scale})`,
-                          transformOrigin: 'center'
+                          top: position.top,
+                          left: position.left,
+                          fontSize: `${fontSize}px`,
+                          fontWeight: 500 + (keyword.count / maxCount) * 200,
+                          animationDelay: `${index * 0.1}s`,
+                          transform: 'translate(-50%, -50%)',
                         }}
                       >
-                        <span className="text-xs font-medium text-green-700 dark:text-green-300 whitespace-nowrap">
+                        <span className="whitespace-nowrap drop-shadow-sm">
                           {keyword.word}
-                        </span>
-                        <span className="text-[10px] font-bold text-green-600 dark:text-green-400 opacity-70">
-                          {keyword.count}
                         </span>
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-sm h-[180px] flex items-center justify-center">
+                <p className="text-muted-foreground text-sm h-[200px] flex items-center justify-center">
                   Nenhum feedback positivo registrado
                 </p>
               )}
@@ -414,32 +438,56 @@ export function DashboardStats() {
               {loading ? (
                 <p className="text-muted-foreground text-sm">Carregando...</p>
               ) : stats.negativeKeywords.length > 0 ? (
-                <div className="h-[180px] overflow-y-auto flex flex-wrap gap-2 content-start items-start">
+                <div className="h-[200px] relative overflow-hidden bg-gradient-to-br from-red-50/30 to-transparent dark:from-red-950/20 rounded-lg">
                   {stats.negativeKeywords.map((keyword, index) => {
                     const maxCount = Math.max(...stats.negativeKeywords.map(k => k.count));
-                    const scale = 0.75 + (keyword.count / maxCount) * 0.7;
+                    const minSize = 11;
+                    const maxSize = 26;
+                    const fontSize = minSize + ((keyword.count / maxCount) * (maxSize - minSize));
+                    
+                    // Posicionamento pseudo-aleatório baseado no índice
+                    const positions = [
+                      { top: '20%', left: '65%' },
+                      { top: '50%', left: '20%' },
+                      { top: '30%', left: '35%' },
+                      { top: '70%', left: '55%' },
+                      { top: '60%', left: '80%' },
+                      { top: '40%', left: '75%' },
+                      { top: '15%', left: '25%' },
+                      { top: '75%', left: '30%' },
+                    ];
+                    const position = positions[index % positions.length];
+                    
+                    const redShades = [
+                      'text-red-600 dark:text-red-400',
+                      'text-red-700 dark:text-red-300',
+                      'text-red-500 dark:text-red-500',
+                      'text-rose-600 dark:text-rose-400',
+                    ];
+                    const colorClass = redShades[index % redShades.length];
                     
                     return (
                       <div 
                         key={`${keyword.word}-${index}`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-full transition-all hover:scale-110 cursor-default shrink-0"
+                        className={`absolute transition-all duration-300 hover:scale-110 cursor-default animate-fade-in ${colorClass}`}
                         style={{
-                          transform: `scale(${scale})`,
-                          transformOrigin: 'center'
+                          top: position.top,
+                          left: position.left,
+                          fontSize: `${fontSize}px`,
+                          fontWeight: 500 + (keyword.count / maxCount) * 200,
+                          animationDelay: `${index * 0.1}s`,
+                          transform: 'translate(-50%, -50%)',
                         }}
                       >
-                        <span className="text-xs font-medium text-red-700 dark:text-red-300 whitespace-nowrap">
+                        <span className="whitespace-nowrap drop-shadow-sm">
                           {keyword.word}
-                        </span>
-                        <span className="text-[10px] font-bold text-red-600 dark:text-red-400 opacity-70">
-                          {keyword.count}
                         </span>
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <p className="text-muted-foreground text-sm h-[180px] flex items-center justify-center">
+                <p className="text-muted-foreground text-sm h-[200px] flex items-center justify-center">
                   Nenhum feedback negativo registrado
                 </p>
               )}
