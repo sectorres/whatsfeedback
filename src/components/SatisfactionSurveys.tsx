@@ -666,7 +666,6 @@ export function SatisfactionSurveys() {
       <Tabs defaultValue="responses" className="space-y-4">
         <TabsList>
           <TabsTrigger value="responses">Respostas</TabsTrigger>
-          <TabsTrigger value="management">Gerenciamento</TabsTrigger>
           <TabsTrigger value="drivers">Indicadores por Motorista</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
         </TabsList>
@@ -917,10 +916,6 @@ export function SatisfactionSurveys() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="management" className="space-y-4">
-          <SurveyManagement />
         </TabsContent>
 
         <TabsContent value="insights" className="space-y-4">
