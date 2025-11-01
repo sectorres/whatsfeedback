@@ -16,7 +16,8 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import Autoplay from "embla-carousel-autoplay";
 import * as XLSX from 'xlsx';
 import { SurveyManagement } from "@/components/SurveyManagement";
 
@@ -852,7 +853,7 @@ export function SatisfactionSurveys() {
                   {driverMetrics.map((driver, index) => (
                     <Card key={driver.name} className="bg-muted/30">
                       <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-start justify-between mb-2">
                           <div className="flex items-center gap-3">
                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
                               #{index + 1}
@@ -892,31 +893,34 @@ export function SatisfactionSurveys() {
 
                           return driverFeedbacks.length > 0 ? (
                             <div className="mb-3">
-                              <Carousel className="w-full max-w-2xl mx-auto">
+                              <Carousel 
+                                className="w-full"
+                                opts={{
+                                  align: "start",
+                                  loop: true,
+                                }}
+                                plugins={[Autoplay({ delay: 3000 })]}
+                              >
                                 <CarouselContent>
                                   {driverFeedbacks.map((survey, idx) => (
                                     <CarouselItem key={idx}>
-                                      <div className="p-2">
-                                        <div className="text-center">
-                                          <p 
-                                            className={`text-xs italic ${
-                                              survey.rating >= 4 ? 'text-green-600' : 
-                                              survey.rating <= 2 ? 'text-red-600' : 
-                                              'text-yellow-600'
-                                            }`}
-                                          >
-                                            &quot;{survey.feedback}&quot;
-                                          </p>
-                                          <p className="text-[10px] text-muted-foreground mt-1">
-                                            {survey.rating}★ - {format(new Date(survey.responded_at || survey.sent_at), "dd/MM/yyyy", { locale: ptBR })}
-                                          </p>
-                                        </div>
+                                      <div className="text-center py-1">
+                                        <p 
+                                          className={`text-xs italic ${
+                                            survey.rating >= 4 ? 'text-green-600' : 
+                                            survey.rating <= 2 ? 'text-red-600' : 
+                                            'text-yellow-600'
+                                          }`}
+                                        >
+                                          &quot;{survey.feedback}&quot;
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                                          {survey.rating}★ - {format(new Date(survey.responded_at || survey.sent_at), "dd/MM/yyyy", { locale: ptBR })}
+                                        </p>
                                       </div>
                                     </CarouselItem>
                                   ))}
                                 </CarouselContent>
-                                <CarouselPrevious className="h-6 w-6" />
-                                <CarouselNext className="h-6 w-6" />
                               </Carousel>
                             </div>
                           ) : null;
