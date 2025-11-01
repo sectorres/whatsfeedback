@@ -1,0 +1,32 @@
+_format_version: "1.1"
+
+services:
+  - name: supabase-api
+    url: http://supabase-db:5432
+    routes:
+      - name: supabase-api-route
+        paths:
+          - /
+
+plugins:
+  - name: cors
+    config:
+      origins:
+        - "*"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Authorization
+        - Content-Type
+        - apikey
+        - x-client-info
+      exposed_headers:
+        - X-Request-Id
+      credentials: true
+      max_age: 3600

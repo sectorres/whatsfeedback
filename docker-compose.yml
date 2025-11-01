@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # Frontend Application
+  app:
+    build: .
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-http://localhost:54321}
+      - VITE_SUPABASE_PUBLISHABLE_KEY=${VITE_SUPABASE_PUBLISHABLE_KEY}
+      - VITE_SUPABASE_PROJECT_ID=${VITE_SUPABASE_PROJECT_ID}
+    depends_on:
+      - supabase-db
+      - supabase-api
+    networks:
+      - app-network
+
+  # Supabase Database
+  supabase-db:
+    image: supabase/postgres:15.1.0.147
+    container_name: supabase-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your-super-secret-password}
+      POSTGRES_DB: postgres
+    volumes:
+      - supabase-db-data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+
+  # Supabase API (Kong)
+  supabase-api:
+    image: supabase/kong:2.8.1
+    container_name: supabase-api
+    ports:
+      - "54321:8000"
+      - "54323:8443"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+    volumes:
+      - ./docker/kong.yml:/var/lib/kong/kong.yml:ro
+    depends_on:
+      - supabase-db
+    networks:
+      - app-network
+
+  # Supabase Studio (UI para gerenciar o banco)
+  supabase-studio:
+    image: supabase/studio:20231123-64e7734
+    container_name: supabase-studio
+    ports:
+      - "54323:3000"
+    environment:
+      SUPABASE_URL: http://supabase-api:8000
+      STUDIO_PG_META_URL: http://supabase-api:8000/pg
+      SUPABASE_ANON_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  supabase-db-data:
