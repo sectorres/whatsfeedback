@@ -4,18 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2, Shield } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
-interface AllowedIP {
+interface AllowedIp {
   id: string;
   ip_address: string;
   description: string | null;
@@ -23,7 +16,7 @@ interface AllowedIP {
 }
 
 export function IpWhitelistManager() {
-  const [ips, setIps] = useState<AllowedIP[]>([]);
+  const [ips, setIps] = useState<AllowedIp[]>([]);
   const [loading, setLoading] = useState(true);
   const [newIp, setNewIp] = useState("");
   const [newDescription, setNewDescription] = useState("");
@@ -44,61 +37,57 @@ export function IpWhitelistManager() {
       setIps(data || []);
     } catch (error: any) {
       console.error('Erro ao carregar IPs:', error);
-      toast.error("Erro ao carregar lista de IPs");
+      toast.error('Erro ao carregar lista de IPs permitidos');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddIp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleAdd = async () => {
     if (!newIp.trim()) {
-      toast.error("Digite um endereço IP válido");
+      toast.error('Digite um endereço IP válido');
       return;
     }
 
     // Validação básica de IP
-    const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
     if (!ipRegex.test(newIp.trim())) {
-      toast.error("Formato de IP inválido. Use o formato: 192.168.1.1");
+      toast.error('Formato de IP inválido. Use o formato: 192.168.1.1');
       return;
     }
 
     setAdding(true);
-
     try {
       const { error } = await supabase
         .from('allowed_ips')
-        .insert([
-          {
-            ip_address: newIp.trim(),
-            description: newDescription.trim() || null
-          }
-        ]);
+        .insert([{
+          ip_address: newIp.trim(),
+          description: newDescription.trim() || null
+        }]);
 
-      if (error) {
-        if (error.code === '23505') {
-          toast.error("Este IP já está na lista");
-        } else {
-          throw error;
-        }
-        return;
-      }
+      if (error) throw error;
 
-      toast.success("IP adicionado com sucesso");
+      toast.success('IP adicionado com sucesso!');
       setNewIp("");
       setNewDescription("");
       fetchIps();
     } catch (error: any) {
       console.error('Erro ao adicionar IP:', error);
-      toast.error("Erro ao adicionar IP");
+      if (error.code === '23505') {
+        toast.error('Este IP já está na lista');
+      } else {
+        toast.error('Erro ao adicionar IP');
+      }
     } finally {
       setAdding(false);
     }
   };
 
-  const handleDeleteIp = async (id: string, ipAddress: string) => {
+  const handleDelete = async (id: string, ip: string) => {
+    if (!confirm(`Tem certeza que deseja remover o IP ${ip}?`)) {
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('allowed_ips')
@@ -107,11 +96,11 @@ export function IpWhitelistManager() {
 
       if (error) throw error;
 
-      toast.success(`IP ${ipAddress} removido com sucesso`);
+      toast.success('IP removido com sucesso!');
       fetchIps();
     } catch (error: any) {
       console.error('Erro ao remover IP:', error);
-      toast.error("Erro ao remover IP");
+      toast.error('Erro ao remover IP');
     }
   };
 
@@ -119,7 +108,7 @@ export function IpWhitelistManager() {
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </CardContent>
       </Card>
     );
@@ -130,14 +119,15 @@ export function IpWhitelistManager() {
       <CardHeader>
         <div className="flex items-center gap-2">
           <Shield className="h-5 w-5 text-primary" />
-          <CardTitle>Lista de IPs Permitidos</CardTitle>
+          <CardTitle>Controle de Acesso por IP</CardTitle>
         </div>
         <CardDescription>
-          Apenas endereços IP desta lista podem fazer login no sistema
+          Gerencie os endereços IP permitidos para fazer login no sistema
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <form onSubmit={handleAddIp} className="space-y-4">
+        {/* Formulário de adicionar IP */}
+        <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="ip">Endereço IP</Label>
@@ -160,7 +150,7 @@ export function IpWhitelistManager() {
               />
             </div>
           </div>
-          <Button type="submit" disabled={adding}>
+          <Button onClick={handleAdd} disabled={adding} className="w-full md:w-auto">
             {adding ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -173,8 +163,9 @@ export function IpWhitelistManager() {
               </>
             )}
           </Button>
-        </form>
+        </div>
 
+        {/* Lista de IPs */}
         <div className="border rounded-lg">
           <Table>
             <TableHeader>
@@ -182,13 +173,13 @@ export function IpWhitelistManager() {
                 <TableHead>Endereço IP</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Adicionado em</TableHead>
-                <TableHead className="w-[100px]">Ações</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {ips.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                  <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                     Nenhum IP cadastrado
                   </TableCell>
                 </TableRow>
@@ -196,21 +187,15 @@ export function IpWhitelistManager() {
                 ips.map((ip) => (
                   <TableRow key={ip.id}>
                     <TableCell className="font-mono">{ip.ip_address}</TableCell>
-                    <TableCell>{ip.description || "-"}</TableCell>
+                    <TableCell>{ip.description || '-'}</TableCell>
                     <TableCell>
-                      {new Date(ip.created_at).toLocaleDateString('pt-BR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
+                      {new Date(ip.created_at).toLocaleDateString('pt-BR')}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       <Button
                         variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteIp(ip.id, ip.ip_address)}
+                        size="sm"
+                        onClick={() => handleDelete(ip.id, ip.ip_address)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>

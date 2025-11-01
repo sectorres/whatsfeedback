@@ -37,24 +37,24 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // Call edge function to validate IP and login
+      // Usar edge function que verifica o IP
       const { data, error } = await supabase.functions.invoke('login-with-ip-check', {
         body: { email, password }
       });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       if (data.error) {
+        // Se o IP não está autorizado ou outro erro
         toast.error(data.error);
         return;
       }
 
-      // Set session manually
+      // Se login foi bem-sucedido, definir a sessão
       if (data.session) {
-        await supabase.auth.setSession({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        });
+        await supabase.auth.setSession(data.session);
         toast.success("Login realizado com sucesso!");
       }
     } catch (error: any) {
