@@ -104,6 +104,20 @@ export function SurveyManagement() {
       return;
     }
 
+    // Verificar se há pesquisas respondidas selecionadas
+    const hasRespondedSurveys = items.some(
+      item => selectedIds.has(item.campaign_send_id) && item.status === 'responded'
+    );
+
+    if (hasRespondedSurveys) {
+      toast({
+        title: "Pesquisas respondidas selecionadas",
+        description: "Não é possível reenviar pesquisas que já foram respondidas",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-satisfaction-survey', {

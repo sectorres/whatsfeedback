@@ -117,10 +117,44 @@ Responda apenas com o número da sua avaliação.`;
     // Se foram especificados IDs, buscar apenas esses envios
     if (campaignSendIds && campaignSendIds.length > 0) {
       console.log(`Processando ${campaignSendIds.length} envios específicos`);
+      
+      // Primeiro, verificar se algum desses envios já tem pesquisa respondida
+      const { data: respondedSurveys, error: respondedError } = await supabaseClient
+        .from('satisfaction_surveys')
+        .select('campaign_send_id')
+        .in('campaign_send_id', campaignSendIds)
+        .eq('status', 'responded');
+
+      if (respondedError) throw respondedError;
+
+      const respondedSurveyIds = respondedSurveys?.map(s => s.campaign_send_id) || [];
+      
+      if (respondedSurveyIds.length > 0) {
+        console.log(`Bloqueando ${respondedSurveyIds.length} pesquisas já respondidas`);
+      }
+
+      // Filtrar apenas os IDs que NÃO foram respondidos
+      const allowedIds = campaignSendIds.filter(id => !respondedSurveyIds.includes(id));
+
+      if (allowedIds.length === 0) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            surveys_sent: 0,
+            new_surveys: 0,
+            resent_surveys: 0,
+            failed_surveys: 0,
+            errors: [],
+            message: 'Todas as pesquisas selecionadas já foram respondidas'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       const { data: specificSends, error: sendsError } = await supabaseClient
         .from('campaign_sends')
         .select('*')
-        .in('id', campaignSendIds)
+        .in('id', allowedIds)
         .in('status', ['success', 'sent']);
 
       if (sendsError) throw sendsError;
