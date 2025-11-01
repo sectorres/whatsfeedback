@@ -85,6 +85,8 @@ serve(async (req) => {
 
         // Verificar se é uma resposta a pesquisa de satisfação (número de 1 a 5)
         const ratingMatch = messageText.trim().match(/^[1-5]$/);
+        let isSurveyRatingOnly = false;
+        
         if (ratingMatch) {
           const rating = parseInt(ratingMatch[0]);
           
@@ -111,6 +113,9 @@ serve(async (req) => {
 
           if (pendingSurvey) {
             console.log(`Updating survey ${pendingSurvey.id} with rating ${rating}`);
+            
+            // Marcar que é apenas nota de pesquisa (não deve criar conversa)
+            isSurveyRatingOnly = true;
             
             // Atualizar a pesquisa com a nota e marcar como aguardando feedback
             const { error: updateError } = await supabase
@@ -139,12 +144,16 @@ serve(async (req) => {
                 console.error('Error sending feedback request:', feedbackError);
               }
             }
+            
+            // Pular criação de conversa/mensagem quando for apenas nota
+            continue;
           } else {
             console.log(`No pending survey found for ${customerPhone}`);
           }
         }
 
         // Verificar se é um feedback para pesquisa que já tem nota
+        let isSurveyFeedback = false;
         const { data: surveyAwaitingFeedback } = await supabase
           .from('satisfaction_surveys')
           .select('*')
@@ -158,6 +167,7 @@ serve(async (req) => {
 
         if (feedbackSurvey && !ratingMatch) {
           console.log(`Processing feedback for survey ${feedbackSurvey.id}`);
+          isSurveyFeedback = true;
           
           // Atualizar com o feedback
           const { error: feedbackError } = await supabase
@@ -184,63 +194,68 @@ serve(async (req) => {
             }
           }
         }
+        
+        // Apenas criar conversa se NÃO for apenas nota de pesquisa
+        // Criar conversa para feedback de pesquisa ou mensagens normais
+        if (!isSurveyRatingOnly) {
 
-        // Buscar ou criar conversa
-        let { data: conversation } = await supabase
-          .from('conversations')
-          .select('*')
-          .eq('customer_phone', customerPhone)
-          .maybeSingle();
-
-        if (!conversation) {
-          const { data: newConv, error: convError } = await supabase
+          // Buscar ou criar conversa
+          let { data: conversation } = await supabase
             .from('conversations')
-            .insert({
-              customer_phone: customerPhone,
-              customer_name: customerName,
-              status: 'active',
-              last_message_at: new Date().toISOString(),
-              unread_count: 1
-            })
-            .select()
-            .single();
+            .select('*')
+            .eq('customer_phone', customerPhone)
+            .maybeSingle();
 
-          if (convError) {
-            console.error('Error creating conversation:', convError);
-            continue;
+          if (!conversation) {
+            const { data: newConv, error: convError } = await supabase
+              .from('conversations')
+              .insert({
+                customer_phone: customerPhone,
+                customer_name: customerName,
+                status: 'active',
+                last_message_at: new Date().toISOString(),
+                unread_count: 1
+              })
+              .select()
+              .single();
+
+            if (convError) {
+              console.error('Error creating conversation:', convError);
+              continue;
+            }
+            conversation = newConv;
+          } else {
+            // Atualizar última mensagem e incrementar contador de não lidas
+            const { data: currentConv } = await supabase
+              .from('conversations')
+              .select('unread_count')
+              .eq('id', conversation.id)
+              .single();
+
+            await supabase
+              .from('conversations')
+              .update({
+                last_message_at: new Date().toISOString(),
+                status: 'active',
+                unread_count: (currentConv?.unread_count || 0) + 1
+              })
+              .eq('id', conversation.id);
           }
-          conversation = newConv;
-        } else {
-          // Atualizar última mensagem e incrementar contador de não lidas
-          const { data: currentConv } = await supabase
-            .from('conversations')
-            .select('unread_count')
-            .eq('id', conversation.id)
-            .single();
 
-          await supabase
-            .from('conversations')
-            .update({
-              last_message_at: new Date().toISOString(),
-              status: 'active',
-              unread_count: (currentConv?.unread_count || 0) + 1
-            })
-            .eq('id', conversation.id);
-        }
+          // Inserir mensagem
+          const { error: msgError } = await supabase
+            .from('messages')
+            .insert({
+              conversation_id: conversation.id,
+              sender_type: 'customer',
+              sender_name: customerName,
+              message_text: messageText,
+              message_status: 'received',
+            });
 
-        // Inserir mensagem
-        const { error: msgError } = await supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversation.id,
-            sender_type: 'customer',
-            sender_name: customerName,
-            message_text: messageText,
-            message_status: 'received',
-          });
-
-        if (msgError) {
-          console.error('Error inserting message:', msgError);
+          if (msgError) {
+            console.error('Error inserting message:', msgError);
+          }
         }
       } catch (err) {
         console.error('Error processing single message:', err);
