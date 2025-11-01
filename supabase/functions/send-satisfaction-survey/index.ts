@@ -17,112 +17,14 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Aceitar envio individual ou em lote
+    const body = await req.json().catch(() => ({}));
+    const campaignSendIds = body.campaignSendIds as string[] | undefined;
+
     console.log('Buscando envios de campanha elegíveis para pesquisa de satisfação...');
-
-    // 1. Buscar pesquisas existentes que já foram respondidas (não reenviar)
-    const { data: respondedSurveys, error: respondedError } = await supabaseClient
-      .from('satisfaction_surveys')
-      .select('campaign_send_id')
-      .eq('status', 'responded');
-
-    if (respondedError) {
-      console.error('Erro ao buscar pesquisas respondidas:', respondedError);
-      throw respondedError;
-    }
-
-    const respondedSurveyIds = respondedSurveys?.map(s => s.campaign_send_id) || [];
-    console.log(`Encontradas ${respondedSurveys?.length || 0} pesquisas respondidas (não reenviar)`);
-
-    // 2. Buscar pesquisas falhadas ou sem resposta há mais de 30 minutos
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
     
-    const { data: retryableSurveys, error: retryError } = await supabaseClient
-      .from('satisfaction_surveys')
-      .select('*')
-      .or(`status.eq.failed,and(status.eq.sent,sent_at.lt.${thirtyMinutesAgo})`);
-
-    if (retryError) {
-      console.error('Erro ao buscar pesquisas para reenvio:', retryError);
-      throw retryError;
-    }
-
-    console.log(`Encontradas ${retryableSurveys?.length || 0} pesquisas para reenvio (falhadas ou sem resposta há 30+ min)`);
-
-    // 3. Buscar envios elegíveis (status success ou sent) sem pesquisa
-    const { data: eligibleSends, error: sendsError } = await supabaseClient
-      .from('campaign_sends')
-      .select('*')
-      .in('status', ['success', 'sent']);
-
-    if (sendsError) {
-      console.error('Erro ao buscar envios:', sendsError);
-      throw sendsError;
-    }
-
-    console.log(`Encontrados ${eligibleSends?.length || 0} envios com status success/sent`);
-
-    // Filtrar envios que não têm pesquisa respondida
-    const sendsToProcess = (eligibleSends || []).filter((s) => !respondedSurveyIds.includes(s.id));
-
-    console.log(`Encontrados ${sendsToProcess.length || 0} envios elegíveis (sem pesquisa respondida)`);
-
-    const surveysSent: any[] = [];
-    const surveysResent: any[] = [];
-    const newSurveys: any[] = [];
-
-    // Processar novos envios
-    for (const send of sendsToProcess) {
-      // Verificar se já existe pesquisa para este envio
-      const { data: existingSurvey } = await supabaseClient
-        .from('satisfaction_surveys')
-        .select('*')
-        .eq('campaign_send_id', send.id)
-        .maybeSingle();
-
-      let survey = existingSurvey;
-
-      if (!existingSurvey) {
-        // Criar nova pesquisa
-        const { data: newSurvey, error: surveyError } = await supabaseClient
-          .from('satisfaction_surveys')
-          .insert({
-            campaign_send_id: send.id,
-            customer_phone: send.customer_phone,
-            customer_name: send.customer_name,
-            status: 'sent',
-            sent_at: new Date().toISOString()
-          })
-          .select()
-          .single();
-
-        if (surveyError) {
-          console.error('Erro ao criar pesquisa:', surveyError);
-          continue;
-        }
-        survey = newSurvey;
-        newSurveys.push(survey);
-      } else {
-        // Atualizar pesquisa existente para reenvio
-        const { data: updatedSurvey, error: updateError } = await supabaseClient
-          .from('satisfaction_surveys')
-          .update({ 
-            status: 'sent',
-            sent_at: new Date().toISOString()
-          })
-          .eq('id', existingSurvey.id)
-          .select()
-          .single();
-
-        if (updateError) {
-          console.error('Erro ao atualizar pesquisa:', updateError);
-          continue;
-        }
-        survey = updatedSurvey;
-        surveysResent.push(survey);
-      }
-
-      // Enviar mensagem via WhatsApp
-      const surveyMessage = `Olá${send.customer_name ? ' ' + send.customer_name : ''}!
+    // Mensagem da pesquisa
+    const getSurveyMessage = (customerName?: string) => `Olá${customerName ? ' ' + customerName : ''}!
 
 De uma nota de 1 a 5 para a entrega de seus produtos.
 
@@ -134,48 +36,165 @@ De uma nota de 1 a 5 para a entrega de seus produtos.
 
 Responda apenas com o número da sua avaliação.`;
 
+    // Função auxiliar para enviar uma pesquisa
+    const sendSingleSurvey = async (send: any) => {
       try {
-        const { data: whatsappResponse, error: whatsappError } = await supabaseClient.functions.invoke('whatsapp-send', {
+        // Verificar se já existe pesquisa para este envio
+        const { data: existingSurvey } = await supabaseClient
+          .from('satisfaction_surveys')
+          .select('*')
+          .eq('campaign_send_id', send.id)
+          .maybeSingle();
+
+        let survey = existingSurvey;
+        let isNew = false;
+
+        if (!existingSurvey) {
+          // Criar nova pesquisa
+          const { data: newSurvey, error: surveyError } = await supabaseClient
+            .from('satisfaction_surveys')
+            .insert({
+              campaign_send_id: send.id,
+              customer_phone: send.customer_phone,
+              customer_name: send.customer_name,
+              status: 'pending',
+              sent_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+          if (surveyError) throw surveyError;
+          survey = newSurvey;
+          isNew = true;
+        } else {
+          // Atualizar pesquisa existente para reenvio
+          const { data: updatedSurvey, error: updateError } = await supabaseClient
+            .from('satisfaction_surveys')
+            .update({ 
+              status: 'pending',
+              sent_at: new Date().toISOString()
+            })
+            .eq('id', existingSurvey.id)
+            .select()
+            .single();
+
+          if (updateError) throw updateError;
+          survey = updatedSurvey;
+        }
+
+        // Enviar mensagem via WhatsApp
+        const { error: whatsappError } = await supabaseClient.functions.invoke('whatsapp-send', {
           body: {
-            phone: send.customer_phone, // Corrigido: a função espera "phone"
-            message: surveyMessage
+            phone: send.customer_phone,
+            message: getSurveyMessage(send.customer_name)
           }
         });
 
         if (whatsappError) {
-          console.error('Erro ao enviar WhatsApp:', whatsappError);
           await supabaseClient
             .from('satisfaction_surveys')
             .update({ status: 'failed' })
             .eq('id', survey.id);
-        } else {
-          console.log(`Pesquisa enviada para ${send.customer_phone}`);
-          surveysSent.push(survey);
+          throw whatsappError;
         }
-      } catch (error) {
-        console.error('Erro no envio WhatsApp:', error);
+
+        // Atualizar status para enviado
         await supabaseClient
           .from('satisfaction_surveys')
-          .update({ status: 'failed' })
+          .update({ status: 'sent' })
           .eq('id', survey.id);
-      }
 
-      // Delay aleatório entre 5 e 60 segundos entre envios
-      const delay = Math.floor(Math.random() * (60000 - 5000 + 1)) + 5000;
-      await new Promise(resolve => setTimeout(resolve, delay));
+        console.log(`Pesquisa enviada para ${send.customer_phone}`);
+        return { success: true, isNew, survey };
+      } catch (error) {
+        console.error(`Erro ao enviar pesquisa para ${send.customer_phone}:`, error);
+        return { success: false, error, send };
+      }
+    };
+
+    let sendsToProcess: any[] = [];
+
+    // Se foram especificados IDs, buscar apenas esses envios
+    if (campaignSendIds && campaignSendIds.length > 0) {
+      console.log(`Processando ${campaignSendIds.length} envios específicos`);
+      const { data: specificSends, error: sendsError } = await supabaseClient
+        .from('campaign_sends')
+        .select('*')
+        .in('id', campaignSendIds)
+        .in('status', ['success', 'sent']);
+
+      if (sendsError) throw sendsError;
+      sendsToProcess = specificSends || [];
+    } else {
+      // Buscar pesquisas já respondidas (não reenviar)
+      const { data: respondedSurveys, error: respondedError } = await supabaseClient
+        .from('satisfaction_surveys')
+        .select('campaign_send_id')
+        .eq('status', 'responded');
+
+      if (respondedError) throw respondedError;
+
+      const respondedSurveyIds = respondedSurveys?.map(s => s.campaign_send_id) || [];
+      console.log(`Encontradas ${respondedSurveys?.length || 0} pesquisas respondidas (não reenviar)`);
+
+      // Buscar envios elegíveis (status success ou sent) sem pesquisa
+      const { data: eligibleSends, error: sendsError } = await supabaseClient
+        .from('campaign_sends')
+        .select('*')
+        .in('status', ['success', 'sent']);
+
+      if (sendsError) throw sendsError;
+
+      console.log(`Encontrados ${eligibleSends?.length || 0} envios com status success/sent`);
+
+      // Filtrar envios que não têm pesquisa respondida
+      sendsToProcess = (eligibleSends || []).filter((s) => !respondedSurveyIds.includes(s.id));
+      console.log(`Encontrados ${sendsToProcess.length || 0} envios elegíveis (sem pesquisa respondida)`);
     }
 
-    const totalSent = surveysSent.length;
-    const totalNew = newSurveys.length;
-    const totalResent = surveysResent.length;
+    const results = {
+      sent: 0,
+      new: 0,
+      resent: 0,
+      failed: 0,
+      errors: [] as any[]
+    };
+
+    // Processar envios com delay
+    for (let i = 0; i < sendsToProcess.length; i++) {
+      const result = await sendSingleSurvey(sendsToProcess[i]);
+      
+      if (result.success) {
+        results.sent++;
+        if (result.isNew) {
+          results.new++;
+        } else {
+          results.resent++;
+        }
+      } else {
+        results.failed++;
+        results.errors.push({
+          phone: result.send?.customer_phone,
+          error: result.error instanceof Error ? result.error.message : 'Erro desconhecido'
+        });
+      }
+
+      // Delay aleatório entre 2 e 10 segundos entre envios
+      if (i < sendsToProcess.length - 1) {
+        const delay = Math.floor(Math.random() * (10000 - 2000 + 1)) + 2000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        surveys_sent: totalSent,
-        new_surveys: totalNew,
-        resent_surveys: totalResent,
-        message: `${totalSent} pesquisas enviadas (${totalNew} novas, ${totalResent} reenviadas)`
+        surveys_sent: results.sent,
+        new_surveys: results.new,
+        resent_surveys: results.resent,
+        failed_surveys: results.failed,
+        errors: results.errors,
+        message: `${results.sent} pesquisas enviadas (${results.new} novas, ${results.resent} reenviadas, ${results.failed} falhas)`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

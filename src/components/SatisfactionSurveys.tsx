@@ -16,6 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import * as XLSX from 'xlsx';
+import { SurveyManagement } from "@/components/SurveyManagement";
 
 interface Campaign {
   id: string;
@@ -633,6 +634,7 @@ export function SatisfactionSurveys() {
       <Tabs defaultValue="responses" className="space-y-4">
         <TabsList>
           <TabsTrigger value="responses">Respostas</TabsTrigger>
+          <TabsTrigger value="management">Gerenciamento</TabsTrigger>
           <TabsTrigger value="drivers">Indicadores por Motorista</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
         </TabsList>
@@ -883,6 +885,10 @@ export function SatisfactionSurveys() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="management" className="space-y-4">
+          <SurveyManagement />
         </TabsContent>
 
         <TabsContent value="insights" className="space-y-4">
