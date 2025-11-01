@@ -364,23 +364,36 @@ export function DashboardStats() {
             <CardHeader>
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 text-green-600" />
-                Palavras Positivas mais Mencionadas
+                Frases Positivas mais Mencionadas
               </CardTitle>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <p className="text-muted-foreground text-sm">Carregando...</p>
               ) : stats.positiveKeywords.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {stats.positiveKeywords.map(keyword => (
-                    <div 
-                      key={keyword.word} 
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-full"
-                    >
-                      <span className="text-sm font-medium text-green-700 dark:text-green-300">{keyword.word}</span>
-                      <span className="text-xs font-bold text-green-600 dark:text-green-400">×{keyword.count}</span>
-                    </div>
-                  ))}
+                <div className="flex flex-wrap gap-3 items-center justify-center min-h-[200px]">
+                  {stats.positiveKeywords.map((keyword, index) => {
+                    const maxCount = Math.max(...stats.positiveKeywords.map(k => k.count));
+                    const minSize = 12;
+                    const maxSize = 28;
+                    const fontSize = minSize + ((keyword.count / maxCount) * (maxSize - minSize));
+                    
+                    return (
+                      <div 
+                        key={`${keyword.word}-${index}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-full transition-all hover:scale-110 cursor-default"
+                        style={{
+                          fontSize: `${fontSize}px`,
+                          fontWeight: 400 + (keyword.count / maxCount) * 300
+                        }}
+                      >
+                        <span className="text-green-700 dark:text-green-300">{keyword.word}</span>
+                        <span className="text-xs font-bold text-green-600 dark:text-green-400 opacity-70">
+                          {keyword.count}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-muted-foreground text-sm">Nenhum feedback positivo registrado</p>
@@ -392,23 +405,36 @@ export function DashboardStats() {
             <CardHeader>
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 text-red-600" />
-                Palavras Negativas mais Mencionadas
+                Frases Negativas mais Mencionadas
               </CardTitle>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <p className="text-muted-foreground text-sm">Carregando...</p>
               ) : stats.negativeKeywords.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {stats.negativeKeywords.map(keyword => (
-                    <div 
-                      key={keyword.word} 
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-full"
-                    >
-                      <span className="text-sm font-medium text-red-700 dark:text-red-300">{keyword.word}</span>
-                      <span className="text-xs font-bold text-red-600 dark:text-red-400">×{keyword.count}</span>
-                    </div>
-                  ))}
+                <div className="flex flex-wrap gap-3 items-center justify-center min-h-[200px]">
+                  {stats.negativeKeywords.map((keyword, index) => {
+                    const maxCount = Math.max(...stats.negativeKeywords.map(k => k.count));
+                    const minSize = 12;
+                    const maxSize = 28;
+                    const fontSize = minSize + ((keyword.count / maxCount) * (maxSize - minSize));
+                    
+                    return (
+                      <div 
+                        key={`${keyword.word}-${index}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-full transition-all hover:scale-110 cursor-default"
+                        style={{
+                          fontSize: `${fontSize}px`,
+                          fontWeight: 400 + (keyword.count / maxCount) * 300
+                        }}
+                      >
+                        <span className="text-red-700 dark:text-red-300">{keyword.word}</span>
+                        <span className="text-xs font-bold text-red-600 dark:text-red-400 opacity-70">
+                          {keyword.count}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-muted-foreground text-sm">Nenhum feedback negativo registrado</p>

@@ -32,26 +32,26 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY não configurada');
     }
 
-    const systemPrompt = `Você é um analista de feedback de clientes especializado em extrair palavras-chave de avaliações em português.
+    const systemPrompt = `Você é um analista de feedback de clientes especializado em extrair frases-chave de avaliações em português.
 
-Analise os feedbacks fornecidos e identifique as 8 palavras ou expressões curtas (1-2 palavras) mais relevantes em cada categoria:
+Analise os feedbacks fornecidos e identifique as 8 frases ou expressões mais relevantes em cada categoria:
 
-1. PALAVRAS POSITIVAS: Termos que indicam satisfação, elogio, qualidade positiva
-2. PALAVRAS NEGATIVAS: Termos que indicam insatisfação, reclamação, problemas
+1. FRASES POSITIVAS: Frases/expressões que indicam satisfação, elogio, qualidade positiva (ex: "motorista muito educado", "entrega rápida", "atendimento excelente")
+2. FRASES NEGATIVAS: Frases/expressões que indicam insatisfação, reclamação, problemas (ex: "demorou muito", "produto amassado", "atendimento ruim")
 
 REGRAS IMPORTANTES:
-- Extraia apenas palavras que REALMENTE aparecem nos feedbacks
-- Conte quantas vezes cada palavra/expressão aparece
-- Normalize variações (ex: "ótimo", "otimo" → "ótimo")
-- Retorne no máximo 8 palavras por categoria
-- Use apenas palavras em português
-- Priorize palavras mais frequentes e relevantes`;
+- Extraia FRASES completas que realmente aparecem nos feedbacks (2-5 palavras)
+- Conte quantas vezes cada frase/expressão similar aparece
+- Normalize variações (ex: "muito bom", "mto bom" → "muito bom")
+- Retorne no máximo 8 frases por categoria
+- Use apenas frases em português
+- Priorize frases mais frequentes e com maior impacto no sentimento`;
 
-    const userPrompt = `Analise estes feedbacks e extraia as palavras-chave mais relevantes:
+    const userPrompt = `Analise estes feedbacks e extraia as frases-chave mais relevantes:
 
 ${feedbacks.map((f: string, i: number) => `${i + 1}. "${f}"`).join('\n')}
 
-Retorne APENAS as palavras encontradas nos feedbacks acima.`;
+Retorne APENAS as frases encontradas nos feedbacks acima.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -70,23 +70,23 @@ Retorne APENAS as palavras encontradas nos feedbacks acima.`;
             type: "function",
             function: {
               name: "extract_keywords",
-              description: "Extrai palavras-chave positivas e negativas dos feedbacks",
+              description: "Extrai frases-chave positivas e negativas dos feedbacks",
               parameters: {
                 type: "object",
                 properties: {
                   positive: {
                     type: "array",
-                    description: "Palavras positivas com contagem",
+                    description: "Frases positivas com contagem",
                     items: {
                       type: "object",
                       properties: {
                         word: { 
                           type: "string",
-                          description: "Palavra ou expressão curta em português"
+                          description: "Frase ou expressão em português (2-5 palavras)"
                         },
                         count: { 
                           type: "integer",
-                          description: "Número de vezes que aparece nos feedbacks"
+                          description: "Número de vezes que a frase aparece nos feedbacks"
                         }
                       },
                       required: ["word", "count"]
@@ -94,17 +94,17 @@ Retorne APENAS as palavras encontradas nos feedbacks acima.`;
                   },
                   negative: {
                     type: "array",
-                    description: "Palavras negativas com contagem",
+                    description: "Frases negativas com contagem",
                     items: {
                       type: "object",
                       properties: {
                         word: { 
                           type: "string",
-                          description: "Palavra ou expressão curta em português"
+                          description: "Frase ou expressão em português (2-5 palavras)"
                         },
                         count: { 
                           type: "integer",
-                          description: "Número de vezes que aparece nos feedbacks"
+                          description: "Número de vezes que a frase aparece nos feedbacks"
                         }
                       },
                       required: ["word", "count"]
