@@ -891,58 +891,92 @@ export function SatisfactionSurveys() {
                 <div className="space-y-4">
                   {driverMetrics.map((driver, index) => (
                     <Card key={driver.name} className="bg-muted/30">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
-                              #{index + 1}
+                      <CardContent className="p-3">
+                        <div className="flex items-start gap-4">
+                          {/* Left side - Driver info and delivery data */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm">
+                                #{index + 1}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-sm truncate">{driver.name}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {driver.totalRatings} avaliações de {driver.totalSurveys} entregas
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-semibold text-base">{driver.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {driver.totalRatings} avaliações de {driver.totalSurveys} entregas
-                              </p>
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                <div className="bg-background/60 p-1.5 rounded">
-                  <p className="text-[10px] text-muted-foreground">Peso</p>
-                  <p className="text-xs font-semibold">{driver.pesoTotal.toFixed(2)} kg</p>
-                </div>
-                <div className="bg-background/60 p-1.5 rounded">
-                  <p className="text-[10px] text-muted-foreground">Valor</p>
-                  <p className="text-xs font-semibold">R$ {driver.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                </div>
-                <div className="bg-background/60 p-1.5 rounded">
-                  <p className="text-[10px] text-muted-foreground">Entregas</p>
-                  <p className="text-xs font-semibold">{driver.quantidadeEntregas}</p>
-                </div>
-                <div className="bg-background/60 p-1.5 rounded">
-                  <p className="text-[10px] text-muted-foreground">Itens</p>
-                  <p className="text-xs font-semibold">{driver.quantidadeItens}</p>
-                </div>
-                <div className="bg-background/60 p-1.5 rounded col-span-2">
-                  <p className="text-[10px] text-muted-foreground">SKUs Diferentes</p>
-                  <p className="text-xs font-semibold">{driver.quantidadeSkus}</p>
-                </div>
-              </div>
+                            
+                            <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                              <div className="bg-background/60 p-1.5 rounded">
+                                <p className="text-muted-foreground">Peso</p>
+                                <p className="font-semibold">{driver.pesoTotal.toFixed(2)} kg</p>
+                              </div>
+                              <div className="bg-background/60 p-1.5 rounded">
+                                <p className="text-muted-foreground">Valor</p>
+                                <p className="font-semibold">R$ {driver.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                              </div>
+                              <div className="bg-background/60 p-1.5 rounded">
+                                <p className="text-muted-foreground">Entregas</p>
+                                <p className="font-semibold">{driver.quantidadeEntregas}</p>
+                              </div>
+                              <div className="bg-background/60 p-1.5 rounded">
+                                <p className="text-muted-foreground">Itens</p>
+                                <p className="font-semibold">{driver.quantidadeItens}</p>
+                              </div>
+                              <div className="bg-background/60 p-1.5 rounded col-span-2">
+                                <p className="text-muted-foreground">SKUs Diferentes</p>
+                                <p className="font-semibold">{driver.quantidadeSkus}</p>
+                              </div>
                             </div>
                           </div>
                           
-                          <div className="flex items-center gap-3">
-                            <div className="text-right">
-                              <div className="flex items-center gap-1">
-                                <Star className={`h-5 w-5 ${getRatingColor(driver.averageRating)} fill-current`} />
-                                <span className={`text-xl font-bold ${getRatingColor(driver.averageRating)}`}>
+                          {/* Right side - Rating and distribution */}
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="text-center">
+                              <div className="flex items-center gap-1 justify-center">
+                                <Star className={`h-4 w-4 ${getRatingColor(driver.averageRating)} fill-current`} />
+                                <span className={`text-2xl font-bold ${getRatingColor(driver.averageRating)}`}>
                                   {driver.averageRating.toFixed(1)}
                                 </span>
                               </div>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-[10px] text-muted-foreground">
                                 {driver.responseRate.toFixed(0)}% responderam
                               </p>
+                            </div>
+                            
+                            {/* Distribution bars - compact */}
+                            <div className="flex gap-1">
+                              {[5, 4, 3, 2, 1].map((rating) => (
+                                <div key={rating} className="flex flex-col items-center">
+                                  <div className="text-[9px] font-medium mb-0.5">
+                                    {rating}★
+                                  </div>
+                                  <div className="h-12 w-6 bg-muted rounded flex items-end justify-center overflow-hidden">
+                                    <div 
+                                      className={`w-full transition-all ${
+                                        rating >= 4 ? 'bg-green-500' : 
+                                        rating === 3 ? 'bg-yellow-500' : 
+                                        'bg-red-500'
+                                      }`}
+                                      style={{ 
+                                        height: driver.totalRatings > 0 
+                                          ? `${(driver.distribution[rating as keyof typeof driver.distribution] / driver.totalRatings) * 100}%` 
+                                          : '0%',
+                                        minHeight: driver.distribution[rating as keyof typeof driver.distribution] > 0 ? '4px' : '0'
+                                      }}
+                                    />
+                                  </div>
+                                  <div className="text-[9px] text-muted-foreground mt-0.5">
+                                    {driver.distribution[rating as keyof typeof driver.distribution]}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         </div>
 
-                        {/* Carrossel de Feedbacks */}
+                        {/* Feedbacks carousel - below everything */}
                         {(() => {
                           const driverFeedbacks = filteredSurveysByDate
                             .filter(s => {
@@ -953,7 +987,7 @@ export function SatisfactionSurveys() {
                             .slice(0, 10);
 
                           return driverFeedbacks.length > 0 ? (
-                            <div className="mb-3">
+                            <div className="mt-2 pt-2 border-t border-border">
                               <Carousel 
                                 className="w-full"
                                 opts={{
@@ -986,37 +1020,6 @@ export function SatisfactionSurveys() {
                             </div>
                           ) : null;
                         })()}
-
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium text-muted-foreground">Distribuição de Notas:</p>
-                          <div className="grid grid-cols-5 gap-2">
-                            {[5, 4, 3, 2, 1].map((rating) => (
-                              <div key={rating} className="text-center">
-                                <div className="text-xs font-medium mb-1">
-                                  {rating}★
-                                </div>
-                                <div className="h-16 bg-muted rounded flex items-end justify-center overflow-hidden">
-                                  <div 
-                                    className={`w-full transition-all ${
-                                      rating >= 4 ? 'bg-green-500' : 
-                                      rating === 3 ? 'bg-yellow-500' : 
-                                      'bg-red-500'
-                                    }`}
-                                    style={{ 
-                                      height: driver.totalRatings > 0 
-                                        ? `${(driver.distribution[rating as keyof typeof driver.distribution] / driver.totalRatings) * 100}%` 
-                                        : '0%',
-                                      minHeight: driver.distribution[rating as keyof typeof driver.distribution] > 0 ? '8px' : '0'
-                                    }}
-                                  />
-                                </div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {driver.distribution[rating as keyof typeof driver.distribution]}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
                       </CardContent>
                     </Card>
                   ))}
