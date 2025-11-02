@@ -402,10 +402,11 @@ export function ConversationsPanel() {
                           <img 
                             src={msg.media_url} 
                             alt="Imagem enviada" 
-                            className="rounded max-w-full h-auto"
+                            className="rounded max-w-full max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(msg.media_url, '_blank')}
                           />
                           {msg.media_description && (
-                            <p className="text-xs mt-2 opacity-80 italic">
+                            <p className="text-xs mt-2 opacity-80">
                               📝 {msg.media_description}
                             </p>
                           )}
@@ -414,14 +415,20 @@ export function ConversationsPanel() {
                       
                       {/* Áudio */}
                       {msg.media_type === 'audio' && msg.media_url && (
-                        <div className="mb-2">
-                          <audio controls className="w-full max-w-sm">
-                            <source src={msg.media_url} type="audio/ogg" />
+                        <div className="mb-2 space-y-2">
+                          <audio 
+                            controls 
+                            className="w-full max-w-sm"
+                            preload="metadata"
+                          >
+                            <source src={msg.media_url} type="audio/ogg; codecs=opus" />
+                            <source src={msg.media_url} type="audio/mpeg" />
+                            <source src={msg.media_url} />
                             Seu navegador não suporta áudio.
                           </audio>
                           {msg.media_transcription && (
-                            <p className="text-xs mt-2 opacity-80 italic">
-                              🎤 {msg.media_transcription}
+                            <p className="text-xs opacity-80 bg-black/10 dark:bg-white/10 p-2 rounded">
+                              🎤 Transcrição: {msg.media_transcription}
                             </p>
                           )}
                         </div>
@@ -430,8 +437,13 @@ export function ConversationsPanel() {
                       {/* Vídeo */}
                       {msg.media_type === 'video' && msg.media_url && (
                         <div className="mb-2">
-                          <video controls className="rounded max-w-full h-auto">
+                          <video 
+                            controls 
+                            className="rounded max-w-full max-h-64"
+                            preload="metadata"
+                          >
                             <source src={msg.media_url} type="video/mp4" />
+                            <source src={msg.media_url} />
                             Seu navegador não suporta vídeo.
                           </video>
                         </div>
@@ -444,9 +456,10 @@ export function ConversationsPanel() {
                             href={msg.media_url} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="text-xs underline"
+                            className="flex items-center gap-2 text-sm underline hover:opacity-80 transition-opacity bg-black/10 dark:bg-white/10 p-3 rounded"
                           >
-                            📄 Abrir documento
+                            <span className="text-2xl">📄</span>
+                            <span>Visualizar documento</span>
                           </a>
                         </div>
                       )}
