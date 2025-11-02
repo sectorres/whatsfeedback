@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.process-media]
 verify_jwt = false
+
+[functions.whatsapp-media-proxy]
+verify_jwt = false

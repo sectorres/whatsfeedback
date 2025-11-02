@@ -400,10 +400,10 @@ export function ConversationsPanel() {
                       {msg.media_type === 'image' && msg.media_url && (
                         <div className="mb-2">
                           <img 
-                            src={msg.media_url} 
+                            src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`}
                             alt="Imagem enviada" 
                             className="rounded max-w-full max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() => window.open(msg.media_url, '_blank')}
+                            onClick={() => window.open(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`, '_blank')}
                             onError={(e) => {
                               console.error('Erro ao carregar imagem:', msg.media_url);
                               e.currentTarget.style.display = 'none';
@@ -423,9 +423,14 @@ export function ConversationsPanel() {
                               console.error('Erro ao carregar áudio:', msg.media_url);
                             }}
                           >
-                            <source src={msg.media_url} type="audio/ogg; codecs=opus" />
-                            <source src={msg.media_url} type="audio/mpeg" />
-                            <source src={msg.media_url} />
+                            <source 
+                              src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`} 
+                              type="audio/ogg; codecs=opus" 
+                            />
+                            <source 
+                              src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`} 
+                              type="audio/mpeg" 
+                            />
                             Seu navegador não suporta áudio.
                           </audio>
                         </div>
@@ -442,8 +447,10 @@ export function ConversationsPanel() {
                               console.error('Erro ao carregar vídeo:', msg.media_url);
                             }}
                           >
-                            <source src={msg.media_url} type="video/mp4" />
-                            <source src={msg.media_url} />
+                            <source 
+                              src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`} 
+                              type="video/mp4" 
+                            />
                             Seu navegador não suporta vídeo.
                           </video>
                         </div>
@@ -453,7 +460,7 @@ export function ConversationsPanel() {
                       {msg.media_type === 'document' && msg.media_url && (
                         <div className="mb-2">
                           <a 
-                            href={msg.media_url} 
+                            href={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`}
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 text-sm underline hover:opacity-80 transition-opacity bg-black/10 dark:bg-white/10 p-3 rounded"
