@@ -404,33 +404,30 @@ export function ConversationsPanel() {
                             alt="Imagem enviada" 
                             className="rounded max-w-full max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity"
                             onClick={() => window.open(msg.media_url, '_blank')}
+                            onError={(e) => {
+                              console.error('Erro ao carregar imagem:', msg.media_url);
+                              e.currentTarget.style.display = 'none';
+                            }}
                           />
-                          {msg.media_description && (
-                            <p className="text-xs mt-2 opacity-80">
-                              📝 {msg.media_description}
-                            </p>
-                          )}
                         </div>
                       )}
                       
                       {/* Áudio */}
                       {msg.media_type === 'audio' && msg.media_url && (
-                        <div className="mb-2 space-y-2">
+                        <div className="mb-2">
                           <audio 
                             controls 
                             className="w-full max-w-sm"
                             preload="metadata"
+                            onError={(e) => {
+                              console.error('Erro ao carregar áudio:', msg.media_url);
+                            }}
                           >
                             <source src={msg.media_url} type="audio/ogg; codecs=opus" />
                             <source src={msg.media_url} type="audio/mpeg" />
                             <source src={msg.media_url} />
                             Seu navegador não suporta áudio.
                           </audio>
-                          {msg.media_transcription && (
-                            <p className="text-xs opacity-80 bg-black/10 dark:bg-white/10 p-2 rounded">
-                              🎤 Transcrição: {msg.media_transcription}
-                            </p>
-                          )}
                         </div>
                       )}
 
@@ -441,6 +438,9 @@ export function ConversationsPanel() {
                             controls 
                             className="rounded max-w-full max-h-64"
                             preload="metadata"
+                            onError={(e) => {
+                              console.error('Erro ao carregar vídeo:', msg.media_url);
+                            }}
                           >
                             <source src={msg.media_url} type="video/mp4" />
                             <source src={msg.media_url} />
@@ -464,7 +464,9 @@ export function ConversationsPanel() {
                         </div>
                       )}
                       
-                      <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>
+                      {msg.message_text && (
+                        <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>
+                      )}
                       <p className="text-xs opacity-70 mt-1">
                         {new Date(msg.created_at).toLocaleTimeString('pt-BR', {
                           hour: '2-digit',

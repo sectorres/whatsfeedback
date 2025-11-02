@@ -71,67 +71,35 @@ serve(async (req) => {
         // Detectar tipo de mídia e URL
         let mediaType = 'text';
         let mediaUrl = null;
-        let mediaTranscription = null;
-        let mediaDescription = null;
 
         // Verificar tipos de mídia
         if (msg.message?.audioMessage) {
           mediaType = 'audio';
           mediaUrl = msg.message.audioMessage.url;
+          console.log('Audio detected:', mediaUrl);
         } else if (msg.message?.imageMessage) {
           mediaType = 'image';
           mediaUrl = msg.message.imageMessage.url;
+          console.log('Image detected:', mediaUrl);
         } else if (msg.message?.videoMessage) {
           mediaType = 'video';
           mediaUrl = msg.message.videoMessage.url;
+          console.log('Video detected:', mediaUrl);
         } else if (msg.message?.documentMessage) {
           mediaType = 'document';
           mediaUrl = msg.message.documentMessage.url;
-        }
-
-        // Processar áudio (transcrever)
-        if (mediaType === 'audio' && mediaUrl) {
-          try {
-            console.log('Processing audio:', mediaUrl);
-            const { data: audioData, error: audioError } = await supabase.functions.invoke('process-audio', {
-              body: { audioUrl: mediaUrl }
-            });
-            
-            if (!audioError && audioData?.transcription) {
-              mediaTranscription = audioData.transcription;
-              console.log('Audio transcribed:', audioData.transcription);
-            }
-          } catch (err) {
-            console.error('Error transcribing audio:', err);
-          }
-        }
-
-        // Processar imagem (descrever)
-        if (mediaType === 'image' && mediaUrl) {
-          try {
-            console.log('Processing image:', mediaUrl);
-            const { data: imageData, error: imageError } = await supabase.functions.invoke('process-image', {
-              body: { imageUrl: mediaUrl }
-            });
-            
-            if (!imageError && imageData?.description) {
-              mediaDescription = imageData.description;
-              console.log('Image described:', imageData.description);
-            }
-          } catch (err) {
-            console.error('Error describing image:', err);
-          }
+          console.log('Document detected:', mediaUrl);
         }
 
         // Extrair texto da mensagem
         let messageText = '';
-        if (mediaType === 'audio') {
-          messageText = mediaTranscription || '';
-        } else if (mediaType === 'image') {
+        if (mediaType === 'image') {
           const caption = msg.message?.imageMessage?.caption || '';
-          messageText = mediaDescription || caption || '';
+          messageText = caption || '[Imagem]';
+        } else if (mediaType === 'audio') {
+          messageText = '[Áudio]';
         } else if (mediaType === 'video') {
-          messageText = msg.message?.videoMessage?.caption || '';
+          messageText = msg.message?.videoMessage?.caption || '[Vídeo]';
         } else if (mediaType === 'document') {
           const fileName = msg.message?.documentMessage?.fileName || 'documento';
           messageText = msg.message?.documentMessage?.caption || fileName;
@@ -321,13 +289,13 @@ serve(async (req) => {
               message_text: messageText,
               message_status: 'received',
               media_type: mediaType,
-              media_url: mediaUrl,
-              media_transcription: mediaTranscription,
-              media_description: mediaDescription,
+              media_url: mediaUrl
             });
 
           if (msgError) {
             console.error('Error inserting message:', msgError);
+          } else {
+            console.log('Message inserted successfully with media:', { mediaType, mediaUrl });
           }
         }
       } catch (err) {
