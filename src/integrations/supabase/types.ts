@@ -319,87 +319,15 @@ export type Database = {
           },
         ]
       }
-      user_modules: {
-        Row: {
-          created_at: string
-          id: string
-          module: Database["public"]["Enums"]["app_module"]
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          module: Database["public"]["Enums"]["app_module"]
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          module?: Database["public"]["Enums"]["app_module"]
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_roles: {
-        Row: {
-          created_at: string
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      has_module_access: {
-        Args: {
-          _module: Database["public"]["Enums"]["app_module"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      is_admin: { Args: { _user_id: string }; Returns: boolean }
+      [_ in never]: never
     }
     Enums: {
-      app_module:
-        | "dashboard_stats"
-        | "conversations"
-        | "campaigns"
-        | "satisfaction_surveys"
-        | "order_status"
-        | "whatsapp_connection"
-        | "ip_whitelist"
-        | "send_delay_config"
-        | "api_config"
-        | "webhook_config"
-        | "change_password"
-        | "dashboard"
-        | "atendimento"
-        | "orders"
-        | "config"
-      app_role: "admin" | "user"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -526,25 +454,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_module: [
-        "dashboard_stats",
-        "conversations",
-        "campaigns",
-        "satisfaction_surveys",
-        "order_status",
-        "whatsapp_connection",
-        "ip_whitelist",
-        "send_delay_config",
-        "api_config",
-        "webhook_config",
-        "change_password",
-        "dashboard",
-        "atendimento",
-        "orders",
-        "config",
-      ],
-      app_role: ["admin", "user"],
-    },
+    Enums: {},
   },
 } as const
