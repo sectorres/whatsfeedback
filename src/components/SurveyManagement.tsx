@@ -4,11 +4,21 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Send, RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle } from "lucide-react";
+import { Loader2, Send, RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface SurveyManagementItem {
   id: string;
@@ -26,7 +36,9 @@ export function SurveyManagement() {
   const [items, setItems] = useState<SurveyManagementItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -159,6 +171,60 @@ export function SurveyManagement() {
     }
   };
 
+  const deleteSelectedSurveys = async () => {
+    if (selectedIds.size === 0) return;
+
+    // Filtrar apenas as pesquisas enviadas e não respondidas
+    const surveysToDelete = items.filter(
+      item => selectedIds.has(item.campaign_send_id) && 
+      (item.status === 'sent' || item.status === 'pending' || item.status === 'awaiting_feedback') &&
+      !item.rating
+    );
+
+    if (surveysToDelete.length === 0) {
+      toast({
+        title: "Nenhuma pesquisa elegível",
+        description: "Apenas pesquisas enviadas e não respondidas podem ser removidas",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      // Deletar apenas as pesquisas que têm ID (já foram criadas no banco)
+      const surveyIdsToDelete = surveysToDelete
+        .filter(item => item.id !== item.campaign_send_id) // Só deleta se tiver survey criada
+        .map(item => item.id);
+
+      if (surveyIdsToDelete.length > 0) {
+        const { error } = await supabase
+          .from('satisfaction_surveys')
+          .delete()
+          .in('id', surveyIdsToDelete);
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: "Pesquisas removidas!",
+        description: `${surveyIdsToDelete.length} pesquisa${surveyIdsToDelete.length > 1 ? 's' : ''} removida${surveyIdsToDelete.length > 1 ? 's' : ''} com sucesso`,
+      });
+
+      setSelectedIds(new Set());
+      setShowDeleteDialog(false);
+      loadSurveyStatus();
+    } catch (error) {
+      toast({
+        title: "Erro ao remover pesquisas",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const toggleSelection = (campaignSendId: string) => {
     const newSelected = new Set(selectedIds);
     if (newSelected.has(campaignSendId)) {
@@ -242,6 +308,15 @@ export function SurveyManagement() {
               Atualizar
             </Button>
             <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={selectedIds.size === 0}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Remover ({selectedIds.size})
+            </Button>
+            <Button
               onClick={sendSelectedSurveys}
               disabled={sending || selectedIds.size === 0}
               size="sm"
@@ -254,7 +329,7 @@ export function SurveyManagement() {
               ) : (
                 <>
                   <Send className="h-4 w-4 mr-2" />
-                  Enviar Selecionadas ({selectedIds.size})
+                  Enviar ({selectedIds.size})
                 </>
               )}
             </Button>
@@ -310,6 +385,34 @@ export function SurveyManagement() {
           </div>
         )}
       </CardContent>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover pesquisas selecionadas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apenas pesquisas enviadas e não respondidas serão removidas. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteSelectedSurveys}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Removendo...
+                </>
+              ) : (
+                'Remover'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
