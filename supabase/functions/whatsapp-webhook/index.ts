@@ -126,23 +126,22 @@ serve(async (req) => {
         // Extrair texto da mensagem
         let messageText = '';
         if (mediaType === 'audio') {
-          messageText = mediaTranscription ? `🎤 ${mediaTranscription}` : '[Áudio recebido]';
+          messageText = mediaTranscription || '';
         } else if (mediaType === 'image') {
           const caption = msg.message?.imageMessage?.caption || '';
-          messageText = mediaDescription 
-            ? (caption ? `📷 ${caption}\n\n${mediaDescription}` : `📷 ${mediaDescription}`)
-            : (caption || '[Imagem recebida]');
+          messageText = mediaDescription || caption || '';
         } else if (mediaType === 'video') {
-          messageText = msg.message?.videoMessage?.caption || '[Vídeo recebido]';
+          messageText = msg.message?.videoMessage?.caption || '';
         } else if (mediaType === 'document') {
-          messageText = msg.message?.documentMessage?.caption || '[Documento recebido]';
+          const fileName = msg.message?.documentMessage?.fileName || 'documento';
+          messageText = msg.message?.documentMessage?.caption || fileName;
         } else {
           messageText =
             msg.message?.conversation ||
             msg.message?.extendedTextMessage?.text ||
             msg.body?.text ||
             msg.body ||
-            '[Mensagem recebida]';
+            '';
         }
 
         // Extrair nome do remetente
