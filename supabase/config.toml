@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.analyze-feedback-keywords]
 verify_jwt = true
+
+[functions.process-media]
+verify_jwt = false

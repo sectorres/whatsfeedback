@@ -68,6 +68,27 @@ serve(async (req) => {
         
         console.log('Raw phone from webhook:', rawPhone, '-> Normalized:', customerPhone);
 
+        // Detectar tipo de mídia e URL
+        let mediaType = 'text';
+        let mediaUrl = null;
+        let mediaTranscription = null;
+        let mediaDescription = null;
+
+        // Verificar tipos de mídia
+        if (msg.message?.audioMessage) {
+          mediaType = 'audio';
+          mediaUrl = msg.message.audioMessage.url;
+        } else if (msg.message?.imageMessage) {
+          mediaType = 'image';
+          mediaUrl = msg.message.imageMessage.url;
+        } else if (msg.message?.videoMessage) {
+          mediaType = 'video';
+          mediaUrl = msg.message.videoMessage.url;
+        } else if (msg.message?.documentMessage) {
+          mediaType = 'document';
+          mediaUrl = msg.message.documentMessage.url;
+        }
+
         // Extrair texto da mensagem
         const messageText =
           msg.message?.conversation ||
@@ -76,7 +97,7 @@ serve(async (req) => {
           msg.message?.videoMessage?.caption ||
           msg.body?.text ||
           msg.body ||
-          '[Mídia recebida]';
+          (mediaType !== 'text' ? `[${mediaType === 'audio' ? 'Áudio' : mediaType === 'image' ? 'Imagem' : mediaType === 'video' ? 'Vídeo' : 'Documento'}]` : '[Mensagem recebida]');
 
         // Extrair nome do remetente
         const customerName = msg.pushName || msg.senderName || customerPhone;
@@ -198,6 +219,30 @@ serve(async (req) => {
           continue;
         }
         
+        // Processar mídia se necessário
+        if (mediaUrl && (mediaType === 'audio' || mediaType === 'image')) {
+          try {
+            console.log(`Processing ${mediaType} from ${mediaUrl}`);
+            const { data: mediaResult, error: mediaError } = await supabase.functions.invoke('process-media', {
+              body: { mediaUrl, mediaType }
+            });
+
+            if (mediaError) {
+              console.error('Error processing media:', mediaError);
+            } else if (mediaResult) {
+              if (mediaType === 'audio') {
+                mediaTranscription = mediaResult.transcription;
+                console.log('Audio transcription:', mediaTranscription);
+              } else if (mediaType === 'image') {
+                mediaDescription = mediaResult.description;
+                console.log('Image description:', mediaDescription);
+              }
+            }
+          } catch (mediaProcessError) {
+            console.error('Error invoking process-media:', mediaProcessError);
+          }
+        }
+        
         // Apenas criar conversa se NÃO for nota de pesquisa
         if (!isSurveyRatingOnly) {
 
@@ -244,7 +289,7 @@ serve(async (req) => {
               .eq('id', conversation.id);
           }
 
-          // Inserir mensagem
+          // Inserir mensagem com dados de mídia
           const { error: msgError } = await supabase
             .from('messages')
             .insert({
@@ -253,6 +298,10 @@ serve(async (req) => {
               sender_name: customerName,
               message_text: messageText,
               message_status: 'received',
+              media_type: mediaType,
+              media_url: mediaUrl,
+              media_transcription: mediaTranscription,
+              media_description: mediaDescription,
             });
 
           if (msgError) {

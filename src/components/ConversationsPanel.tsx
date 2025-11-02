@@ -32,6 +32,10 @@ interface Message {
   message_text: string;
   message_status: string | null;
   created_at: string;
+  media_type?: string | null;
+  media_url?: string | null;
+  media_transcription?: string | null;
+  media_description?: string | null;
 }
 
 export function ConversationsPanel() {
@@ -392,6 +396,61 @@ export function ConversationsPanel() {
                           : 'bg-muted'
                       }`}
                     >
+                      {/* Imagem */}
+                      {msg.media_type === 'image' && msg.media_url && (
+                        <div className="mb-2">
+                          <img 
+                            src={msg.media_url} 
+                            alt="Imagem enviada" 
+                            className="rounded max-w-full h-auto"
+                          />
+                          {msg.media_description && (
+                            <p className="text-xs mt-2 opacity-80 italic">
+                              📝 {msg.media_description}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Áudio */}
+                      {msg.media_type === 'audio' && msg.media_url && (
+                        <div className="mb-2">
+                          <audio controls className="w-full max-w-sm">
+                            <source src={msg.media_url} type="audio/ogg" />
+                            Seu navegador não suporta áudio.
+                          </audio>
+                          {msg.media_transcription && (
+                            <p className="text-xs mt-2 opacity-80 italic">
+                              🎤 {msg.media_transcription}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Vídeo */}
+                      {msg.media_type === 'video' && msg.media_url && (
+                        <div className="mb-2">
+                          <video controls className="rounded max-w-full h-auto">
+                            <source src={msg.media_url} type="video/mp4" />
+                            Seu navegador não suporta vídeo.
+                          </video>
+                        </div>
+                      )}
+
+                      {/* Documento */}
+                      {msg.media_type === 'document' && msg.media_url && (
+                        <div className="mb-2">
+                          <a 
+                            href={msg.media_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs underline"
+                          >
+                            📄 Abrir documento
+                          </a>
+                        </div>
+                      )}
+                      
                       <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>
                       <p className="text-xs opacity-70 mt-1">
                         {new Date(msg.created_at).toLocaleTimeString('pt-BR', {

@@ -192,6 +192,10 @@ export type Database = {
           conversation_id: string
           created_at: string
           id: string
+          media_description: string | null
+          media_transcription: string | null
+          media_type: string | null
+          media_url: string | null
           message_status: string | null
           message_text: string
           sender_name: string | null
@@ -201,6 +205,10 @@ export type Database = {
           conversation_id: string
           created_at?: string
           id?: string
+          media_description?: string | null
+          media_transcription?: string | null
+          media_type?: string | null
+          media_url?: string | null
           message_status?: string | null
           message_text: string
           sender_name?: string | null
@@ -210,6 +218,10 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           id?: string
+          media_description?: string | null
+          media_transcription?: string | null
+          media_type?: string | null
+          media_url?: string | null
           message_status?: string | null
           message_text?: string
           sender_name?: string | null
@@ -319,15 +331,87 @@ export type Database = {
           },
         ]
       }
+      user_modules: {
+        Row: {
+          created_at: string
+          id: string
+          module: Database["public"]["Enums"]["app_module"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          module: Database["public"]["Enums"]["app_module"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          module?: Database["public"]["Enums"]["app_module"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_module_access: {
+        Args: {
+          _module: Database["public"]["Enums"]["app_module"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_module:
+        | "dashboard_stats"
+        | "conversations"
+        | "campaigns"
+        | "satisfaction_surveys"
+        | "order_status"
+        | "whatsapp_connection"
+        | "ip_whitelist"
+        | "send_delay_config"
+        | "api_config"
+        | "webhook_config"
+        | "change_password"
+        | "dashboard"
+        | "atendimento"
+        | "orders"
+        | "config"
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -454,6 +538,25 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_module: [
+        "dashboard_stats",
+        "conversations",
+        "campaigns",
+        "satisfaction_surveys",
+        "order_status",
+        "whatsapp_connection",
+        "ip_whitelist",
+        "send_delay_config",
+        "api_config",
+        "webhook_config",
+        "change_password",
+        "dashboard",
+        "atendimento",
+        "orders",
+        "config",
+      ],
+      app_role: ["admin", "user"],
+    },
   },
 } as const
