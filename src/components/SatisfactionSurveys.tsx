@@ -51,6 +51,7 @@ interface CampaignSend {
   valor_total: number | null;
   quantidade_entregas: number | null;
   quantidade_skus: number | null;
+  quantidade_itens: number | null;
 }
 
 interface Insight {
@@ -442,6 +443,7 @@ export function SatisfactionSurveys() {
           'Peso Total (kg)': send?.peso_total || 'N/A',
           'Valor Total (R$)': send?.valor_total || 'N/A',
           'Quantidade Entregas': send?.quantidade_entregas || 'N/A',
+          'Quantidade Itens': send?.quantidade_itens || 'N/A',
           'Quantidade SKUs': send?.quantidade_skus || 'N/A',
           'Nota': survey.rating || 'N/A',
           'Feedback': survey.feedback || '',
@@ -534,7 +536,8 @@ export function SatisfactionSurveys() {
           pesoTotal: 0,
           valorTotal: 0,
           quantidadeEntregas: 0,
-          quantidadeSkus: 0
+          quantidadeSkus: 0,
+          quantidadeItens: 0
         };
       }
       acc[driverName].totalRatings++;
@@ -556,7 +559,8 @@ export function SatisfactionSurveys() {
           pesoTotal: 0,
           valorTotal: 0,
           quantidadeEntregas: 0,
-          quantidadeSkus: 0
+          quantidadeSkus: 0,
+          quantidadeItens: 0
         };
       }
       acc[driverName].totalSurveys++;
@@ -564,6 +568,7 @@ export function SatisfactionSurveys() {
       acc[driverName].valorTotal += sendDetails?.valor_total || 0;
       acc[driverName].quantidadeEntregas += sendDetails?.quantidade_entregas || 1;
       acc[driverName].quantidadeSkus += sendDetails?.quantidade_skus || 0;
+      acc[driverName].quantidadeItens += sendDetails?.quantidade_itens || 0;
     }
     
     return acc;
@@ -578,6 +583,7 @@ export function SatisfactionSurveys() {
     valorTotal: number;
     quantidadeEntregas: number;
     quantidadeSkus: number;
+    quantidadeItens: number;
   }>);
 
   const driverMetrics = Object.values(driverStats).map(stat => ({
@@ -590,6 +596,7 @@ export function SatisfactionSurveys() {
     valorTotal: stat.valorTotal,
     quantidadeEntregas: stat.quantidadeEntregas,
     quantidadeSkus: stat.quantidadeSkus,
+    quantidadeItens: stat.quantidadeItens,
     distribution: {
       5: stat.ratings.filter(r => r === 5).length,
       4: stat.ratings.filter(r => r === 4).length,
@@ -895,12 +902,28 @@ export function SatisfactionSurveys() {
                               <p className="text-xs text-muted-foreground">
                                 {driver.totalRatings} avaliações de {driver.totalSurveys} entregas
                               </p>
-                              <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
-                                <span>Peso: {driver.pesoTotal.toFixed(2)} kg</span>
-                                <span>Valor: R$ {driver.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                <span>Entregas: {driver.quantidadeEntregas}</span>
-                                <span>SKUs: {driver.quantidadeSkus}</span>
-                              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <div className="bg-background/60 p-1.5 rounded">
+                  <p className="text-[10px] text-muted-foreground">Peso</p>
+                  <p className="text-xs font-semibold">{driver.pesoTotal.toFixed(2)} kg</p>
+                </div>
+                <div className="bg-background/60 p-1.5 rounded">
+                  <p className="text-[10px] text-muted-foreground">Valor</p>
+                  <p className="text-xs font-semibold">R$ {driver.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div className="bg-background/60 p-1.5 rounded">
+                  <p className="text-[10px] text-muted-foreground">Entregas</p>
+                  <p className="text-xs font-semibold">{driver.quantidadeEntregas}</p>
+                </div>
+                <div className="bg-background/60 p-1.5 rounded">
+                  <p className="text-[10px] text-muted-foreground">Itens</p>
+                  <p className="text-xs font-semibold">{driver.quantidadeItens}</p>
+                </div>
+                <div className="bg-background/60 p-1.5 rounded col-span-2">
+                  <p className="text-[10px] text-muted-foreground">SKUs Diferentes</p>
+                  <p className="text-xs font-semibold">{driver.quantidadeSkus}</p>
+                </div>
+              </div>
                             </div>
                           </div>
                           
