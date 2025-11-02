@@ -279,6 +279,87 @@ serve(async (req) => {
               .eq('id', conversation.id);
           }
 
+          // Tentar baixar e armazenar mídia (quando houver)
+          let finalMediaUrl = mediaUrl;
+          if (mediaType !== 'text' && mediaUrl) {
+            try {
+              const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
+              const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
+              const EVOLUTION_INSTANCE_NAME = Deno.env.get('EVOLUTION_INSTANCE_NAME');
+              if (EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE_NAME) {
+                // Tentativas de endpoints conhecidos para obter a mídia como base64
+                let evoResp: Response | null = null;
+                // Tentativa 1: downloadMediaMessage com a mensagem completa
+                try {
+                  evoResp = await fetch(`${EVOLUTION_API_URL}/message/downloadMediaMessage/${EVOLUTION_INSTANCE_NAME}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_API_KEY },
+                    body: JSON.stringify({ message: msg })
+                  });
+                } catch (_) {}
+
+                if (!evoResp || !evoResp.ok) {
+                  // Tentativa 2: getBase64FromMediaMessage
+                  try {
+                    evoResp = await fetch(`${EVOLUTION_API_URL}/chat/getBase64FromMediaMessage/${EVOLUTION_INSTANCE_NAME}`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_API_KEY },
+                      body: JSON.stringify({ message: msg })
+                    });
+                  } catch (_) {}
+                }
+
+                if (evoResp && evoResp.ok) {
+                  const evoData = await evoResp.json();
+                  // Normaliza possíveis formatos: {base64, mimetype} ou {mimetype, data: 'data:<mimetype>;base64,<...>'}
+                  let base64Data = '';
+                  let mime = '';
+                  if (evoData?.base64 && evoData?.mimetype) {
+                    base64Data = evoData.base64;
+                    mime = evoData.mimetype;
+                  } else if (typeof evoData?.data === 'string') {
+                    const dataUrl: string = evoData.data;
+                    const match = dataUrl.match(/^data:(.*?);base64,(.*)$/);
+                    if (match) {
+                      mime = match[1];
+                      base64Data = match[2];
+                    }
+                  }
+                  if (base64Data && mime) {
+                    // Upload para bucket público
+                    const bytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+                    const ext = mime.split('/')[1] || 'bin';
+                    const filePath = `incoming/${Date.now()}_${msg.key?.id || crypto.randomUUID()}.${ext}`;
+                    const uploadRes = await supabase.storage.from('whatsapp-media').upload(filePath, bytes, {
+                      contentType: mime,
+                      upsert: true
+                    });
+                    if (!uploadRes.error) {
+                      const pub = supabase.storage.from('whatsapp-media').getPublicUrl(filePath);
+                      finalMediaUrl = pub.data.publicUrl;
+                      console.log('Media stored to bucket:', finalMediaUrl);
+                    } else {
+                      console.error('Upload error:', uploadRes.error);
+                    }
+                  } else {
+                    console.error('Evolution download returned no base64/mimetype');
+                  }
+                } else {
+                  try {
+                    const txt = await evoResp?.text();
+                    console.error('Evolution download failed', evoResp?.status, txt);
+                  } catch (_) {
+                    console.error('Evolution download failed with unknown error');
+                  }
+                }
+              } else {
+                console.warn('Evolution API env vars not set; skipping media download');
+              }
+            } catch (err) {
+              console.error('Error downloading media via Evolution:', err);
+            }
+          }
+
           // Inserir mensagem com dados de mídia
           const { error: msgError } = await supabase
             .from('messages')
@@ -289,7 +370,7 @@ serve(async (req) => {
               message_text: messageText,
               message_status: 'received',
               media_type: mediaType,
-              media_url: mediaUrl
+              media_url: finalMediaUrl
             });
 
           if (msgError) {
