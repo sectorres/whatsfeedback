@@ -75,8 +75,12 @@ export type Database = {
           error_message: string | null
           id: string
           message_sent: string
+          peso_total: number | null
+          quantidade_entregas: number | null
+          quantidade_skus: number | null
           sent_at: string
           status: string
+          valor_total: number | null
         }
         Insert: {
           campaign_id: string
@@ -87,8 +91,12 @@ export type Database = {
           error_message?: string | null
           id?: string
           message_sent: string
+          peso_total?: number | null
+          quantidade_entregas?: number | null
+          quantidade_skus?: number | null
           sent_at?: string
           status?: string
+          valor_total?: number | null
         }
         Update: {
           campaign_id?: string
@@ -99,8 +107,12 @@ export type Database = {
           error_message?: string | null
           id?: string
           message_sent?: string
+          peso_total?: number | null
+          quantidade_entregas?: number | null
+          quantidade_skus?: number | null
           sent_at?: string
           status?: string
+          valor_total?: number | null
         }
         Relationships: [
           {

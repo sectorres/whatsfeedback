@@ -47,6 +47,10 @@ interface CampaignSend {
   message_sent: string;
   driver_name: string | null;
   campaign_id: string;
+  peso_total: number | null;
+  valor_total: number | null;
+  quantidade_entregas: number | null;
+  quantidade_skus: number | null;
 }
 
 interface Insight {
@@ -435,6 +439,10 @@ export function SatisfactionSurveys() {
             : 'N/A',
           'Cliente': survey.customer_name || 'N/A',
           'Motorista': send?.driver_name || 'N/A',
+          'Peso Total (kg)': send?.peso_total || 'N/A',
+          'Valor Total (R$)': send?.valor_total || 'N/A',
+          'Quantidade Entregas': send?.quantidade_entregas || 'N/A',
+          'Quantidade SKUs': send?.quantidade_skus || 'N/A',
           'Nota': survey.rating || 'N/A',
           'Feedback': survey.feedback || '',
           'Telefone': survey.customer_phone || 'N/A',
@@ -453,6 +461,10 @@ export function SatisfactionSurveys() {
         { wch: 20 }, // Data
         { wch: 25 }, // Cliente
         { wch: 20 }, // Motorista
+        { wch: 15 }, // Peso Total
+        { wch: 15 }, // Valor Total
+        { wch: 18 }, // Quantidade Entregas
+        { wch: 16 }, // Quantidade SKUs
         { wch: 8 },  // Nota
         { wch: 40 }, // Feedback
         { wch: 18 }, // Telefone
@@ -518,7 +530,11 @@ export function SatisfactionSurveys() {
           sumRatings: 0,
           ratings: [],
           responseCount: 0,
-          totalSurveys: 0
+          totalSurveys: 0,
+          pesoTotal: 0,
+          valorTotal: 0,
+          quantidadeEntregas: 0,
+          quantidadeSkus: 0
         };
       }
       acc[driverName].totalRatings++;
@@ -527,7 +543,7 @@ export function SatisfactionSurveys() {
       acc[driverName].responseCount++;
     }
     
-    // Contar total de pesquisas por motorista
+    // Contar total de pesquisas por motorista e agregar métricas
     if (driverName) {
       if (!acc[driverName]) {
         acc[driverName] = {
@@ -536,10 +552,18 @@ export function SatisfactionSurveys() {
           sumRatings: 0,
           ratings: [],
           responseCount: 0,
-          totalSurveys: 0
+          totalSurveys: 0,
+          pesoTotal: 0,
+          valorTotal: 0,
+          quantidadeEntregas: 0,
+          quantidadeSkus: 0
         };
       }
       acc[driverName].totalSurveys++;
+      acc[driverName].pesoTotal += sendDetails?.peso_total || 0;
+      acc[driverName].valorTotal += sendDetails?.valor_total || 0;
+      acc[driverName].quantidadeEntregas += sendDetails?.quantidade_entregas || 1;
+      acc[driverName].quantidadeSkus += sendDetails?.quantidade_skus || 0;
     }
     
     return acc;
@@ -550,6 +574,10 @@ export function SatisfactionSurveys() {
     ratings: number[];
     responseCount: number;
     totalSurveys: number;
+    pesoTotal: number;
+    valorTotal: number;
+    quantidadeEntregas: number;
+    quantidadeSkus: number;
   }>);
 
   const driverMetrics = Object.values(driverStats).map(stat => ({
@@ -558,6 +586,10 @@ export function SatisfactionSurveys() {
     totalRatings: stat.totalRatings,
     totalSurveys: stat.totalSurveys,
     responseRate: stat.totalSurveys > 0 ? (stat.responseCount / stat.totalSurveys) * 100 : 0,
+    pesoTotal: stat.pesoTotal,
+    valorTotal: stat.valorTotal,
+    quantidadeEntregas: stat.quantidadeEntregas,
+    quantidadeSkus: stat.quantidadeSkus,
     distribution: {
       5: stat.ratings.filter(r => r === 5).length,
       4: stat.ratings.filter(r => r === 4).length,
@@ -863,6 +895,12 @@ export function SatisfactionSurveys() {
                               <p className="text-xs text-muted-foreground">
                                 {driver.totalRatings} avaliações de {driver.totalSurveys} entregas
                               </p>
+                              <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
+                                <span>Peso: {driver.pesoTotal.toFixed(2)} kg</span>
+                                <span>Valor: R$ {driver.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                <span>Entregas: {driver.quantidadeEntregas}</span>
+                                <span>SKUs: {driver.quantidadeSkus}</span>
+                              </div>
                             </div>
                           </div>
                           
