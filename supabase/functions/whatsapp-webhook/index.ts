@@ -89,15 +89,61 @@ serve(async (req) => {
           mediaUrl = msg.message.documentMessage.url;
         }
 
+        // Processar áudio (transcrever)
+        if (mediaType === 'audio' && mediaUrl) {
+          try {
+            console.log('Processing audio:', mediaUrl);
+            const { data: audioData, error: audioError } = await supabase.functions.invoke('process-audio', {
+              body: { audioUrl: mediaUrl }
+            });
+            
+            if (!audioError && audioData?.transcription) {
+              mediaTranscription = audioData.transcription;
+              console.log('Audio transcribed:', audioData.transcription);
+            }
+          } catch (err) {
+            console.error('Error transcribing audio:', err);
+          }
+        }
+
+        // Processar imagem (descrever)
+        if (mediaType === 'image' && mediaUrl) {
+          try {
+            console.log('Processing image:', mediaUrl);
+            const { data: imageData, error: imageError } = await supabase.functions.invoke('process-image', {
+              body: { imageUrl: mediaUrl }
+            });
+            
+            if (!imageError && imageData?.description) {
+              mediaDescription = imageData.description;
+              console.log('Image described:', imageData.description);
+            }
+          } catch (err) {
+            console.error('Error describing image:', err);
+          }
+        }
+
         // Extrair texto da mensagem
-        const messageText =
-          msg.message?.conversation ||
-          msg.message?.extendedTextMessage?.text ||
-          msg.message?.imageMessage?.caption ||
-          msg.message?.videoMessage?.caption ||
-          msg.body?.text ||
-          msg.body ||
-          (mediaType !== 'text' ? `[${mediaType === 'audio' ? 'Áudio' : mediaType === 'image' ? 'Imagem' : mediaType === 'video' ? 'Vídeo' : 'Documento'}]` : '[Mensagem recebida]');
+        let messageText = '';
+        if (mediaType === 'audio') {
+          messageText = mediaTranscription ? `🎤 ${mediaTranscription}` : '[Áudio recebido]';
+        } else if (mediaType === 'image') {
+          const caption = msg.message?.imageMessage?.caption || '';
+          messageText = mediaDescription 
+            ? (caption ? `📷 ${caption}\n\n${mediaDescription}` : `📷 ${mediaDescription}`)
+            : (caption || '[Imagem recebida]');
+        } else if (mediaType === 'video') {
+          messageText = msg.message?.videoMessage?.caption || '[Vídeo recebido]';
+        } else if (mediaType === 'document') {
+          messageText = msg.message?.documentMessage?.caption || '[Documento recebido]';
+        } else {
+          messageText =
+            msg.message?.conversation ||
+            msg.message?.extendedTextMessage?.text ||
+            msg.body?.text ||
+            msg.body ||
+            '[Mensagem recebida]';
+        }
 
         // Extrair nome do remetente
         const customerName = msg.pushName || msg.senderName || customerPhone;
@@ -219,29 +265,6 @@ serve(async (req) => {
           continue;
         }
         
-        // Processar mídia se necessário
-        if (mediaUrl && (mediaType === 'audio' || mediaType === 'image')) {
-          try {
-            console.log(`Processing ${mediaType} from ${mediaUrl}`);
-            const { data: mediaResult, error: mediaError } = await supabase.functions.invoke('process-media', {
-              body: { mediaUrl, mediaType }
-            });
-
-            if (mediaError) {
-              console.error('Error processing media:', mediaError);
-            } else if (mediaResult) {
-              if (mediaType === 'audio') {
-                mediaTranscription = mediaResult.transcription;
-                console.log('Audio transcription:', mediaTranscription);
-              } else if (mediaType === 'image') {
-                mediaDescription = mediaResult.description;
-                console.log('Image description:', mediaDescription);
-              }
-            }
-          } catch (mediaProcessError) {
-            console.error('Error invoking process-media:', mediaProcessError);
-          }
-        }
         
         // Apenas criar conversa se NÃO for nota de pesquisa
         if (!isSurveyRatingOnly) {

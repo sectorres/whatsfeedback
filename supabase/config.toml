@@ -18,5 +18,11 @@ verify_jwt = false
 [functions.analyze-feedback-keywords]
 verify_jwt = true
 
+[functions.process-audio]
+verify_jwt = false
+
+[functions.process-image]
+verify_jwt = false
+
 [functions.process-media]
 verify_jwt = false
