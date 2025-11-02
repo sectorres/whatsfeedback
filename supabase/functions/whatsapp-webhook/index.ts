@@ -193,10 +193,12 @@ serve(async (req) => {
               console.error('Error sending thank you message:', thankError);
             }
           }
+          
+          // Pular criação de conversa quando for feedback de pesquisa
+          continue;
         }
         
-        // Apenas criar conversa se NÃO for apenas nota de pesquisa
-        // Criar conversa para feedback de pesquisa ou mensagens normais
+        // Apenas criar conversa se NÃO for nota de pesquisa
         if (!isSurveyRatingOnly) {
 
           // Buscar ou criar conversa
