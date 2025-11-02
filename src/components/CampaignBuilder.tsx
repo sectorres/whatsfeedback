@@ -56,6 +56,13 @@ interface Pedido {
     celular: string;
   };
   valor: number;
+  pesoBruto?: number;
+  produtos?: Array<{
+    id: number;
+    descricao: string;
+    pesoBruto: number;
+    quantidade: number;
+  }>;
 }
 
 interface PedidoWithEditablePhone extends Pedido {
@@ -281,7 +288,11 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             message_sent: formattedMessage,
             status: 'failed',
             error_message: 'Telefone inválido',
-            driver_name: selectedCarga?.nomeMotorista || null
+            driver_name: selectedCarga?.nomeMotorista || null,
+            peso_total: pedido.pesoBruto || 0,
+            valor_total: pedido.valor || 0,
+            quantidade_entregas: 1,
+            quantidade_skus: pedido.produtos?.length || 0
           });
           
           setSendProgress(prev => ({ ...prev, current: i + 1, failed: prev.failed + 1 }));
@@ -307,7 +318,11 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             message_sent: formattedMessage,
             status: 'blocked',
             error_message: 'Bloqueado pela blacklist',
-            driver_name: selectedCarga?.nomeMotorista || null
+            driver_name: selectedCarga?.nomeMotorista || null,
+            peso_total: pedido.pesoBruto || 0,
+            valor_total: pedido.valor || 0,
+            quantidade_entregas: 1,
+            quantidade_skus: pedido.produtos?.length || 0
           });
           
           setSendProgress(prev => ({ ...prev, current: i + 1, blocked: prev.blocked + 1 }));
@@ -331,7 +346,11 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             customer_phone: phone,
             message_sent: formattedMessage,
             status: 'success',
-            driver_name: selectedCarga?.nomeMotorista || null
+            driver_name: selectedCarga?.nomeMotorista || null,
+            peso_total: pedido.pesoBruto || 0,
+            valor_total: pedido.valor || 0,
+            quantidade_entregas: 1,
+            quantidade_skus: pedido.produtos?.length || 0
           });
 
           successCount++;
@@ -350,7 +369,11 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               message_sent: formattedMessage,
               status: 'failed',
               error_message: error instanceof Error ? error.message : String(error),
-              driver_name: selectedCarga?.nomeMotorista || null
+              driver_name: selectedCarga?.nomeMotorista || null,
+              peso_total: pedido.pesoBruto || 0,
+              valor_total: pedido.valor || 0,
+              quantidade_entregas: 1,
+              quantidade_skus: pedido.produtos?.length || 0
             });
           } catch (dbError) {
             console.error('Erro ao salvar registro de falha:', dbError);
