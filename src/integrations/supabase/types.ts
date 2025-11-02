@@ -77,6 +77,7 @@ export type Database = {
           message_sent: string
           peso_total: number | null
           quantidade_entregas: number | null
+          quantidade_itens: number | null
           quantidade_skus: number | null
           sent_at: string
           status: string
@@ -93,6 +94,7 @@ export type Database = {
           message_sent: string
           peso_total?: number | null
           quantidade_entregas?: number | null
+          quantidade_itens?: number | null
           quantidade_skus?: number | null
           sent_at?: string
           status?: string
@@ -109,6 +111,7 @@ export type Database = {
           message_sent?: string
           peso_total?: number | null
           quantidade_entregas?: number | null
+          quantidade_itens?: number | null
           quantidade_skus?: number | null
           sent_at?: string
           status?: string
