@@ -33,6 +33,13 @@ serve(async (req) => {
     const cleanPhone = formatPhoneForWhatsApp(phone);
     console.log('Normalized phone:', cleanPhone);
 
+    // Validar se o número tem o tamanho mínimo esperado (DDD + número)
+    // Formato esperado: 55 + DDD (2 dígitos) + número (8 ou 9 dígitos) = 12 ou 13 dígitos
+    if (cleanPhone.length < 12 || cleanPhone.length > 13) {
+      console.error('Invalid phone number length:', { original: phone, cleaned: cleanPhone, length: cleanPhone.length });
+      throw new Error('Telefone inválido: formato incorreto ou dígitos faltando');
+    }
+
     // Verificar blacklist antes de enviar
     const blacklistResponse = await fetch(
       `${SUPABASE_URL}/rest/v1/blacklist?phone=eq.${cleanPhone}`,

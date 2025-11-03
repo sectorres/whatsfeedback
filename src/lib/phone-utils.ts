@@ -50,3 +50,16 @@ export function formatPhoneForWhatsApp(phone: string): string {
 
   return cleanPhone;
 }
+
+/**
+ * Valida se um número de telefone é válido para envio via WhatsApp
+ * 
+ * @param phone - Número de telefone
+ * @returns true se o número é válido
+ */
+export function isValidPhoneNumber(phone: string): boolean {
+  const cleanPhone = formatPhoneForWhatsApp(phone);
+  
+  // Formato esperado: 55 + DDD (2 dígitos) + número (8 ou 9 dígitos) = 12 ou 13 dígitos
+  return cleanPhone.length >= 12 && cleanPhone.length <= 13;
+}
