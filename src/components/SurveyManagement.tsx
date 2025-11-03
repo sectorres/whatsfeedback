@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +40,7 @@ export function SurveyManagement() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
+  const sendingRef = useRef(false); // Proteção adicional contra chamadas concorrentes
 
   useEffect(() => {
     loadSurveyStatus();
@@ -116,6 +117,12 @@ export function SurveyManagement() {
       return;
     }
 
+    // PROTEÇÃO CRÍTICA: Impedir chamadas concorrentes
+    if (sendingRef.current || sending) {
+      console.log('⚠️ Tentativa de envio duplicado bloqueada');
+      return;
+    }
+
     // Verificar se há pesquisas respondidas selecionadas
     const hasRespondedSurveys = items.some(
       item => selectedIds.has(item.campaign_send_id) && item.status === 'responded'
@@ -130,6 +137,8 @@ export function SurveyManagement() {
       return;
     }
 
+    // Marcar como enviando IMEDIATAMENTE
+    sendingRef.current = true;
     setSending(true);
     
     // Evitar cliques duplicados - desabilitar seleções imediatamente
@@ -172,6 +181,7 @@ export function SurveyManagement() {
       });
     } finally {
       setSending(false);
+      sendingRef.current = false; // Liberar para próximas chamadas
     }
   };
 
