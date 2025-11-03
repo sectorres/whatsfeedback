@@ -211,7 +211,10 @@ serve(async (req) => {
           comparePhones(s.customer_phone || '', customerPhone)
         );
 
-        if (feedbackSurvey && !ratingMatch) {
+        // Verificar se não é uma nota (1-5) antes de processar como feedback
+        const isRating = messageText.trim().match(/^[1-5]$/);
+
+        if (feedbackSurvey && !isRating) {
           console.log(`Processing feedback for survey ${feedbackSurvey.id}`);
           isSurveyFeedback = true;
           
