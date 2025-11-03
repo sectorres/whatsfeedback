@@ -266,6 +266,13 @@ export function SurveyManagement() {
             Respondida {rating ? `(${rating}★)` : ''}
           </Badge>
         );
+      case 'awaiting_feedback':
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
+            <Clock className="h-3 w-3 mr-1" />
+            Aguardando feedback {rating ? `(${rating}★)` : ''}
+          </Badge>
+        );
       case 'sent':
       case 'pending':
         return (
