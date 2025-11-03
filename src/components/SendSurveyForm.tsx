@@ -49,42 +49,39 @@ export function SendSurveyForm({ customerPhone = "", customerName = "" }: SendSu
         .select()
         .single();
 
-      if (sendError) throw sendError;
+      if (sendError) {
+        console.error('Erro ao criar campaign_send:', sendError);
+        throw sendError;
+      }
 
-      // Criar a pesquisa
-      const { data: survey, error: surveyError } = await supabase
-        .from('satisfaction_surveys')
-        .insert({
-          campaign_send_id: campaignSend.id,
-          customer_phone: normalizedPhone,
-          customer_name: name || normalizedPhone,
-          status: 'pending'
-        })
-        .select()
-        .single();
-
-      if (surveyError) throw surveyError;
-
-      // Enviar a pesquisa imediatamente
+      // Enviar a pesquisa imediatamente (a edge function criará a survey automaticamente)
       const { data: sendResult, error: invokeError } = await supabase.functions.invoke('send-satisfaction-survey', {
         body: {
           campaignSendIds: [campaignSend.id]
         }
       });
 
-      if (invokeError) throw invokeError;
+      if (invokeError) {
+        console.error('Erro ao invocar edge function:', invokeError);
+        throw invokeError;
+      }
 
-      if (sendResult.surveys_sent > 0) {
+      console.log('Resultado do envio:', sendResult);
+
+      if (sendResult?.surveys_sent > 0) {
         toast.success("Pesquisa enviada com sucesso!");
         setOpen(false);
         setPhone("");
         setName("");
       } else {
-        toast.error("Não foi possível enviar a pesquisa");
+        const errorMsg = sendResult?.message || sendResult?.error || "Não foi possível enviar a pesquisa";
+        console.error('Falha no envio:', errorMsg);
+        toast.error(errorMsg);
       }
     } catch (error) {
       console.error('Erro ao enviar pesquisa:', error);
-      toast.error("Erro ao enviar pesquisa");
+      const errorMessage = error instanceof Error ? error.message : "Erro ao enviar pesquisa";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
