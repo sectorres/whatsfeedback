@@ -79,7 +79,20 @@ serve(async (req) => {
     console.log('Send message response:', data);
 
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to send message');
+      // Verificar se é erro de número não existente
+      if (data.response?.message && Array.isArray(data.response.message)) {
+        const notFound = data.response.message.find((m: any) => m.exists === false);
+        if (notFound) {
+          throw new Error(`Número ${notFound.number} não possui WhatsApp ativo`);
+        }
+      }
+      
+      // Verificar se é timeout
+      if (data.response?.message === 'Timed Out') {
+        throw new Error('Timeout ao enviar mensagem. Tente novamente em alguns segundos.');
+      }
+      
+      throw new Error(data.response?.message || data.message || 'Failed to send message');
     }
 
     return new Response(
