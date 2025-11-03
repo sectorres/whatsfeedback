@@ -11,6 +11,7 @@ import { ChangePassword } from "@/components/ChangePassword";
 import { WebhookConfiguration } from "@/components/WebhookConfiguration";
 import { BlacklistManager } from "@/components/BlacklistManager";
 import { SendDelayConfig } from "@/components/SendDelayConfig";
+import { DataClearConfig } from "@/components/DataClearConfig";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Package, Settings, Headphones, LayoutDashboard, Star } from "lucide-react";
@@ -97,6 +98,7 @@ const Index = () => {
             <ApiConfiguration />
             <WebhookConfiguration />
             <ChangePassword />
+            <DataClearConfig />
           </TabsContent>
         </Tabs>
       </main>
