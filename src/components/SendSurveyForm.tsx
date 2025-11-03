@@ -27,6 +27,11 @@ export function SendSurveyForm({ customerPhone = "", customerName = "" }: SendSu
       return;
     }
 
+    if (loading) {
+      // Prevenir submissões duplicadas
+      return;
+    }
+
     setLoading(true);
     try {
       const normalizedPhone = normalizePhone(phone);

@@ -117,35 +117,33 @@ serve(async (req) => {
 
         console.log(`Processing message from ${customerPhone}: ${messageText}`);
 
-        // Verificar se é uma resposta a pesquisa de satisfação (número de 1 a 5)
-        const ratingMatch = messageText.trim().match(/^[1-5]$/);
+        // Verificar se há pesquisa pendente para este cliente
+        const { data: surveys, error: surveyError } = await supabase
+          .from('satisfaction_surveys')
+          .select('*')
+          .eq('status', 'sent')
+          .is('rating', null)
+          .order('sent_at', { ascending: false });
+
+        console.log(`Found ${surveys?.length || 0} pending surveys`);
+
+        // Encontrar a pesquisa que corresponde ao telefone usando comparação normalizada
+        const pendingSurvey = surveys?.find(s => {
+          const match = comparePhones(s.customer_phone || '', customerPhone);
+          console.log(`Comparing DB phone: ${s.customer_phone} with remote: ${customerPhone} -> ${match ? 'MATCH' : 'NO MATCH'}`);
+          return match;
+        });
+
+        // Se há pesquisa pendente, validar se é uma nota de 1 a 5
         let isSurveyRatingOnly = false;
         
-        if (ratingMatch) {
-          const rating = parseInt(ratingMatch[0]);
+        if (pendingSurvey) {
+          const ratingMatch = messageText.trim().match(/^[1-5]$/);
           
-          console.log(`Detected rating ${rating} from ${customerPhone} (remoteJid: ${remoteJid})`);
-          
-          // Buscar pesquisa pendente para este telefone
-          const { data: surveys, error: surveyError } = await supabase
-            .from('satisfaction_surveys')
-            .select('*')
-            .eq('status', 'sent')
-            .is('rating', null)
-            .order('sent_at', { ascending: false });
-
-          console.log(`Found ${surveys?.length || 0} pending surveys`);
-
-          // Encontrar a pesquisa que corresponde ao telefone usando comparação normalizada
-          const pendingSurvey = surveys?.find(s => {
-            const match = comparePhones(s.customer_phone || '', customerPhone);
-            console.log(`Comparing DB phone: ${s.customer_phone} with remote: ${customerPhone} -> ${match ? 'MATCH' : 'NO MATCH'}`);
-            return match;
-          });
-
-          console.log(`Pending survey found:`, pendingSurvey ? `ID ${pendingSurvey.id}` : 'None');
-
-          if (pendingSurvey) {
+          if (ratingMatch) {
+            const rating = parseInt(ratingMatch[0]);
+            
+            console.log(`Detected rating ${rating} from ${customerPhone} (remoteJid: ${remoteJid})`);
             console.log(`Updating survey ${pendingSurvey.id} with rating ${rating}`);
             
             // Marcar que é apenas nota de pesquisa (não deve criar conversa)
@@ -182,7 +180,21 @@ serve(async (req) => {
             // Pular criação de conversa/mensagem quando for apenas nota
             continue;
           } else {
-            console.log(`No pending survey found for ${customerPhone}`);
+            // Mensagem não é uma nota válida, informar o cliente
+            console.log(`Invalid rating received from ${customerPhone}: "${messageText}"`);
+            try {
+              await supabase.functions.invoke('whatsapp-send', {
+                body: {
+                  phone: customerPhone,
+                  message: `Por favor, responda apenas com um número de 1 a 5 para avaliar sua entrega:\n\n1️⃣ - Muito insatisfeito\n2️⃣ - Insatisfeito\n3️⃣ - Neutro\n4️⃣ - Satisfeito\n5️⃣ - Muito satisfeito`
+                }
+              });
+            } catch (sendError) {
+              console.error('Error sending invalid rating message:', sendError);
+            }
+            
+            // Pular criação de conversa quando for resposta inválida à pesquisa
+            continue;
           }
         }
 

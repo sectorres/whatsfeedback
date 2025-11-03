@@ -131,10 +131,15 @@ export function SurveyManagement() {
     }
 
     setSending(true);
+    
+    // Evitar cliques duplicados - desabilitar seleções imediatamente
+    const idsToSend = Array.from(selectedIds);
+    setSelectedIds(new Set());
+    
     try {
       const { data, error } = await supabase.functions.invoke('send-satisfaction-survey', {
         body: {
-          campaignSendIds: Array.from(selectedIds)
+          campaignSendIds: idsToSend
         }
       });
 
@@ -158,7 +163,6 @@ export function SurveyManagement() {
           : "Nenhuma pesquisa foi enviada",
       });
 
-      setSelectedIds(new Set());
       loadSurveyStatus();
     } catch (error) {
       toast({
