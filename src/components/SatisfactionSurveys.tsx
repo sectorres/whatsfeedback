@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +80,9 @@ export function SatisfactionSurveys() {
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
   const [showManagementDialog, setShowManagementDialog] = useState(false);
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
+  const pollTimerRef = useRef<number | null>(null);
+  const plannedIdsRef = useRef<string[]>([]);
+  const startTimeRef = useRef<string>("");
   
   // Estados para filtro de data
   const [dateFrom, setDateFrom] = useState<Date | undefined>(
@@ -100,6 +103,14 @@ export function SatisfactionSurveys() {
       loadSurveys();
     }
   }, [selectedCampaignId]);
+
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current) {
+        window.clearInterval(pollTimerRef.current);
+      }
+    };
+  }, []);
 
   const loadCampaigns = async () => {
     try {
@@ -251,50 +262,102 @@ export function SatisfactionSurveys() {
     setSendProgress({ current: 0, total: 0, success: 0, failed: 0 });
     
     try {
-      // Iniciar o progresso
-      setSendProgress({ current: 0, total: 1, success: 0, failed: 0 });
-      
-      const { data, error } = await supabase.functions.invoke('send-satisfaction-survey');
+      // Calcular previamente o total planejado (mesma lógica da função de backend)
+      const { data: sends, error: sendsError } = await supabase
+        .from('campaign_sends')
+        .select('id')
+        .in('status', ['success', 'sent']);
+      if (sendsError) throw sendsError;
+      const sendIds = (sends || []).map((s: any) => s.id);
 
+      const { data: responded, error: respondedError } = await supabase
+        .from('satisfaction_surveys')
+        .select('campaign_send_id')
+        .in('campaign_send_id', sendIds)
+        .eq('status', 'responded');
+      if (respondedError) throw respondedError;
+
+      const respondedSet = new Set((responded || []).map((r: any) => r.campaign_send_id));
+      const plannedIds = sendIds.filter((id: string) => !respondedSet.has(id));
+
+      plannedIdsRef.current = plannedIds;
+      startTimeRef.current = new Date().toISOString();
+
+      setSendProgress({ current: 0, total: plannedIds.length, success: 0, failed: 0 });
+
+      // Polling de progresso em tempo real
+      const poll = async () => {
+        if (plannedIdsRef.current.length === 0) return;
+        const { data: rows } = await supabase
+          .from('satisfaction_surveys')
+          .select('id,status,sent_at,campaign_send_id')
+          .in('campaign_send_id', plannedIdsRef.current)
+          .gte('sent_at', startTimeRef.current);
+
+        const statuses = (rows || []).map(r => r.status);
+        const failed = statuses.filter(s => s === 'failed').length;
+        const success = statuses.filter(s => s === 'sent' || s === 'awaiting_feedback' || s === 'responded').length;
+        const current = Math.min(success + failed, plannedIdsRef.current.length);
+
+        setSendProgress({ current, total: plannedIdsRef.current.length, success, failed });
+
+        if (current >= plannedIdsRef.current.length && pollTimerRef.current) {
+          window.clearInterval(pollTimerRef.current);
+          pollTimerRef.current = null;
+        }
+      };
+
+      // Disparar imediatamente e a cada 1s
+      await poll();
+      pollTimerRef.current = window.setInterval(() => { poll(); }, 1000);
+
+      // Invocar a função de envio (processo em série com delays)
+      const { data, error } = await supabase.functions.invoke('send-satisfaction-survey');
       if (error) throw error;
 
-      // Atualizar o progresso final
-      setSendProgress({
-        current: data.surveys_sent || 0,
-        total: data.surveys_sent || 0,
-        success: data.surveys_sent || 0,
-        failed: data.failed_surveys || 0
-      });
+      // Último poll para sincronizar
+      await poll();
 
-      const details = [];
-      if (data.new_surveys > 0) {
-        details.push(`${data.new_surveys} nova${data.new_surveys > 1 ? 's' : ''}`);
-      }
-      if (data.resent_surveys > 0) {
-        details.push(`${data.resent_surveys} reenviada${data.resent_surveys > 1 ? 's' : ''}`);
-      }
-      if (data.failed_surveys > 0) {
-        details.push(`${data.failed_surveys} falha${data.failed_surveys > 1 ? 's' : ''}`);
+      // Ajuste final com os números do backend (caso o polling não pegue 100%)
+      if (data) {
+        const finalSuccess = Math.max(sendProgress.success, (data.surveys_sent || 0) - (data.failed_surveys || 0));
+        const finalFailed = Math.max(sendProgress.failed, data.failed_surveys || 0);
+        const finalCurrent = Math.max(sendProgress.current, data.surveys_sent || 0);
+        setSendProgress(prev => ({
+          current: Math.max(prev.current, finalCurrent),
+          total: Math.max(prev.total, plannedIdsRef.current.length),
+          success: Math.max(prev.success, finalSuccess),
+          failed: Math.max(prev.failed, finalFailed)
+        }));
       }
 
-      // Aguardar 2 segundos antes de fechar
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Pequena pausa para o usuário ver 100%
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      const details = [] as string[];
+      if (data?.new_surveys > 0) details.push(`${data.new_surveys} nova${data.new_surveys > 1 ? 's' : ''}`);
+      if (data?.resent_surveys > 0) details.push(`${data.resent_surveys} reenviada${data.resent_surveys > 1 ? 's' : ''}`);
+      if (data?.failed_surveys > 0) details.push(`${data.failed_surveys} falha${data.failed_surveys > 1 ? 's' : ''}`);
 
       toast({
         title: "Pesquisas enviadas!",
-        description: data.surveys_sent > 0 
+        description: data?.surveys_sent > 0 
           ? `${data.surveys_sent} pesquisa${data.surveys_sent > 1 ? 's' : ''} enviada${data.surveys_sent > 1 ? 's' : ''} (${details.join(', ')})`
           : "Nenhuma pesquisa pendente para enviar",
       });
 
       loadSurveys();
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Erro ao enviar pesquisas",
-        description: error.message,
+        description: error.message || 'Erro desconhecido',
         variant: "destructive",
       });
     } finally {
+      if (pollTimerRef.current) {
+        window.clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
       setSendingSurveys(false);
     }
   };
