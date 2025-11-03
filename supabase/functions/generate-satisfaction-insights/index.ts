@@ -108,40 +108,59 @@ serve(async (req) => {
       .slice(0, 15) // Aumentar para 15 feedbacks
       .join('\n');
 
-    const prompt = `Analise os dados de satisfação e identifique RESPONSABILIDADES (Entregador, Loja ou Vendedor):
+    const prompt = `Você está analisando dados de satisfação da TORRES CABRAL, empresa de materiais de construção.
 
-📊 DADOS:
-- Total: ${totalResponses} | Média: ${averageRating.toFixed(1)}/5
+📊 DADOS DO PERÍODO:
+- Total de avaliações: ${totalResponses}
+- Nota média: ${averageRating.toFixed(1)}/5
 - Distribuição: 5★(${ratingDistribution['5']}) 4★(${ratingDistribution['4']}) 3★(${ratingDistribution['3']}) 2★(${ratingDistribution['2']}) 1★(${ratingDistribution['1']})
 
-👥 MOTORISTAS:
+👥 DESEMPENHO DOS ENTREGADORES:
 ${driverStats}
 
-${feedbacks ? `💬 FEEDBACKS:\n${feedbacks}` : ''}
+${feedbacks ? `💬 FEEDBACKS DOS CLIENTES:\n${feedbacks}` : ''}
 
-Forneça análise OBJETIVA (máx 250 palavras):
+Gere uma análise estruturada em JSON com as seguintes categorias (máximo 3-4 pontos por categoria):
 
-1. 📊 RESUMO (2 linhas)
-   - Avaliação geral
+{
+  "visao_geral": {
+    "titulo": "Visão Geral",
+    "icone": "BarChart3",
+    "status": "positivo|neutro|negativo",
+    "insights": ["ponto 1", "ponto 2", "ponto 3"]
+  },
+  "entrega": {
+    "titulo": "Desempenho de Entrega",
+    "icone": "TruckIcon",
+    "status": "positivo|neutro|negativo",
+    "insights": ["ponto sobre pontualidade", "ponto sobre cuidado", "motoristas destaque ou problema"]
+  },
+  "atendimento": {
+    "titulo": "Atendimento ao Cliente",
+    "icone": "Users",
+    "status": "positivo|neutro|negativo",
+    "insights": ["qualidade atendimento", "comunicação", "cordialidade"]
+  },
+  "qualidade_produto": {
+    "titulo": "Qualidade dos Produtos",
+    "icone": "PackageCheck",
+    "status": "positivo|neutro|negativo",
+    "insights": ["estado produtos", "conformidade pedido", "embalagem"]
+  },
+  "melhorias": {
+    "titulo": "Oportunidades de Melhoria",
+    "icone": "TrendingUp",
+    "status": "neutro",
+    "insights": ["ação prioritária 1", "ação prioritária 2", "ação prioritária 3"]
+  }
+}
 
-2. 👤 ENTREGADOR
-   - Problemas: [listar]
-   - Motoristas críticos: [nomes e notas]
-
-3. 🏪 LOJA
-   - Problemas logísticos: [listar]
-   - Impacto: [descrever]
-
-4. 💼 VENDEDOR
-   - Problemas comerciais: [listar]
-   - Impacto: [descrever]
-
-5. ✅ AÇÕES (3 máximo)
-   - [Ação 1 + responsável]
-   - [Ação 2 + responsável]
-   - [Ação 3 + responsável]
-
-Seja DIRETO e use emojis.`;
+IMPORTANTE:
+- Seja específico e objetivo
+- Mencione motoristas com problemas pelo nome
+- Foque em insights acionáveis
+- Use linguagem direta
+- Retorne APENAS o JSON, sem markdown`;
 
     console.log('Gerando insights com IA...');
 
@@ -159,11 +178,11 @@ Seja DIRETO e use emojis.`;
         messages: [
           { 
             role: 'system', 
-            content: 'Você é um analista objetivo de logística. Identifique problemas por área (Entregador, Loja, Vendedor) de forma BREVE e DIRETA. Use formatação clara e emojis.' 
+            content: 'Você é um analista de negócios especializado em logística e distribuição de materiais de construção. Analise os dados e retorne insights estruturados em JSON puro, sem markdown ou texto adicional.' 
           },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 600,
+        max_tokens: 1000,
       }),
     });
 
@@ -178,7 +197,10 @@ Seja DIRETO e use emojis.`;
     }
 
     const aiData = await aiResponse.json();
-    const insights = aiData.choices[0].message.content;
+    let insights = aiData.choices[0].message.content;
+    
+    // Limpar markdown se presente
+    insights = insights.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
     // Salvar insights no banco
     const { data: savedInsight, error: insightError } = await supabaseClient

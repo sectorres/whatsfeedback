@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Star, TrendingUp, TrendingDown, Minus, Loader2, BarChart3, Send, ChevronDown, ChevronUp, CalendarIcon, Download, List } from "lucide-react";
+import { Star, TrendingUp, TrendingDown, Minus, Loader2, BarChart3, Send, ChevronDown, ChevronUp, CalendarIcon, Download, List, Truck, Users, PackageCheck, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
@@ -1167,52 +1167,159 @@ export function SatisfactionSurveys() {
             <CardContent>
               {insights ? (
                 <div className="space-y-6">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold">Distribuição de Notas</h3>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={loadInsights}
-                        className="text-xs"
-                      >
-                        Atualizar
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      {Object.entries(insights.rating_distribution || {})
-                        .sort(([a], [b]) => Number(b) - Number(a))
-                        .map(([rating, count]) => {
-                          const countNum = Number(count);
-                          const percentage = insights.total_responses > 0 
-                            ? (countNum / insights.total_responses) * 100 
-                            : 0;
-                          return (
-                            <div key={rating} className="flex items-center gap-3">
-                              <span className="w-12 text-sm font-medium">{rating} ⭐</span>
-                              <Progress value={percentage} className="flex-1" />
-                              <span className="text-sm text-muted-foreground w-16 text-right">
-                                {countNum} ({percentage.toFixed(0)}%)
-                              </span>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="font-semibold mb-3 text-lg">Análise Detalhada</h3>
-                    <div className="space-y-4 p-4 bg-muted/30 rounded-lg border">
-                      <div className="prose prose-sm max-w-none text-foreground">
-                        <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                          {insights.insights}
+                  {/* Estatísticas Resumidas */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="border-2">
+                      <CardContent className="pt-6">
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground mb-1">Total de Avaliações</p>
+                          <p className="text-3xl font-bold">{insights.total_responses}</p>
                         </div>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-2">
+                      <CardContent className="pt-6">
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground mb-1">Nota Média</p>
+                          <div className="flex items-center justify-center gap-2">
+                            <Star className={`h-6 w-6 ${getRatingColor(insights.average_rating)} fill-current`} />
+                            <p className={`text-3xl font-bold ${getRatingColor(insights.average_rating)}`}>
+                              {insights.average_rating.toFixed(1)}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-2">
+                      <CardContent className="pt-6">
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground mb-1">Satisfação Geral</p>
+                          <Badge 
+                            variant={
+                              insights.sentiment_summary === 'Positivo' ? 'default' :
+                              insights.sentiment_summary === 'Negativo' ? 'destructive' :
+                              'secondary'
+                            }
+                            className="text-base px-3 py-1"
+                          >
+                            {insights.sentiment_summary}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
 
-                  <p className="text-xs text-muted-foreground">
-                    Gerado em {new Date(insights.generated_at).toLocaleString('pt-BR')}
+                  {/* Distribuição de Notas */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Distribuição de Notas</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {Object.entries(insights.rating_distribution || {})
+                          .sort(([a], [b]) => Number(b) - Number(a))
+                          .map(([rating, count]) => {
+                            const countNum = Number(count);
+                            const percentage = insights.total_responses > 0 
+                              ? (countNum / insights.total_responses) * 100 
+                              : 0;
+                            return (
+                              <div key={rating} className="flex items-center gap-3">
+                                <span className="w-12 text-sm font-medium">{rating} ⭐</span>
+                                <Progress value={percentage} className="flex-1" />
+                                <span className="text-sm text-muted-foreground w-16 text-right">
+                                  {countNum} ({percentage.toFixed(0)}%)
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Insights Categorizados */}
+                  {(() => {
+                    try {
+                      const parsedInsights = typeof insights.insights === 'string' 
+                        ? JSON.parse(insights.insights) 
+                        : insights.insights;
+
+                      const getStatusColor = (status: string) => {
+                        if (status === 'positivo') return 'border-green-500 bg-green-50/50';
+                        if (status === 'negativo') return 'border-red-500 bg-red-50/50';
+                        return 'border-yellow-500 bg-yellow-50/50';
+                      };
+
+                      const getIcon = (iconName: string) => {
+                        const icons: Record<string, any> = {
+                          'TruckIcon': Truck,
+                          'Truck': Truck,
+                          'Users': Users,
+                          'PackageCheck': PackageCheck,
+                          'TrendingUp': TrendingUp,
+                          'BarChart3': BarChart3,
+                          'AlertCircle': AlertCircle,
+                        };
+                        const IconComponent = icons[iconName] || BarChart3;
+                        return <IconComponent className="h-5 w-5" />;
+                      };
+
+                      return (
+                        <div className="space-y-4">
+                          <h3 className="font-semibold text-lg">Análise por Categoria - Torres Cabral</h3>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            {Object.entries(parsedInsights).map(([key, category]: [string, any]) => (
+                              <Card key={key} className={`border-2 ${getStatusColor(category.status)}`}>
+                                <CardHeader className="pb-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`p-2 rounded-lg ${
+                                      category.status === 'positivo' ? 'bg-green-500 text-white' :
+                                      category.status === 'negativo' ? 'bg-red-500 text-white' :
+                                      'bg-yellow-500 text-white'
+                                    }`}>
+                                      {getIcon(category.icone)}
+                                    </div>
+                                    <CardTitle className="text-base">{category.titulo}</CardTitle>
+                                  </div>
+                                </CardHeader>
+                                <CardContent>
+                                  <ul className="space-y-2">
+                                    {category.insights?.map((insight: string, idx: number) => (
+                                      <li key={idx} className="flex items-start gap-2 text-sm">
+                                        <span className="text-primary mt-0.5">•</span>
+                                        <span className="flex-1">{insight}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    } catch (e) {
+                      // Fallback para formato antigo
+                      return (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-lg">Análise Detalhada</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4 p-4 bg-muted/30 rounded-lg border">
+                              <div className="prose prose-sm max-w-none text-foreground">
+                                <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                                  {insights.insights}
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    }
+                  })()}
+
+                  <p className="text-xs text-muted-foreground text-center">
+                    Análise gerada em {new Date(insights.generated_at).toLocaleString('pt-BR')} para Torres Cabral - Materiais de Construção
                   </p>
                 </div>
               ) : (
