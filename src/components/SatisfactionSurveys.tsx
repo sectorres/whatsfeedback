@@ -84,9 +84,9 @@ export function SatisfactionSurveys() {
   const plannedIdsRef = useRef<string[]>([]);
   const startTimeRef = useRef<string>("");
   
-  // Estados para filtro de data
+  // Estados para filtro de data - Mês corrente
   const [dateFrom, setDateFrom] = useState<Date | undefined>(
-    new Date(new Date().setDate(new Date().getDate() - 30))
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   );
   const [dateTo, setDateTo] = useState<Date | undefined>(new Date());
   

@@ -44,6 +44,7 @@ interface Stats {
   mediaAvaliacao: number;
   mensagensFalhadas: number;
   contatosBloqueados: number;
+  campanhasEnviadasHoje: number;
   topDrivers: DriverRating[];
   positiveKeywords: KeywordCount[];
   negativeKeywords: KeywordCount[];
@@ -64,6 +65,7 @@ export function DashboardStats() {
     mediaAvaliacao: 0,
     mensagensFalhadas: 0,
     contatosBloqueados: 0,
+    campanhasEnviadasHoje: 0,
     topDrivers: [],
     positiveKeywords: [],
     negativeKeywords: []
@@ -87,7 +89,8 @@ export function DashboardStats() {
         surveysResult,
         campaignSendsResult,
         blacklistResult,
-        allSurveysResult
+        allSurveysResult,
+        campaignsSentTodayResult
       ] = await Promise.all([
         supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('conversations').select('*', { count: 'exact', head: true }),
@@ -96,13 +99,15 @@ export function DashboardStats() {
         supabase.from('satisfaction_surveys').select('rating, status'),
         supabase.from('campaign_sends').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
         supabase.from('blacklist').select('*', { count: 'exact', head: true }),
-        supabase.from('satisfaction_surveys').select('*').not('rating', 'is', null)
+        supabase.from('satisfaction_surveys').select('*').not('rating', 'is', null),
+        supabase.from('campaign_sends').select('*', { count: 'exact', head: true }).gte('sent_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
       ]);
 
       console.log('Conversas ativas:', conversasAtivasResult.count);
       console.log('Total de conversas:', conversasTotalResult.count);
       console.log('Mensagens hoje:', mensagensResult.count);
       console.log('Campanhas ativas:', campanhasResult.count);
+      console.log('Campanhas enviadas hoje:', campaignsSentTodayResult.count);
 
       // Processar dados de pesquisas de satisfação
       const surveys = surveysResult.data || [];
@@ -201,6 +206,7 @@ export function DashboardStats() {
         mediaAvaliacao,
         mensagensFalhadas,
         contatosBloqueados,
+        campanhasEnviadasHoje: campaignsSentTodayResult.count || 0,
         topDrivers,
         positiveKeywords,
         negativeKeywords
@@ -449,12 +455,18 @@ export function DashboardStats() {
           <h3 className="text-lg font-semibold">Campanhas</h3>
           <p className="text-sm text-muted-foreground">Avisos de entrega e notificações</p>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <StatCard
             title="Campanhas Ativas"
             value={stats.campanhasAtivas}
             icon={Calendar}
             color="text-purple-600"
+          />
+          <StatCard
+            title="Campanhas Enviadas Hoje"
+            value={stats.campanhasEnviadasHoje}
+            icon={Send}
+            color="text-blue-600"
           />
           <StatCard
             title="Envios Falhados"

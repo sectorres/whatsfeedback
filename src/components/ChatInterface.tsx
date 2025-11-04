@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Send, Phone, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Send, Phone, Loader2, Paperclip, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card } from "./ui/card";
@@ -25,6 +25,9 @@ export const ChatInterface = () => {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const searchOrder = async (query: string) => {
     try {
@@ -79,12 +82,69 @@ export const ChatInterface = () => {
     return `${day}/${month}/${year}`;
   };
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validar tamanho (10MB max)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("Arquivo muito grande. Tamanho máximo: 10MB");
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const uploadFile = async (file: File): Promise<string | null> => {
+    try {
+      setUploadingFile(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `chat-attachments/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('whatsapp-media')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('whatsapp-media')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast.error("Erro ao fazer upload do arquivo");
+      return null;
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
   const handleSend = async () => {
-    if (!inputValue.trim() || loading) return;
+    if ((!inputValue.trim() && !selectedFile) || loading || uploadingFile) return;
+
+    let messageText = inputValue;
+    let fileUrl: string | null = null;
+
+    // Upload do arquivo se houver
+    if (selectedFile) {
+      fileUrl = await uploadFile(selectedFile);
+      if (!fileUrl) return;
+      
+      messageText = messageText || `📎 ${selectedFile.name}`;
+    }
 
     const newMessage: Message = {
       id: messages.length + 1,
-      text: inputValue,
+      text: fileUrl ? `${messageText}\n\n📎 Arquivo: ${fileUrl}` : messageText,
       sender: "user",
       timestamp: new Date(),
     };
@@ -92,18 +152,24 @@ export const ChatInterface = () => {
     setMessages([...messages, newMessage]);
     const userQuery = inputValue;
     setInputValue("");
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
 
-    // Simulate bot response
-    const botResponse = await searchOrder(userQuery);
-    
-    const botMessage: Message = {
-      id: messages.length + 2,
-      text: botResponse,
-      sender: "bot",
-      timestamp: new Date(),
-    };
-    
-    setMessages((prev) => [...prev, botMessage]);
+    // Simulate bot response (apenas se houver texto)
+    if (userQuery.trim()) {
+      const botResponse = await searchOrder(userQuery);
+      
+      const botMessage: Message = {
+        id: messages.length + 2,
+        text: botResponse,
+        sender: "bot",
+        timestamp: new Date(),
+      };
+      
+      setMessages((prev) => [...prev, botMessage]);
+    }
   };
 
   return (
@@ -161,21 +227,50 @@ export const ChatInterface = () => {
       </ScrollArea>
 
       <div className="p-4 border-t bg-background">
+        {selectedFile && (
+          <div className="mb-2 flex items-center gap-2 text-sm bg-muted p-2 rounded">
+            <Paperclip className="h-4 w-4" />
+            <span className="flex-1 truncate">{selectedFile.name}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRemoveFile}
+              className="h-6 w-6 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
         <div className="flex gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFileSelect}
+            accept="image/*,.pdf,.doc,.docx,.txt"
+          />
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading || uploadingFile}
+          >
+            <Paperclip className="h-4 w-4" />
+          </Button>
           <Input
             placeholder="Digite o número do pedido..."
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={(e) => e.key === "Enter" && handleSend()}
             className="flex-1"
-            disabled={loading}
+            disabled={loading || uploadingFile}
           />
           <Button 
             onClick={handleSend} 
             className="bg-whatsapp hover:bg-whatsapp/90"
-            disabled={loading}
+            disabled={loading || uploadingFile}
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {(loading || uploadingFile) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
       </div>
