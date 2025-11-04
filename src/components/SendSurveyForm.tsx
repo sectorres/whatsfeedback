@@ -36,11 +36,44 @@ export function SendSurveyForm({ customerPhone = "", customerName = "" }: SendSu
     try {
       const normalizedPhone = normalizePhone(phone);
 
+      // Garantir campanha "Pesquisa Avulsa" existente
+      let avulsaId: string | null = null;
+      const { data: foundCampaign, error: findError } = await supabase
+        .from('campaigns')
+        .select('id')
+        .eq('name', 'Pesquisa Avulsa')
+        .limit(1)
+        .maybeSingle();
+
+      if (findError) {
+        console.error('Erro ao buscar campanha avulsa:', findError);
+      }
+
+      if (foundCampaign?.id) {
+        avulsaId = foundCampaign.id;
+      } else {
+        const { data: createdCampaign, error: createError } = await supabase
+          .from('campaigns')
+          .insert({
+            name: 'Pesquisa Avulsa',
+            message: 'Pesquisa de satisfação avulsa',
+            target_type: 'manual',
+            status: 'draft'
+          })
+          .select('id')
+          .single();
+        if (createError) {
+          console.error('Erro ao criar campanha avulsa:', createError);
+          throw createError;
+        }
+        avulsaId = createdCampaign!.id;
+      }
+
       // Criar um campaign_send avulso para esta pesquisa
       const { data: campaignSend, error: sendError } = await supabase
         .from('campaign_sends')
         .insert({
-          campaign_id: '00000000-0000-0000-0000-000000000000', // ID especial para pesquisas avulsas
+          campaign_id: avulsaId,
           customer_phone: normalizedPhone,
           customer_name: name || normalizedPhone,
           message_sent: 'Pesquisa de satisfação avulsa',

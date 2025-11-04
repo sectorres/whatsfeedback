@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, Send, X, Loader2, Archive } from "lucide-react";
+import { MessageCircle, Send, X, Loader2, Archive, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -48,6 +48,9 @@ export function ConversationsPanel() {
   const [sending, setSending] = useState(false);
   const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -183,16 +186,67 @@ export function ConversationsPanel() {
     );
   };
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Arquivo muito grande. Máximo 10MB');
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const uploadFile = async (file: File, conversationId: string): Promise<string | null> => {
+    try {
+      setUploadingFile(true);
+      const ext = file.name.split('.').pop();
+      const random = Math.random().toString(36).slice(2, 10);
+      const path = `chat-attachments/${conversationId}/${Date.now()}_${random}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('whatsapp-media')
+        .upload(path, file);
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from('whatsapp-media').getPublicUrl(path);
+      return data.publicUrl;
+    } catch (e) {
+      console.error('Erro upload arquivo:', e);
+      toast.error('Erro ao enviar arquivo');
+      return null;
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
   const sendMessage = async () => {
-    if (!messageText.trim() || !selectedConversation) return;
+    if ((!messageText.trim() && !selectedFile) || !selectedConversation) return;
 
     setSending(true);
     try {
-      // Enviar via Evolution API
+      let composedMessage = messageText.trim();
+      let mediaType: string | null = null;
+      let mediaUrl: string | null = null;
+
+      // Upload de arquivo se houver
+      if (selectedFile) {
+        const url = await uploadFile(selectedFile, selectedConversation.id);
+        if (!url) throw new Error('Falha ao enviar arquivo');
+        mediaType = 'document';
+        mediaUrl = url;
+        if (composedMessage) composedMessage += '\n\n';
+        composedMessage += `📎 Arquivo: ${url}`;
+      }
+
+      // Enviar via Evolution API (texto com link do arquivo, se houver)
       const response = await supabase.functions.invoke('whatsapp-send', {
         body: {
           phone: selectedConversation.customer_phone,
-          message: messageText
+          message: composedMessage || '📎 Arquivo enviado'
         }
       });
 
@@ -205,8 +259,10 @@ export function ConversationsPanel() {
           conversation_id: selectedConversation.id,
           sender_type: 'operator',
           sender_name: 'Operador',
-          message_text: messageText,
-          message_status: 'sent'
+          message_text: composedMessage,
+          message_status: 'sent',
+          media_type: mediaType,
+          media_url: mediaUrl,
         });
 
       if (dbError) throw dbError;
@@ -218,6 +274,8 @@ export function ConversationsPanel() {
         .eq('id', selectedConversation.id);
 
       setMessageText("");
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       toast.success('Mensagem enviada!');
     } catch (error) {
       console.error('Error sending message:', error);
