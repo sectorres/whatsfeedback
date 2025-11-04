@@ -84,7 +84,6 @@ export function DashboardStats() {
         conversasTotalResult,
         mensagensResult,
         campanhasResult,
-        cargasResult,
         surveysResult,
         campaignSendsResult,
         blacklistResult,
@@ -94,12 +93,6 @@ export function DashboardStats() {
         supabase.from('conversations').select('*', { count: 'exact', head: true }),
         supabase.from('messages').select('*', { count: 'exact', head: true }).gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()),
         supabase.from('campaigns').select('*', { count: 'exact', head: true }).in('status', ['draft', 'sending', 'scheduled']),
-        supabase.functions.invoke("fetch-cargas", {
-          body: {
-            dataInicial: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().slice(0, 10).replace(/-/g, ''),
-            dataFinal: new Date().toISOString().slice(0, 10).replace(/-/g, '')
-          }
-        }),
         supabase.from('satisfaction_surveys').select('rating, status'),
         supabase.from('campaign_sends').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
         supabase.from('blacklist').select('*', { count: 'exact', head: true }),
@@ -110,34 +103,14 @@ export function DashboardStats() {
       console.log('Total de conversas:', conversasTotalResult.count);
       console.log('Mensagens hoje:', mensagensResult.count);
       console.log('Campanhas ativas:', campanhasResult.count);
-      console.log('Dados de cargas:', cargasResult.data);
-
-      let pedidosAbertos = 0;
-      let pedidosFaturados = 0;
-      let totalCargas = 0;
-      let cargasPendentes = 0;
-
-      if (cargasResult.data?.status === "SUCESSO" && cargasResult.data.retorno?.cargas) {
-        const cargas = cargasResult.data.retorno.cargas;
-        totalCargas = cargas.length;
-        
-        pedidosAbertos = cargas
-          .filter((c: any) => c.status === "ABER")
-          .reduce((sum: number, carga: any) => sum + (carga.pedidos?.length || 0), 0);
-        
-        pedidosFaturados = cargas
-          .filter((c: any) => c.status === "FATU")
-          .reduce((sum: number, carga: any) => sum + (carga.pedidos?.length || 0), 0);
-
-        cargasPendentes = cargas.filter((c: any) => c.status !== "FATU").length;
-      }
 
       // Processar dados de pesquisas de satisfação
       const surveys = surveysResult.data || [];
       const totalSurveys = surveys.length;
       const responsesWithRating = surveys.filter((s: any) => s.rating !== null);
       const totalRespostas = responsesWithRating.length;
-      const taxaResposta = totalSurveys > 0 ? (totalRespostas / totalSurveys) * 100 : 0;
+      const totalSent = totalSurveys > 0 ? Math.round(totalRespostas / (totalRespostas / totalSurveys)) : 0;
+      const taxaResposta = totalSent > 0 ? (totalRespostas / totalSent) * 100 : 0;
       const sumRatings = responsesWithRating.reduce((sum: number, s: any) => sum + (s.rating || 0), 0);
       const mediaAvaliacao = totalRespostas > 0 ? sumRatings / totalRespostas : 0;
 
@@ -219,10 +192,10 @@ export function DashboardStats() {
         conversasTotal: conversasTotalResult.count || 0,
         mensagensHoje: mensagensResult.count || 0,
         campanhasAtivas: campanhasResult.count || 0,
-        pedidosAbertos,
-        pedidosFaturados,
-        totalCargas,
-        cargasPendentes,
+        pedidosAbertos: 0,
+        pedidosFaturados: 0,
+        totalCargas: 0,
+        cargasPendentes: 0,
         totalRespostas,
         taxaResposta,
         mediaAvaliacao,
@@ -322,7 +295,6 @@ export function DashboardStats() {
             value={stats.totalRespostas}
             icon={Star}
             color="text-yellow-600"
-            subtitle="pesquisas respondidas"
           />
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -334,7 +306,7 @@ export function DashboardStats() {
                 {loading ? "..." : `${stats.taxaResposta.toFixed(1)}%`}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {loading ? "" : `${stats.totalRespostas} respostas de ${stats.totalRespostas + (Math.round(stats.totalRespostas / (stats.taxaResposta / 100)) - stats.totalRespostas)} enviadas`}
+                {loading ? "" : `${stats.totalRespostas} de ${Math.round(stats.totalRespostas > 0 && stats.taxaResposta > 0 ? stats.totalRespostas / (stats.taxaResposta / 100) : 0)} enviadas`}
               </p>
             </CardContent>
           </Card>
