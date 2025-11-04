@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Send, RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle, Trash2 } from "lucide-react";
+import { Loader2, Send, RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle, Trash2, Search } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
@@ -39,6 +40,7 @@ export function SurveyManagement() {
   const [deleting, setDeleting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
   const sendingRef = useRef(false); // Proteção adicional contra chamadas concorrentes
 
@@ -298,6 +300,16 @@ export function SurveyManagement() {
     }
   };
 
+  const filteredItems = items.filter(item => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      item.customer_name?.toLowerCase().includes(search) ||
+      item.customer_phone?.includes(search) ||
+      item.campaign_name?.toLowerCase().includes(search)
+    );
+  });
+
   if (loading) {
     return (
       <Card>
@@ -358,9 +370,24 @@ export function SurveyManagement() {
         </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, telefone ou campanha..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </div>
         {items.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             Nenhum envio de campanha encontrado
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            Nenhuma pesquisa encontrada para "{searchTerm}"
           </div>
         ) : (
           <div className="border rounded-lg">
@@ -369,7 +396,7 @@ export function SurveyManagement() {
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={selectedIds.size === items.length && items.length > 0}
+                      checked={selectedIds.size === filteredItems.length && filteredItems.length > 0}
                       onCheckedChange={toggleAll}
                     />
                   </TableHead>
@@ -381,7 +408,7 @@ export function SurveyManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item) => (
+                {filteredItems.map((item) => (
                   <TableRow key={item.campaign_send_id}>
                     <TableCell>
                       <Checkbox
