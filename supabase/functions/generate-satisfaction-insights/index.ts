@@ -105,12 +105,59 @@ serve(async (req) => {
         const driverName = send?.driver_name || 'N/A';
         return `[${driverName}] Nota ${s.rating}/5: "${s.feedback}"`;
       })
-      .slice(0, 15) // Aumentar para 15 feedbacks
+      .slice(0, 15)
       .join('\n');
 
-    const prompt = `Você está analisando dados de satisfação da TORRES CABRAL, empresa de materiais de construção.
+    // Buscar prompt configurável do banco
+    const { data: promptConfig } = await supabaseClient
+      .from('ai_config')
+      .select('prompt')
+      .eq('config_key', 'satisfaction_insights_prompt')
+      .maybeSingle();
 
-📊 DADOS DO PERÍODO:
+    // Usar prompt configurável ou padrão
+    const systemPrompt = promptConfig?.prompt || `Você é um assistente de análise de satisfação de clientes para a empresa "Torres Cabral", uma empresa do ramo de materiais de construção.
+
+Analise os dados de pesquisas de satisfação e forneça insights estruturados no formato JSON, seguindo exatamente este schema:
+
+{
+  "visao_geral": {
+    "resumo": "string - resumo executivo da análise",
+    "tendencias": ["array de strings - principais tendências identificadas"],
+    "status": "excelente|bom|atencao|critico"
+  },
+  "desempenho_entregas": {
+    "resumo": "string - análise do desempenho das entregas",
+    "pontos_positivos": ["array de strings"],
+    "pontos_negativos": ["array de strings"],
+    "status": "excelente|bom|atencao|critico"
+  },
+  "atendimento_cliente": {
+    "resumo": "string - análise do atendimento",
+    "pontos_positivos": ["array de strings"],
+    "pontos_negativos": ["array de strings"],
+    "status": "excelente|bom|atencao|critico"
+  },
+  "qualidade_produtos": {
+    "resumo": "string - análise da qualidade dos produtos",
+    "pontos_positivos": ["array de strings"],
+    "pontos_negativos": ["array de strings"],
+    "status": "excelente|bom|atencao|critico"
+  },
+  "oportunidades_melhoria": {
+    "urgentes": ["array de strings - ações prioritárias"],
+    "importantes": ["array de strings - melhorias relevantes"],
+    "sugestoes": ["array de strings - ideias para o futuro"]
+  }
+}
+
+IMPORTANTE:
+- Seja específico e use os dados reais fornecidos
+- Status deve ser: "excelente" (>4.5), "bom" (3.5-4.5), "atencao" (2.5-3.5), "critico" (<2.5)
+- Foque em insights acionáveis
+- Retorne APENAS o JSON, sem markdown ou explicações adicionais`;
+
+    const userPrompt = `📊 DADOS DO PERÍODO:
 - Total de avaliações: ${totalResponses}
 - Nota média: ${averageRating.toFixed(1)}/5
 - Distribuição: 5★(${ratingDistribution['5']}) 4★(${ratingDistribution['4']}) 3★(${ratingDistribution['3']}) 2★(${ratingDistribution['2']}) 1★(${ratingDistribution['1']})
@@ -118,49 +165,7 @@ serve(async (req) => {
 👥 DESEMPENHO DOS ENTREGADORES:
 ${driverStats}
 
-${feedbacks ? `💬 FEEDBACKS DOS CLIENTES:\n${feedbacks}` : ''}
-
-Gere uma análise estruturada em JSON com as seguintes categorias (máximo 3-4 pontos por categoria):
-
-{
-  "visao_geral": {
-    "titulo": "Visão Geral",
-    "icone": "BarChart3",
-    "status": "positivo|neutro|negativo",
-    "insights": ["ponto 1", "ponto 2", "ponto 3"]
-  },
-  "entrega": {
-    "titulo": "Desempenho de Entrega",
-    "icone": "TruckIcon",
-    "status": "positivo|neutro|negativo",
-    "insights": ["ponto sobre pontualidade", "ponto sobre cuidado", "motoristas destaque ou problema"]
-  },
-  "atendimento": {
-    "titulo": "Atendimento ao Cliente",
-    "icone": "Users",
-    "status": "positivo|neutro|negativo",
-    "insights": ["qualidade atendimento", "comunicação", "cordialidade"]
-  },
-  "qualidade_produto": {
-    "titulo": "Qualidade dos Produtos",
-    "icone": "PackageCheck",
-    "status": "positivo|neutro|negativo",
-    "insights": ["estado produtos", "conformidade pedido", "embalagem"]
-  },
-  "melhorias": {
-    "titulo": "Oportunidades de Melhoria",
-    "icone": "TrendingUp",
-    "status": "neutro",
-    "insights": ["ação prioritária 1", "ação prioritária 2", "ação prioritária 3"]
-  }
-}
-
-IMPORTANTE:
-- Seja específico e objetivo
-- Mencione motoristas com problemas pelo nome
-- Foque em insights acionáveis
-- Use linguagem direta
-- Retorne APENAS o JSON, sem markdown`;
+${feedbacks ? `💬 FEEDBACKS DOS CLIENTES:\n${feedbacks}` : ''}`;
 
     console.log('Gerando insights com IA...');
 
@@ -176,11 +181,8 @@ IMPORTANTE:
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { 
-            role: 'system', 
-            content: 'Você é um analista de negócios especializado em logística e distribuição de materiais de construção. Analise os dados e retorne insights estruturados em JSON puro, sem markdown ou texto adicional.' 
-          },
-          { role: 'user', content: prompt }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
         ],
         max_tokens: 1000,
       }),

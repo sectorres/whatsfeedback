@@ -499,40 +499,6 @@ export function DashboardStats() {
         </div>
       </div>
 
-      {/* Seção: Cargas e Pedidos */}
-      <div className="space-y-3">
-        <div>
-          <h3 className="text-lg font-semibold">Cargas e Pedidos</h3>
-          <p className="text-sm text-muted-foreground">Gestão de cargas e status de pedidos</p>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Total de Cargas"
-            value={stats.totalCargas}
-            icon={Truck}
-            color="text-orange-600"
-            subtitle={`${stats.cargasPendentes} pendentes`}
-          />
-          <StatCard
-            title="Cargas Pendentes"
-            value={stats.cargasPendentes}
-            icon={Clock}
-            color="text-yellow-600"
-          />
-          <StatCard
-            title="Pedidos Abertos"
-            value={stats.pedidosAbertos}
-            icon={AlertCircle}
-            color="text-yellow-600"
-          />
-          <StatCard
-            title="Pedidos Faturados"
-            value={stats.pedidosFaturados}
-            icon={CheckCircle2}
-            color="text-green-600"
-          />
-        </div>
-      </div>
     </div>
   );
 }
