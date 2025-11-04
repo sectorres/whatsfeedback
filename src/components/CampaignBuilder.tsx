@@ -100,14 +100,12 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, success: 0, failed: 0, blocked: 0 });
   
-  // Datas padrão: primeiro e último dia do mês corrente
-  const [startDate, setStartDate] = useState<Date>(() => {
-    const date = new Date();
-    return new Date(date.getFullYear(), date.getMonth(), 1);
-  });
+  // Datas padrão: hoje até hoje + 30 dias
+  const [startDate, setStartDate] = useState<Date>(() => new Date());
   const [endDate, setEndDate] = useState<Date>(() => {
     const date = new Date();
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    date.setDate(date.getDate() + 30);
+    return date;
   });
 
   // Load templates from localStorage on mount
@@ -343,46 +341,20 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
 
           if (error) throw error;
 
-          // Registrar envio bem-sucedido - garantir registro mesmo em caso de erro no banco
-          try {
-            const { error: insertError } = await supabase.from('campaign_sends').insert({
-              campaign_id: campaign.id,
-              customer_name: pedido.cliente?.nome || "Cliente",
-              customer_phone: phone,
-              message_sent: formattedMessage,
-              status: 'success',
-              driver_name: selectedCarga?.nomeMotorista || null,
-              peso_total: pedido.pesoBruto || 0,
-              valor_total: pedido.valor || 0,
-              quantidade_entregas: 1,
-              quantidade_skus: pedido.produtos?.length || 0,
-              quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0
-            });
-
-            if (insertError) {
-              console.error('⚠️ Erro ao registrar envio bem-sucedido:', insertError);
-              // Tentar novamente após pequeno delay
-              await new Promise(resolve => setTimeout(resolve, 500));
-              const { error: retryError } = await supabase.from('campaign_sends').insert({
-                campaign_id: campaign.id,
-                customer_name: pedido.cliente?.nome || "Cliente",
-                customer_phone: phone,
-                message_sent: formattedMessage,
-                status: 'success',
-                driver_name: selectedCarga?.nomeMotorista || null,
-                peso_total: pedido.pesoBruto || 0,
-                valor_total: pedido.valor || 0,
-                quantidade_entregas: 1,
-                quantidade_skus: pedido.produtos?.length || 0,
-                quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0
-              });
-              if (retryError) {
-                console.error('⚠️ Falha na tentativa de retry ao registrar envio:', retryError);
-              }
-            }
-          } catch (dbError) {
-            console.error('⚠️ Erro crítico ao registrar envio no banco:', dbError);
-          }
+          // Registrar envio bem-sucedido
+          await supabase.from('campaign_sends').insert({
+            campaign_id: campaign.id,
+            customer_name: pedido.cliente?.nome || "Cliente",
+            customer_phone: phone,
+            message_sent: formattedMessage,
+            status: 'success',
+            driver_name: selectedCarga?.nomeMotorista || null,
+            peso_total: pedido.pesoBruto || 0,
+            valor_total: pedido.valor || 0,
+            quantidade_entregas: 1,
+            quantidade_skus: pedido.produtos?.length || 0,
+            quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0
+          });
 
           successCount++;
           setSendProgress(prev => ({ ...prev, current: i + 1, success: prev.success + 1 }));
@@ -790,6 +762,20 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             </div>
           </div>
 
+          {/* Prévia da Mensagem */}
+          {selectedCarga && selectedPedidos.size > 0 && (
+            <div className="bg-muted p-4 rounded-lg space-y-2">
+              <Label className="text-sm font-medium">Prévia da Mensagem</Label>
+              <div className="bg-background p-3 rounded border text-sm">
+                {messageTemplate
+                  .replace("{cliente}", selectedCarga.pedidos[0]?.cliente?.nome || "Cliente")
+                  .replace("{pedido}", selectedCarga.pedidos[0]?.pedido || "000/000000-P")
+                  .replace("{valor}", `${selectedCarga.pedidos[0]?.valor?.toFixed(2) || "0.00"}`)
+                  .replace("{status}", statusMap[selectedCarga.status] || selectedCarga.status)
+                  .replace("{notaFiscal}", selectedCarga.pedidos[0]?.notaFiscal || "N/A")}
+              </div>
+            </div>
+          )}
 
           {/* Botões de Ação */}
           <div className="flex gap-2">

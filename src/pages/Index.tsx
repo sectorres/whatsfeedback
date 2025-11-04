@@ -19,7 +19,6 @@ import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { useWhatsAppStatus } from "@/hooks/useWhatsAppStatus";
 import { SatisfactionSurveys } from "@/components/SatisfactionSurveys";
 import { IpWhitelistManager } from "@/components/IpWhitelistManager";
-import { AiPromptConfig } from "@/components/AiPromptConfig";
 
 const Index = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
@@ -96,7 +95,6 @@ const Index = () => {
             <WhatsAppConnection onConnectionChange={setWhatsappConnected} />
             <IpWhitelistManager />
             <SendDelayConfig />
-            <AiPromptConfig />
             <ApiConfiguration />
             <WebhookConfiguration />
             <ChangePassword />

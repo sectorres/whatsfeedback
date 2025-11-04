@@ -36,44 +36,11 @@ export function SendSurveyForm({ customerPhone = "", customerName = "" }: SendSu
     try {
       const normalizedPhone = normalizePhone(phone);
 
-      // Garantir campanha "Pesquisa Avulsa" existente
-      let avulsaId: string | null = null;
-      const { data: foundCampaign, error: findError } = await supabase
-        .from('campaigns')
-        .select('id')
-        .eq('name', 'Pesquisa Avulsa')
-        .limit(1)
-        .maybeSingle();
-
-      if (findError) {
-        console.error('Erro ao buscar campanha avulsa:', findError);
-      }
-
-      if (foundCampaign?.id) {
-        avulsaId = foundCampaign.id;
-      } else {
-        const { data: createdCampaign, error: createError } = await supabase
-          .from('campaigns')
-          .insert({
-            name: 'Pesquisa Avulsa',
-            message: 'Pesquisa de satisfação avulsa',
-            target_type: 'manual',
-            status: 'draft'
-          })
-          .select('id')
-          .single();
-        if (createError) {
-          console.error('Erro ao criar campanha avulsa:', createError);
-          throw createError;
-        }
-        avulsaId = createdCampaign!.id;
-      }
-
       // Criar um campaign_send avulso para esta pesquisa
       const { data: campaignSend, error: sendError } = await supabase
         .from('campaign_sends')
         .insert({
-          campaign_id: avulsaId,
+          campaign_id: '00000000-0000-0000-0000-000000000000', // ID especial para pesquisas avulsas
           customer_phone: normalizedPhone,
           customer_name: name || normalizedPhone,
           message_sent: 'Pesquisa de satisfação avulsa',
@@ -82,39 +49,42 @@ export function SendSurveyForm({ customerPhone = "", customerName = "" }: SendSu
         .select()
         .single();
 
-      if (sendError) {
-        console.error('Erro ao criar campaign_send:', sendError);
-        throw sendError;
-      }
+      if (sendError) throw sendError;
 
-      // Enviar a pesquisa imediatamente (a edge function criará a survey automaticamente)
+      // Criar a pesquisa
+      const { data: survey, error: surveyError } = await supabase
+        .from('satisfaction_surveys')
+        .insert({
+          campaign_send_id: campaignSend.id,
+          customer_phone: normalizedPhone,
+          customer_name: name || normalizedPhone,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (surveyError) throw surveyError;
+
+      // Enviar a pesquisa imediatamente
       const { data: sendResult, error: invokeError } = await supabase.functions.invoke('send-satisfaction-survey', {
         body: {
           campaignSendIds: [campaignSend.id]
         }
       });
 
-      if (invokeError) {
-        console.error('Erro ao invocar edge function:', invokeError);
-        throw invokeError;
-      }
+      if (invokeError) throw invokeError;
 
-      console.log('Resultado do envio:', sendResult);
-
-      if (sendResult?.surveys_sent > 0) {
+      if (sendResult.surveys_sent > 0) {
         toast.success("Pesquisa enviada com sucesso!");
         setOpen(false);
         setPhone("");
         setName("");
       } else {
-        const errorMsg = sendResult?.message || sendResult?.error || "Não foi possível enviar a pesquisa";
-        console.error('Falha no envio:', errorMsg);
-        toast.error(errorMsg);
+        toast.error("Não foi possível enviar a pesquisa");
       }
     } catch (error) {
       console.error('Erro ao enviar pesquisa:', error);
-      const errorMessage = error instanceof Error ? error.message : "Erro ao enviar pesquisa";
-      toast.error(errorMessage);
+      toast.error("Erro ao enviar pesquisa");
     } finally {
       setLoading(false);
     }

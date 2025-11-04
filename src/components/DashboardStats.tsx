@@ -44,7 +44,6 @@ interface Stats {
   mediaAvaliacao: number;
   mensagensFalhadas: number;
   contatosBloqueados: number;
-  campanhasEnviadasHoje: number;
   topDrivers: DriverRating[];
   positiveKeywords: KeywordCount[];
   negativeKeywords: KeywordCount[];
@@ -65,7 +64,6 @@ export function DashboardStats() {
     mediaAvaliacao: 0,
     mensagensFalhadas: 0,
     contatosBloqueados: 0,
-    campanhasEnviadasHoje: 0,
     topDrivers: [],
     positiveKeywords: [],
     negativeKeywords: []
@@ -86,36 +84,60 @@ export function DashboardStats() {
         conversasTotalResult,
         mensagensResult,
         campanhasResult,
+        cargasResult,
         surveysResult,
         campaignSendsResult,
         blacklistResult,
-        allSurveysResult,
-        campaignsSentTodayResult
+        allSurveysResult
       ] = await Promise.all([
         supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('conversations').select('*', { count: 'exact', head: true }),
         supabase.from('messages').select('*', { count: 'exact', head: true }).gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()),
         supabase.from('campaigns').select('*', { count: 'exact', head: true }).in('status', ['draft', 'sending', 'scheduled']),
+        supabase.functions.invoke("fetch-cargas", {
+          body: {
+            dataInicial: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().slice(0, 10).replace(/-/g, ''),
+            dataFinal: new Date().toISOString().slice(0, 10).replace(/-/g, '')
+          }
+        }),
         supabase.from('satisfaction_surveys').select('rating, status'),
         supabase.from('campaign_sends').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
         supabase.from('blacklist').select('*', { count: 'exact', head: true }),
-        supabase.from('satisfaction_surveys').select('*').not('rating', 'is', null),
-        supabase.from('campaign_sends').select('*', { count: 'exact', head: true }).gte('sent_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString())
+        supabase.from('satisfaction_surveys').select('*').not('rating', 'is', null)
       ]);
 
       console.log('Conversas ativas:', conversasAtivasResult.count);
       console.log('Total de conversas:', conversasTotalResult.count);
       console.log('Mensagens hoje:', mensagensResult.count);
       console.log('Campanhas ativas:', campanhasResult.count);
-      console.log('Campanhas enviadas hoje:', campaignsSentTodayResult.count);
+      console.log('Dados de cargas:', cargasResult.data);
+
+      let pedidosAbertos = 0;
+      let pedidosFaturados = 0;
+      let totalCargas = 0;
+      let cargasPendentes = 0;
+
+      if (cargasResult.data?.status === "SUCESSO" && cargasResult.data.retorno?.cargas) {
+        const cargas = cargasResult.data.retorno.cargas;
+        totalCargas = cargas.length;
+        
+        pedidosAbertos = cargas
+          .filter((c: any) => c.status === "ABER")
+          .reduce((sum: number, carga: any) => sum + (carga.pedidos?.length || 0), 0);
+        
+        pedidosFaturados = cargas
+          .filter((c: any) => c.status === "FATU")
+          .reduce((sum: number, carga: any) => sum + (carga.pedidos?.length || 0), 0);
+
+        cargasPendentes = cargas.filter((c: any) => c.status !== "FATU").length;
+      }
 
       // Processar dados de pesquisas de satisfação
       const surveys = surveysResult.data || [];
       const totalSurveys = surveys.length;
       const responsesWithRating = surveys.filter((s: any) => s.rating !== null);
       const totalRespostas = responsesWithRating.length;
-      const totalSent = totalSurveys > 0 ? Math.round(totalRespostas / (totalRespostas / totalSurveys)) : 0;
-      const taxaResposta = totalSent > 0 ? (totalRespostas / totalSent) * 100 : 0;
+      const taxaResposta = totalSurveys > 0 ? (totalRespostas / totalSurveys) * 100 : 0;
       const sumRatings = responsesWithRating.reduce((sum: number, s: any) => sum + (s.rating || 0), 0);
       const mediaAvaliacao = totalRespostas > 0 ? sumRatings / totalRespostas : 0;
 
@@ -197,16 +219,15 @@ export function DashboardStats() {
         conversasTotal: conversasTotalResult.count || 0,
         mensagensHoje: mensagensResult.count || 0,
         campanhasAtivas: campanhasResult.count || 0,
-        pedidosAbertos: 0,
-        pedidosFaturados: 0,
-        totalCargas: 0,
-        cargasPendentes: 0,
+        pedidosAbertos,
+        pedidosFaturados,
+        totalCargas,
+        cargasPendentes,
         totalRespostas,
         taxaResposta,
         mediaAvaliacao,
         mensagensFalhadas,
         contatosBloqueados,
-        campanhasEnviadasHoje: campaignsSentTodayResult.count || 0,
         topDrivers,
         positiveKeywords,
         negativeKeywords
@@ -301,21 +322,15 @@ export function DashboardStats() {
             value={stats.totalRespostas}
             icon={Star}
             color="text-yellow-600"
+            subtitle="pesquisas respondidas"
           />
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Taxa de Resposta</CardTitle>
-              <TrendingUp className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {loading ? "..." : `${stats.taxaResposta.toFixed(1)}%`}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {loading ? "" : `${stats.totalRespostas} de ${Math.round(stats.totalRespostas > 0 && stats.taxaResposta > 0 ? stats.totalRespostas / (stats.taxaResposta / 100) : 0)} enviadas`}
-              </p>
-            </CardContent>
-          </Card>
+          <StatCard
+            title="Taxa de Resposta"
+            value={stats.taxaResposta}
+            icon={TrendingUp}
+            color="text-blue-600"
+            subtitle={loading ? "" : `${stats.taxaResposta.toFixed(1)}%`}
+          />
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Média de Avaliação</CardTitle>
@@ -455,18 +470,12 @@ export function DashboardStats() {
           <h3 className="text-lg font-semibold">Campanhas</h3>
           <p className="text-sm text-muted-foreground">Avisos de entrega e notificações</p>
         </div>
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3">
           <StatCard
             title="Campanhas Ativas"
             value={stats.campanhasAtivas}
             icon={Calendar}
             color="text-purple-600"
-          />
-          <StatCard
-            title="Campanhas Enviadas Hoje"
-            value={stats.campanhasEnviadasHoje}
-            icon={Send}
-            color="text-blue-600"
           />
           <StatCard
             title="Envios Falhados"
@@ -483,6 +492,40 @@ export function DashboardStats() {
         </div>
       </div>
 
+      {/* Seção: Cargas e Pedidos */}
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-lg font-semibold">Cargas e Pedidos</h3>
+          <p className="text-sm text-muted-foreground">Gestão de cargas e status de pedidos</p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            title="Total de Cargas"
+            value={stats.totalCargas}
+            icon={Truck}
+            color="text-orange-600"
+            subtitle={`${stats.cargasPendentes} pendentes`}
+          />
+          <StatCard
+            title="Cargas Pendentes"
+            value={stats.cargasPendentes}
+            icon={Clock}
+            color="text-yellow-600"
+          />
+          <StatCard
+            title="Pedidos Abertos"
+            value={stats.pedidosAbertos}
+            icon={AlertCircle}
+            color="text-yellow-600"
+          />
+          <StatCard
+            title="Pedidos Faturados"
+            value={stats.pedidosFaturados}
+            icon={CheckCircle2}
+            color="text-green-600"
+          />
+        </div>
+      </div>
     </div>
   );
 }
