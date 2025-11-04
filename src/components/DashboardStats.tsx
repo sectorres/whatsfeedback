@@ -324,13 +324,20 @@ export function DashboardStats() {
             color="text-yellow-600"
             subtitle="pesquisas respondidas"
           />
-          <StatCard
-            title="Taxa de Resposta"
-            value={stats.taxaResposta}
-            icon={TrendingUp}
-            color="text-blue-600"
-            subtitle={loading ? "" : `${stats.taxaResposta.toFixed(1)}%`}
-          />
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Taxa de Resposta</CardTitle>
+              <TrendingUp className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {loading ? "..." : `${stats.taxaResposta.toFixed(1)}%`}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {loading ? "" : `${stats.totalRespostas} respostas de ${stats.totalRespostas + (Math.round(stats.totalRespostas / (stats.taxaResposta / 100)) - stats.totalRespostas)} enviadas`}
+              </p>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Média de Avaliação</CardTitle>

@@ -100,12 +100,14 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, success: 0, failed: 0, blocked: 0 });
   
-  // Datas padrão: hoje até hoje + 30 dias
-  const [startDate, setStartDate] = useState<Date>(() => new Date());
+  // Datas padrão: primeiro e último dia do mês corrente
+  const [startDate, setStartDate] = useState<Date>(() => {
+    const date = new Date();
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+  });
   const [endDate, setEndDate] = useState<Date>(() => {
     const date = new Date();
-    date.setDate(date.getDate() + 30);
-    return date;
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0);
   });
 
   // Load templates from localStorage on mount
@@ -762,20 +764,6 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             </div>
           </div>
 
-          {/* Prévia da Mensagem */}
-          {selectedCarga && selectedPedidos.size > 0 && (
-            <div className="bg-muted p-4 rounded-lg space-y-2">
-              <Label className="text-sm font-medium">Prévia da Mensagem</Label>
-              <div className="bg-background p-3 rounded border text-sm">
-                {messageTemplate
-                  .replace("{cliente}", selectedCarga.pedidos[0]?.cliente?.nome || "Cliente")
-                  .replace("{pedido}", selectedCarga.pedidos[0]?.pedido || "000/000000-P")
-                  .replace("{valor}", `${selectedCarga.pedidos[0]?.valor?.toFixed(2) || "0.00"}`)
-                  .replace("{status}", statusMap[selectedCarga.status] || selectedCarga.status)
-                  .replace("{notaFiscal}", selectedCarga.pedidos[0]?.notaFiscal || "N/A")}
-              </div>
-            </div>
-          )}
 
           {/* Botões de Ação */}
           <div className="flex gap-2">
