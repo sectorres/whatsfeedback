@@ -343,20 +343,46 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
 
           if (error) throw error;
 
-          // Registrar envio bem-sucedido
-          await supabase.from('campaign_sends').insert({
-            campaign_id: campaign.id,
-            customer_name: pedido.cliente?.nome || "Cliente",
-            customer_phone: phone,
-            message_sent: formattedMessage,
-            status: 'success',
-            driver_name: selectedCarga?.nomeMotorista || null,
-            peso_total: pedido.pesoBruto || 0,
-            valor_total: pedido.valor || 0,
-            quantidade_entregas: 1,
-            quantidade_skus: pedido.produtos?.length || 0,
-            quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0
-          });
+          // Registrar envio bem-sucedido - garantir registro mesmo em caso de erro no banco
+          try {
+            const { error: insertError } = await supabase.from('campaign_sends').insert({
+              campaign_id: campaign.id,
+              customer_name: pedido.cliente?.nome || "Cliente",
+              customer_phone: phone,
+              message_sent: formattedMessage,
+              status: 'success',
+              driver_name: selectedCarga?.nomeMotorista || null,
+              peso_total: pedido.pesoBruto || 0,
+              valor_total: pedido.valor || 0,
+              quantidade_entregas: 1,
+              quantidade_skus: pedido.produtos?.length || 0,
+              quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0
+            });
+
+            if (insertError) {
+              console.error('⚠️ Erro ao registrar envio bem-sucedido:', insertError);
+              // Tentar novamente após pequeno delay
+              await new Promise(resolve => setTimeout(resolve, 500));
+              const { error: retryError } = await supabase.from('campaign_sends').insert({
+                campaign_id: campaign.id,
+                customer_name: pedido.cliente?.nome || "Cliente",
+                customer_phone: phone,
+                message_sent: formattedMessage,
+                status: 'success',
+                driver_name: selectedCarga?.nomeMotorista || null,
+                peso_total: pedido.pesoBruto || 0,
+                valor_total: pedido.valor || 0,
+                quantidade_entregas: 1,
+                quantidade_skus: pedido.produtos?.length || 0,
+                quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0
+              });
+              if (retryError) {
+                console.error('⚠️ Falha na tentativa de retry ao registrar envio:', retryError);
+              }
+            }
+          } catch (dbError) {
+            console.error('⚠️ Erro crítico ao registrar envio no banco:', dbError);
+          }
 
           successCount++;
           setSendProgress(prev => ({ ...prev, current: i + 1, success: prev.success + 1 }));
