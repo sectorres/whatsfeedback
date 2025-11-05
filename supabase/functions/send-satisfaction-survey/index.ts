@@ -118,7 +118,7 @@ Responda apenas com o número da sua avaliação.`;
     if (campaignSendIds && campaignSendIds.length > 0) {
       console.log(`Processando ${campaignSendIds.length} envios específicos`);
       
-      // Primeiro, verificar se algum desses envios já tem pesquisa enviada ou respondida
+      // Verificar se algum desses envios já tem pesquisa enviada ou respondida (bloqueio por campaign_send_id)
       const { data: existingSurveys, error: existingError } = await supabaseClient
         .from('satisfaction_surveys')
         .select('campaign_send_id')
@@ -130,10 +130,10 @@ Responda apenas com o número da sua avaliação.`;
       const existingSurveyIds = existingSurveys?.map(s => s.campaign_send_id) || [];
       
       if (existingSurveyIds.length > 0) {
-        console.log(`Bloqueando ${existingSurveyIds.length} pesquisas já enviadas ou respondidas (por id)`);
+        console.log(`Bloqueando ${existingSurveyIds.length} pesquisas já enviadas ou respondidas para mesma carga`);
       }
 
-      // Filtrar apenas os IDs que NÃO foram enviados ou respondidos (por id)
+      // Filtrar apenas os IDs que NÃO foram enviados ou respondidos para mesma carga
       const allowedIds = campaignSendIds.filter(id => !existingSurveyIds.includes(id));
 
       if (allowedIds.length === 0) {
@@ -174,41 +174,33 @@ Responda apenas com o número da sua avaliação.`;
         );
       }
 
-      // Proteção extra: bloquear por telefone (não reenviar se já houver pesquisa enviada/respondida para o mesmo número)
+      // Janela de segurança: bloquear reenvio para o mesmo telefone nos últimos 5 minutos
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       const uniquePhones = Array.from(new Set(selectedSends.map(s => s.customer_phone)));
-      let filteredByPhone = selectedSends;
+      let filteredByTimeWindow = selectedSends;
+      
       if (uniquePhones.length > 0) {
-        const { data: phoneSendRows, error: phoneSendErr } = await supabaseClient
-          .from('campaign_sends')
-          .select('id, customer_phone')
-          .in('customer_phone', uniquePhones);
-        if (phoneSendErr) throw phoneSendErr;
-
-        const phoneMap = new Map<string, string>();
-        (phoneSendRows || []).forEach(r => phoneMap.set(r.id, r.customer_phone));
-        const phoneSendIds = (phoneSendRows || []).map(r => r.id);
-
-        const { data: existingPhoneSurveys, error: epsErr } = await supabaseClient
+        const { data: recentSurveys, error: recentErr } = await supabaseClient
           .from('satisfaction_surveys')
-          .select('campaign_send_id')
-          .in('campaign_send_id', phoneSendIds)
-          .in('status', ['sent', 'responded']);
-        if (epsErr) throw epsErr;
+          .select('customer_phone')
+          .in('customer_phone', uniquePhones)
+          .in('status', ['sent', 'responded'])
+          .gte('sent_at', fiveMinutesAgo);
+        
+        if (recentErr) throw recentErr;
 
-        const blockedPhones = new Set(
-          (existingPhoneSurveys || [])
-            .map(s => phoneMap.get(s.campaign_send_id))
-            .filter(Boolean) as string[]
-        );
-
-        const beforeCount = filteredByPhone.length;
-        filteredByPhone = filteredByPhone.filter(s => !blockedPhones.has(s.customer_phone));
-        console.log(`IDs específicos: ${beforeCount} permitidos; ${beforeCount - filteredByPhone.length} bloqueados por telefone já enviado/respondido.`);
+        const recentPhones = new Set((recentSurveys || []).map(s => s.customer_phone));
+        const beforeCount = filteredByTimeWindow.length;
+        filteredByTimeWindow = filteredByTimeWindow.filter(s => !recentPhones.has(s.customer_phone));
+        
+        if (beforeCount > filteredByTimeWindow.length) {
+          console.log(`Bloqueados ${beforeCount - filteredByTimeWindow.length} envios por janela de 5 minutos (mesmo telefone)`);
+        }
       }
 
-      sendsToProcess = filteredByPhone || [];
+      sendsToProcess = filteredByTimeWindow || [];
     } else {
-      // Buscar pesquisas já enviadas ou respondidas (não reenviar)
+      // Buscar pesquisas já enviadas ou respondidas para mesma carga (bloqueio por campaign_send_id)
       const { data: existingSurveys, error: existingError } = await supabaseClient
         .from('satisfaction_surveys')
         .select('campaign_send_id')
@@ -217,18 +209,7 @@ Responda apenas com o número da sua avaliação.`;
       if (existingError) throw existingError;
 
       const existingSurveyIds = existingSurveys?.map(s => s.campaign_send_id) || [];
-      console.log(`Encontradas ${existingSurveys?.length || 0} pesquisas já enviadas ou respondidas (não reenviar)`);
-
-      // Mapear IDs de envio existentes para telefones
-      let blockedPhones = new Set<string>();
-      if (existingSurveyIds.length > 0) {
-        const { data: existingSendRows, error: existingSendErr } = await supabaseClient
-          .from('campaign_sends')
-          .select('id, customer_phone')
-          .in('id', existingSurveyIds);
-        if (existingSendErr) throw existingSendErr;
-        blockedPhones = new Set((existingSendRows || []).map(r => r.customer_phone));
-      }
+      console.log(`Encontradas ${existingSurveys?.length || 0} pesquisas já enviadas ou respondidas (bloqueio por carga)`);
 
       // Buscar envios elegíveis (status success ou sent)
       const { data: eligibleSends, error: sendsError } = await supabaseClient
@@ -240,9 +221,34 @@ Responda apenas com o número da sua avaliação.`;
 
       console.log(`Encontrados ${eligibleSends?.length || 0} envios com status success/sent`);
 
-      // Filtrar envios que não têm pesquisa enviada/respondida por id NEM por telefone
-      sendsToProcess = (eligibleSends || []).filter((s) => !existingSurveyIds.includes(s.id) && !blockedPhones.has(s.customer_phone));
-      console.log(`Encontrados ${sendsToProcess.length || 0} envios elegíveis (sem pesquisa enviada/respondida por id/telefone)`);
+      // Filtrar envios que não têm pesquisa enviada/respondida para mesma carga
+      let filteredSends = (eligibleSends || []).filter((s) => !existingSurveyIds.includes(s.id));
+
+      // Janela de segurança: bloquear reenvio para o mesmo telefone nos últimos 5 minutos
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const uniquePhones = Array.from(new Set(filteredSends.map(s => s.customer_phone)));
+      
+      if (uniquePhones.length > 0) {
+        const { data: recentSurveys, error: recentErr } = await supabaseClient
+          .from('satisfaction_surveys')
+          .select('customer_phone')
+          .in('customer_phone', uniquePhones)
+          .in('status', ['sent', 'responded'])
+          .gte('sent_at', fiveMinutesAgo);
+        
+        if (recentErr) throw recentErr;
+
+        const recentPhones = new Set((recentSurveys || []).map(s => s.customer_phone));
+        const beforeCount = filteredSends.length;
+        filteredSends = filteredSends.filter(s => !recentPhones.has(s.customer_phone));
+        
+        if (beforeCount > filteredSends.length) {
+          console.log(`Bloqueados ${beforeCount - filteredSends.length} envios por janela de 5 minutos (mesmo telefone)`);
+        }
+      }
+
+      sendsToProcess = filteredSends;
+      console.log(`Encontrados ${sendsToProcess.length || 0} envios elegíveis após filtros`);
     }
 
     const results = {
