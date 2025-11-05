@@ -118,23 +118,23 @@ Responda apenas com o número da sua avaliação.`;
     if (campaignSendIds && campaignSendIds.length > 0) {
       console.log(`Processando ${campaignSendIds.length} envios específicos`);
       
-      // Primeiro, verificar se algum desses envios já tem pesquisa respondida
-      const { data: respondedSurveys, error: respondedError } = await supabaseClient
+      // Primeiro, verificar se algum desses envios já tem pesquisa enviada ou respondida
+      const { data: existingSurveys, error: existingError } = await supabaseClient
         .from('satisfaction_surveys')
         .select('campaign_send_id')
         .in('campaign_send_id', campaignSendIds)
-        .eq('status', 'responded');
+        .in('status', ['sent', 'responded']);
 
-      if (respondedError) throw respondedError;
+      if (existingError) throw existingError;
 
-      const respondedSurveyIds = respondedSurveys?.map(s => s.campaign_send_id) || [];
+      const existingSurveyIds = existingSurveys?.map(s => s.campaign_send_id) || [];
       
-      if (respondedSurveyIds.length > 0) {
-        console.log(`Bloqueando ${respondedSurveyIds.length} pesquisas já respondidas`);
+      if (existingSurveyIds.length > 0) {
+        console.log(`Bloqueando ${existingSurveyIds.length} pesquisas já enviadas ou respondidas`);
       }
 
-      // Filtrar apenas os IDs que NÃO foram respondidos
-      const allowedIds = campaignSendIds.filter(id => !respondedSurveyIds.includes(id));
+      // Filtrar apenas os IDs que NÃO foram enviados ou respondidos
+      const allowedIds = campaignSendIds.filter(id => !existingSurveyIds.includes(id));
 
       if (allowedIds.length === 0) {
         return new Response(
@@ -145,7 +145,7 @@ Responda apenas com o número da sua avaliação.`;
             resent_surveys: 0,
             failed_surveys: 0,
             errors: [],
-            message: 'Todas as pesquisas selecionadas já foram respondidas'
+            message: 'Todas as pesquisas selecionadas já foram enviadas ou respondidas'
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -160,16 +160,16 @@ Responda apenas com o número da sua avaliação.`;
       if (sendsError) throw sendsError;
       sendsToProcess = specificSends || [];
     } else {
-      // Buscar pesquisas já respondidas (não reenviar)
-      const { data: respondedSurveys, error: respondedError } = await supabaseClient
+      // Buscar pesquisas já enviadas ou respondidas (não reenviar)
+      const { data: existingSurveys, error: existingError } = await supabaseClient
         .from('satisfaction_surveys')
         .select('campaign_send_id')
-        .eq('status', 'responded');
+        .in('status', ['sent', 'responded']);
 
-      if (respondedError) throw respondedError;
+      if (existingError) throw existingError;
 
-      const respondedSurveyIds = respondedSurveys?.map(s => s.campaign_send_id) || [];
-      console.log(`Encontradas ${respondedSurveys?.length || 0} pesquisas respondidas (não reenviar)`);
+      const existingSurveyIds = existingSurveys?.map(s => s.campaign_send_id) || [];
+      console.log(`Encontradas ${existingSurveys?.length || 0} pesquisas já enviadas ou respondidas (não reenviar)`);
 
       // Buscar envios elegíveis (status success ou sent) sem pesquisa
       const { data: eligibleSends, error: sendsError } = await supabaseClient
@@ -181,9 +181,9 @@ Responda apenas com o número da sua avaliação.`;
 
       console.log(`Encontrados ${eligibleSends?.length || 0} envios com status success/sent`);
 
-      // Filtrar envios que não têm pesquisa respondida
-      sendsToProcess = (eligibleSends || []).filter((s) => !respondedSurveyIds.includes(s.id));
-      console.log(`Encontrados ${sendsToProcess.length || 0} envios elegíveis (sem pesquisa respondida)`);
+      // Filtrar envios que não têm pesquisa enviada ou respondida
+      sendsToProcess = (eligibleSends || []).filter((s) => !existingSurveyIds.includes(s.id));
+      console.log(`Encontrados ${sendsToProcess.length || 0} envios elegíveis (sem pesquisa enviada ou respondida)`);
     }
 
     const results = {
