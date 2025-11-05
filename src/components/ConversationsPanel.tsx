@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AudioPlayer } from "@/components/AudioPlayer";
+import { ImageModal } from "@/components/ImageModal";
 
 interface Conversation {
   id: string;
@@ -47,6 +48,8 @@ export function ConversationsPanel() {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -244,6 +247,11 @@ export function ConversationsPanel() {
     }
   };
 
+  const handleImageClick = (imageUrl: string) => {
+    setSelectedImageUrl(imageUrl);
+    setImageModalOpen(true);
+  };
+
   return (
     <div className="grid md:grid-cols-3 gap-4 h-[calc(100vh-200px)] min-h-0">
       {/* Lista de conversas */}
@@ -397,7 +405,7 @@ export function ConversationsPanel() {
                             src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`}
                             alt="Imagem enviada" 
                             className="rounded max-w-full max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() => window.open(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`, '_blank')}
+                            onClick={() => handleImageClick(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`)}
                             onError={(e) => {
                               console.error('Erro ao carregar imagem:', msg.media_url);
                               e.currentTarget.style.display = 'none';
@@ -493,6 +501,12 @@ export function ConversationsPanel() {
           </div>
         )}
       </Card>
+
+      <ImageModal 
+        isOpen={imageModalOpen}
+        onClose={() => setImageModalOpen(false)}
+        imageUrl={selectedImageUrl}
+      />
     </div>
   );
 }
