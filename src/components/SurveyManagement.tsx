@@ -188,17 +188,16 @@ export function SurveyManagement() {
   const deleteSelectedSurveys = async () => {
     if (selectedIds.size === 0) return;
 
-    // Filtrar apenas as pesquisas enviadas e não respondidas
+    // Filtrar apenas as pesquisas NÃO enviadas
     const surveysToDelete = items.filter(
       item => selectedIds.has(item.campaign_send_id) && 
-      (item.status === 'sent' || item.status === 'pending' || item.status === 'awaiting_feedback') &&
-      !item.rating
+      item.status === 'not_sent'
     );
 
     if (surveysToDelete.length === 0) {
       toast({
         title: "Nenhuma pesquisa elegível",
-        description: "Apenas pesquisas enviadas e não respondidas podem ser removidas",
+        description: "Apenas pesquisas ainda não enviadas podem ser removidas",
         variant: "destructive",
       });
       return;
@@ -400,10 +399,10 @@ export function SurveyManagement() {
                 {items.map((item) => (
                   <TableRow key={item.campaign_send_id}>
                     <TableCell>
-                      <Checkbox
+                       <Checkbox
                         checked={selectedIds.has(item.campaign_send_id)}
                         onCheckedChange={() => toggleSelection(item.campaign_send_id)}
-                        disabled={item.status === 'responded' || item.status === 'expired' || item.rating != null}
+                        disabled={item.status !== 'not_sent'}
                       />
                     </TableCell>
                     <TableCell className="font-medium">{item.customer_name}</TableCell>
@@ -428,7 +427,7 @@ export function SurveyManagement() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remover pesquisas selecionadas?</AlertDialogTitle>
             <AlertDialogDescription>
-              Apenas pesquisas enviadas e não respondidas serão removidas. Esta ação não pode ser desfeita.
+              Apenas pesquisas ainda não enviadas serão removidas. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
