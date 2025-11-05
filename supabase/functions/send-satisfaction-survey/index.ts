@@ -213,10 +213,10 @@ Responda apenas com o número da sua avaliação.`;
         });
       }
 
-      // Delay aleatório entre 2 e 10 segundos entre envios
+      // Delay fixo de 10 segundos entre envios
       if (i < sendsToProcess.length - 1) {
-        const delay = Math.floor(Math.random() * (10000 - 2000 + 1)) + 2000;
-        await new Promise(resolve => setTimeout(resolve, delay));
+        console.log('Aguardando 10 segundos antes do próximo envio...');
+        await new Promise(resolve => setTimeout(resolve, 10000));
       }
     }
 
