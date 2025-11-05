@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { normalizePhone } from "../_shared/phone-utils.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,13 +43,16 @@ serve(async (req) => {
       );
     }
 
+    // Normalizar telefone para garantir formato consistente
+    const normalizedPhone = normalizePhone(customerPhone);
+
     // 1) Inserir registro como pending
     const { data: sendRow, error: insertError } = await supabase
       .from('campaign_sends')
       .insert({
         campaign_id: campaignId,
         customer_name: customerName ?? 'Cliente',
-        customer_phone: customerPhone,
+        customer_phone: normalizedPhone,
         message_sent: message,
         status: 'pending',
         driver_name: driverName ?? null,
@@ -68,7 +72,7 @@ serve(async (req) => {
     // 2) Disparar WhatsApp via função dedicada (reaproveita normalização e blacklist)
     const { error: sendError } = await supabase.functions.invoke('whatsapp-send', {
       body: {
-        phone: customerPhone,
+        phone: normalizedPhone,
         message,
       },
     });
