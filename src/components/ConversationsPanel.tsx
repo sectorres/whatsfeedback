@@ -414,11 +414,16 @@ export function ConversationsPanel() {
                       
                       {/* Áudio */}
                       {msg.media_type === 'audio' && msg.media_url && (
-                        <div className="mb-2">
+                        <div className="mb-2 bg-background/50 p-3 rounded-lg">
                           <audio 
                             controls 
-                            className="w-full max-w-sm"
+                            className="w-full max-w-sm h-12"
+                            controlsList="nodownload"
                             preload="metadata"
+                            style={{ 
+                              filter: 'invert(0.85) hue-rotate(180deg)',
+                              minHeight: '48px'
+                            }}
                             onError={(e) => {
                               console.error('Erro ao carregar áudio:', msg.media_url);
                             }}
