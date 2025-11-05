@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { SendSurveyForm } from "@/components/SendSurveyForm";
+import { AudioPlayer } from "@/components/AudioPlayer";
 
 interface Conversation {
   id: string;
@@ -414,30 +415,11 @@ export function ConversationsPanel() {
                       
                       {/* Áudio */}
                       {msg.media_type === 'audio' && msg.media_url && (
-                        <div className="mb-2 bg-background/50 p-3 rounded-lg">
-                          <audio 
-                            controls 
-                            className="w-full max-w-sm h-12"
-                            controlsList="nodownload"
-                            preload="metadata"
-                            style={{ 
-                              filter: 'invert(0.85) hue-rotate(180deg)',
-                              minHeight: '48px'
-                            }}
-                            onError={(e) => {
-                              console.error('Erro ao carregar áudio:', msg.media_url);
-                            }}
-                          >
-                            <source 
-                              src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`} 
-                              type="audio/ogg; codecs=opus" 
-                            />
-                            <source 
-                              src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`} 
-                              type="audio/mpeg" 
-                            />
-                            Seu navegador não suporta áudio.
-                          </audio>
+                        <div className="mb-2">
+                          <AudioPlayer 
+                            src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`}
+                            isOperator={msg.sender_type === 'operator'}
+                          />
                         </div>
                       )}
 
