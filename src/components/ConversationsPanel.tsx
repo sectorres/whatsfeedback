@@ -11,7 +11,6 @@ import { MessageCircle, Send, X, Loader2, Archive } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { SendSurveyForm } from "@/components/SendSurveyForm";
 import { AudioPlayer } from "@/components/AudioPlayer";
 
 interface Conversation {
@@ -368,16 +367,10 @@ export function ConversationsPanel() {
                   {selectedConversation.customer_phone}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <SendSurveyForm 
-                  customerPhone={selectedConversation.customer_phone}
-                  customerName={selectedConversation.customer_name || undefined}
-                />
-                <Button variant="outline" size="sm" onClick={closeConversation}>
-                  <X className="h-4 w-4 mr-2" />
-                  Encerrar
-                </Button>
-              </div>
+              <Button variant="outline" size="sm" onClick={closeConversation}>
+                <X className="h-4 w-4 mr-2" />
+                Encerrar
+              </Button>
             </div>
             <Separator className="mb-4" />
             
