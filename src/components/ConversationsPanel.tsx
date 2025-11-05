@@ -458,7 +458,10 @@ export function ConversationsPanel() {
                         </div>
                       )}
                       
-                      {msg.message_text && (
+                      {msg.message_text && !msg.media_type && (
+                        <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>
+                      )}
+                      {msg.message_text && msg.media_type && msg.message_text !== '[Audio]' && msg.message_text !== '[Imagem]' && (
                         <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>
                       )}
                       <p className="text-xs opacity-70 mt-1">
