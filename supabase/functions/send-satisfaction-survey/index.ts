@@ -130,10 +130,10 @@ Responda apenas com o número da sua avaliação.`;
       const existingSurveyIds = existingSurveys?.map(s => s.campaign_send_id) || [];
       
       if (existingSurveyIds.length > 0) {
-        console.log(`Bloqueando ${existingSurveyIds.length} pesquisas já enviadas ou respondidas`);
+        console.log(`Bloqueando ${existingSurveyIds.length} pesquisas já enviadas ou respondidas (por id)`);
       }
 
-      // Filtrar apenas os IDs que NÃO foram enviados ou respondidos
+      // Filtrar apenas os IDs que NÃO foram enviados ou respondidos (por id)
       const allowedIds = campaignSendIds.filter(id => !existingSurveyIds.includes(id));
 
       if (allowedIds.length === 0) {
@@ -151,14 +151,62 @@ Responda apenas com o número da sua avaliação.`;
         );
       }
 
-      const { data: specificSends, error: sendsError } = await supabaseClient
+      // Buscar dados dos envios permitidos
+      const { data: selectedSends, error: selectedError } = await supabaseClient
         .from('campaign_sends')
-        .select('*')
+        .select('id, customer_phone, campaign_id, status, customer_name')
         .in('id', allowedIds)
         .in('status', ['success', 'sent']);
+      if (selectedError) throw selectedError;
 
-      if (sendsError) throw sendsError;
-      sendsToProcess = specificSends || [];
+      if (!selectedSends || selectedSends.length === 0) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            surveys_sent: 0,
+            new_surveys: 0,
+            resent_surveys: 0,
+            failed_surveys: 0,
+            errors: [],
+            message: 'Nenhum envio elegível encontrado'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Proteção extra: bloquear por telefone (não reenviar se já houver pesquisa enviada/respondida para o mesmo número)
+      const uniquePhones = Array.from(new Set(selectedSends.map(s => s.customer_phone)));
+      let filteredByPhone = selectedSends;
+      if (uniquePhones.length > 0) {
+        const { data: phoneSendRows, error: phoneSendErr } = await supabaseClient
+          .from('campaign_sends')
+          .select('id, customer_phone')
+          .in('customer_phone', uniquePhones);
+        if (phoneSendErr) throw phoneSendErr;
+
+        const phoneMap = new Map<string, string>();
+        (phoneSendRows || []).forEach(r => phoneMap.set(r.id, r.customer_phone));
+        const phoneSendIds = (phoneSendRows || []).map(r => r.id);
+
+        const { data: existingPhoneSurveys, error: epsErr } = await supabaseClient
+          .from('satisfaction_surveys')
+          .select('campaign_send_id')
+          .in('campaign_send_id', phoneSendIds)
+          .in('status', ['sent', 'responded']);
+        if (epsErr) throw epsErr;
+
+        const blockedPhones = new Set(
+          (existingPhoneSurveys || [])
+            .map(s => phoneMap.get(s.campaign_send_id))
+            .filter(Boolean) as string[]
+        );
+
+        const beforeCount = filteredByPhone.length;
+        filteredByPhone = filteredByPhone.filter(s => !blockedPhones.has(s.customer_phone));
+        console.log(`IDs específicos: ${beforeCount} permitidos; ${beforeCount - filteredByPhone.length} bloqueados por telefone já enviado/respondido.`);
+      }
+
+      sendsToProcess = filteredByPhone || [];
     } else {
       // Buscar pesquisas já enviadas ou respondidas (não reenviar)
       const { data: existingSurveys, error: existingError } = await supabaseClient
@@ -171,7 +219,18 @@ Responda apenas com o número da sua avaliação.`;
       const existingSurveyIds = existingSurveys?.map(s => s.campaign_send_id) || [];
       console.log(`Encontradas ${existingSurveys?.length || 0} pesquisas já enviadas ou respondidas (não reenviar)`);
 
-      // Buscar envios elegíveis (status success ou sent) sem pesquisa
+      // Mapear IDs de envio existentes para telefones
+      let blockedPhones = new Set<string>();
+      if (existingSurveyIds.length > 0) {
+        const { data: existingSendRows, error: existingSendErr } = await supabaseClient
+          .from('campaign_sends')
+          .select('id, customer_phone')
+          .in('id', existingSurveyIds);
+        if (existingSendErr) throw existingSendErr;
+        blockedPhones = new Set((existingSendRows || []).map(r => r.customer_phone));
+      }
+
+      // Buscar envios elegíveis (status success ou sent)
       const { data: eligibleSends, error: sendsError } = await supabaseClient
         .from('campaign_sends')
         .select('*')
@@ -181,9 +240,9 @@ Responda apenas com o número da sua avaliação.`;
 
       console.log(`Encontrados ${eligibleSends?.length || 0} envios com status success/sent`);
 
-      // Filtrar envios que não têm pesquisa enviada ou respondida
-      sendsToProcess = (eligibleSends || []).filter((s) => !existingSurveyIds.includes(s.id));
-      console.log(`Encontrados ${sendsToProcess.length || 0} envios elegíveis (sem pesquisa enviada ou respondida)`);
+      // Filtrar envios que não têm pesquisa enviada/respondida por id NEM por telefone
+      sendsToProcess = (eligibleSends || []).filter((s) => !existingSurveyIds.includes(s.id) && !blockedPhones.has(s.customer_phone));
+      console.log(`Encontrados ${sendsToProcess.length || 0} envios elegíveis (sem pesquisa enviada/respondida por id/telefone)`);
     }
 
     const results = {
