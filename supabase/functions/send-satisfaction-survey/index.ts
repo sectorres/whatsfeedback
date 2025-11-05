@@ -118,19 +118,19 @@ Responda apenas com o número da sua avaliação.`;
     if (campaignSendIds && campaignSendIds.length > 0) {
       console.log(`Processando ${campaignSendIds.length} envios específicos`);
       
-      // Verificar se algum desses envios já tem pesquisa enviada ou respondida (bloqueio por campaign_send_id)
+      // Verificar se algum desses envios já tem pesquisa enviada, respondida OU expirada (bloqueio por campaign_send_id)
       const { data: existingSurveys, error: existingError } = await supabaseClient
         .from('satisfaction_surveys')
         .select('campaign_send_id')
         .in('campaign_send_id', campaignSendIds)
-        .in('status', ['sent', 'responded']);
+        .in('status', ['sent', 'responded', 'expired']);
 
       if (existingError) throw existingError;
 
       const existingSurveyIds = existingSurveys?.map(s => s.campaign_send_id) || [];
       
       if (existingSurveyIds.length > 0) {
-        console.log(`Bloqueando ${existingSurveyIds.length} pesquisas já enviadas ou respondidas para mesma carga`);
+        console.log(`Bloqueando ${existingSurveyIds.length} pesquisas já enviadas, respondidas ou expiradas para mesma carga`);
       }
 
       // Filtrar apenas os IDs que NÃO foram enviados ou respondidos para mesma carga
@@ -145,7 +145,7 @@ Responda apenas com o número da sua avaliação.`;
             resent_surveys: 0,
             failed_surveys: 0,
             errors: [],
-            message: 'Todas as pesquisas selecionadas já foram enviadas ou respondidas'
+            message: 'Todas as pesquisas selecionadas já foram enviadas, respondidas ou expiradas'
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -184,7 +184,7 @@ Responda apenas com o número da sua avaliação.`;
           .from('satisfaction_surveys')
           .select('customer_phone')
           .in('customer_phone', uniquePhones)
-          .in('status', ['sent', 'responded'])
+          .in('status', ['sent', 'responded', 'expired'])
           .gte('sent_at', fiveMinutesAgo);
         
         if (recentErr) throw recentErr;
@@ -200,16 +200,16 @@ Responda apenas com o número da sua avaliação.`;
 
       sendsToProcess = filteredByTimeWindow || [];
     } else {
-      // Buscar pesquisas já enviadas ou respondidas para mesma carga (bloqueio por campaign_send_id)
+      // Buscar pesquisas já enviadas, respondidas OU expiradas para mesma carga (bloqueio por campaign_send_id)
       const { data: existingSurveys, error: existingError } = await supabaseClient
         .from('satisfaction_surveys')
         .select('campaign_send_id')
-        .in('status', ['sent', 'responded']);
+        .in('status', ['sent', 'responded', 'expired']);
 
       if (existingError) throw existingError;
 
       const existingSurveyIds = existingSurveys?.map(s => s.campaign_send_id) || [];
-      console.log(`Encontradas ${existingSurveys?.length || 0} pesquisas já enviadas ou respondidas (bloqueio por carga)`);
+      console.log(`Encontradas ${existingSurveys?.length || 0} pesquisas já enviadas, respondidas ou expiradas (bloqueio por carga)`);
 
       // Buscar envios elegíveis (status success ou sent)
       const { data: eligibleSends, error: sendsError } = await supabaseClient
@@ -233,7 +233,7 @@ Responda apenas com o número da sua avaliação.`;
           .from('satisfaction_surveys')
           .select('customer_phone')
           .in('customer_phone', uniquePhones)
-          .in('status', ['sent', 'responded'])
+          .in('status', ['sent', 'responded', 'expired'])
           .gte('sent_at', fiveMinutesAgo);
         
         if (recentErr) throw recentErr;

@@ -123,15 +123,15 @@ export function SurveyManagement() {
       return;
     }
 
-    // Verificar se há pesquisas respondidas selecionadas (status responded OU rating presente)
-    const hasRespondedSurveys = items.some(
-      item => selectedIds.has(item.campaign_send_id) && (item.status === 'responded' || item.rating != null)
+    // Verificar se há pesquisas respondidas ou expiradas selecionadas
+    const hasRespondedOrExpiredSurveys = items.some(
+      item => selectedIds.has(item.campaign_send_id) && (item.status === 'responded' || item.status === 'expired' || item.rating != null)
     );
 
-    if (hasRespondedSurveys) {
+    if (hasRespondedOrExpiredSurveys) {
       toast({
-        title: "Pesquisas respondidas selecionadas",
-        description: "Não é possível reenviar pesquisas que já foram respondidas",
+        title: "Pesquisas inválidas selecionadas",
+        description: "Não é possível reenviar pesquisas respondidas ou expiradas",
         variant: "destructive",
       });
       return;
@@ -268,6 +268,13 @@ export function SurveyManagement() {
       );
     }
     switch (status) {
+      case 'expired':
+        return (
+          <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">
+            <XCircle className="h-3 w-3 mr-1" />
+            Expirada
+          </Badge>
+        );
       case 'responded':
         return (
           <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
@@ -396,7 +403,7 @@ export function SurveyManagement() {
                       <Checkbox
                         checked={selectedIds.has(item.campaign_send_id)}
                         onCheckedChange={() => toggleSelection(item.campaign_send_id)}
-                        disabled={item.status === 'responded' || item.rating != null}
+                        disabled={item.status === 'responded' || item.status === 'expired' || item.rating != null}
                       />
                     </TableCell>
                     <TableCell className="font-medium">{item.customer_name}</TableCell>
