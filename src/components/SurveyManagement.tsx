@@ -78,21 +78,23 @@ export function SurveyManagement() {
         return acc;
       }, {} as Record<string, any>);
 
-      // Combinar dados
-      const combined = sends.map(send => {
-        const survey = surveysMap[send.id];
-        return {
-          id: survey?.id || send.id,
-          campaign_send_id: send.id,
-          customer_name: send.customer_name,
-          customer_phone: send.customer_phone,
-          status: survey?.status || 'not_sent',
-          sent_at: survey?.sent_at || send.sent_at,
-          responded_at: survey?.responded_at || null,
-          rating: survey?.rating || null,
-          campaign_name: (send.campaigns as any)?.name || 'N/A'
-        };
-      });
+      // Combinar dados e filtrar canceladas
+      const combined = sends
+        .map(send => {
+          const survey = surveysMap[send.id];
+          return {
+            id: survey?.id || send.id,
+            campaign_send_id: send.id,
+            customer_name: send.customer_name,
+            customer_phone: send.customer_phone,
+            status: survey?.status || 'not_sent',
+            sent_at: survey?.sent_at || send.sent_at,
+            responded_at: survey?.responded_at || null,
+            rating: survey?.rating || null,
+            campaign_name: (send.campaigns as any)?.name || 'N/A'
+          };
+        })
+        .filter(item => item.status !== 'cancelled'); // Não mostrar canceladas
 
       setItems(combined);
     } catch (error) {
@@ -205,23 +207,26 @@ export function SurveyManagement() {
 
     setDeleting(true);
     try {
-      // Deletar apenas as pesquisas que têm ID (já foram criadas no banco)
-      const surveyIdsToDelete = surveysToDelete
-        .filter(item => item.id !== item.campaign_send_id) // Só deleta se tiver survey criada
-        .map(item => item.id);
+      // Para cada pesquisa não enviada, criar um registro com status 'cancelled'
+      const surveysToCancel = surveysToDelete.map(item => ({
+        campaign_send_id: item.campaign_send_id,
+        customer_phone: item.customer_phone,
+        customer_name: item.customer_name,
+        status: 'cancelled',
+        sent_at: new Date().toISOString()
+      }));
 
-      if (surveyIdsToDelete.length > 0) {
-        const { error } = await supabase
-          .from('satisfaction_surveys')
-          .delete()
-          .in('id', surveyIdsToDelete);
+      const { error } = await supabase
+        .from('satisfaction_surveys')
+        .upsert(surveysToCancel, {
+          onConflict: 'campaign_send_id'
+        });
 
-        if (error) throw error;
-      }
+      if (error) throw error;
 
       toast({
         title: "Pesquisas removidas!",
-        description: `${surveyIdsToDelete.length} pesquisa${surveyIdsToDelete.length > 1 ? 's' : ''} removida${surveyIdsToDelete.length > 1 ? 's' : ''} com sucesso`,
+        description: `${surveysToCancel.length} pesquisa${surveysToCancel.length > 1 ? 's' : ''} removida${surveysToCancel.length > 1 ? 's' : ''} com sucesso`,
       });
 
       setSelectedIds(new Set());
