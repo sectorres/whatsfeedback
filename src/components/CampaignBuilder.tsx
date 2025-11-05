@@ -232,6 +232,40 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     setSending(true);
     setShowProgressDialog(true);
     
+    // Helper para gravar envios com retentativas (melhora confiabilidade)
+    const insertCampaignSendWithRetry = async (
+      payload: {
+        campaign_id: string;
+        customer_name: string | null;
+        customer_phone: string;
+        message_sent: string;
+        status: string;
+        error_message?: string | null;
+        driver_name?: string | null;
+        peso_total?: number | null;
+        valor_total?: number | null;
+        quantidade_entregas?: number | null;
+        quantidade_skus?: number | null;
+        quantidade_itens?: number | null;
+      },
+      retries = 2,
+      delayMs = 500
+    ) => {
+      let attempt = 0;
+      let lastError: any = null;
+      while (attempt <= retries) {
+        const { error } = await supabase.from('campaign_sends').insert(payload);
+        if (!error) return true;
+        lastError = error;
+        attempt++;
+        if (attempt <= retries) {
+          await new Promise((r) => setTimeout(r, delayMs));
+        }
+      }
+      console.error('Falha ao inserir campaign_sends após retentativas:', lastError, payload);
+      return false;
+    };
+    
     const pedidosParaEnviar = selectedCarga?.pedidos.filter(p => 
       selectedPedidos.has(p.id)
     ) || [];
@@ -281,7 +315,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           console.error(`✗ Telefone inválido para ${pedido.cliente?.nome}: ${rawPhone}`);
           
           // Registrar envio com erro de telefone inválido
-          await supabase.from('campaign_sends').insert({
+          await insertCampaignSendWithRetry({
             campaign_id: campaign.id,
             customer_name: pedido.cliente?.nome || "Cliente",
             customer_phone: rawPhone || 'Não informado',
@@ -312,7 +346,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           console.log(`⊘ Bloqueado por blacklist: ${pedido.cliente?.nome}`);
           
           // Registrar como bloqueado pela blacklist
-          await supabase.from('campaign_sends').insert({
+          await insertCampaignSendWithRetry({
             campaign_id: campaign.id,
             customer_name: pedido.cliente?.nome || "Cliente",
             customer_phone: phone,
@@ -342,7 +376,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           if (error) throw error;
 
           // Registrar envio bem-sucedido
-          await supabase.from('campaign_sends').insert({
+          await insertCampaignSendWithRetry({
             campaign_id: campaign.id,
             customer_name: pedido.cliente?.nome || "Cliente",
             customer_phone: phone,
@@ -364,23 +398,22 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           console.error(`✗ Erro ao enviar para ${pedido.cliente?.nome}:`, error);
           
           // Registrar envio com erro - não propagar o erro
-          try {
-            await supabase.from('campaign_sends').insert({
-              campaign_id: campaign.id,
-              customer_name: pedido.cliente?.nome || "Cliente",
-              customer_phone: phone,
-              message_sent: formattedMessage,
-              status: 'failed',
-              error_message: error instanceof Error ? error.message : String(error),
-              driver_name: selectedCarga?.nomeMotorista || null,
-              peso_total: pedido.pesoBruto || 0,
-              valor_total: pedido.valor || 0,
-              quantidade_entregas: 1,
-              quantidade_skus: pedido.produtos?.length || 0,
-              quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0
-            });
-          } catch (dbError) {
-            console.error('Erro ao salvar registro de falha:', dbError);
+          const inserted = await insertCampaignSendWithRetry({
+            campaign_id: campaign.id,
+            customer_name: pedido.cliente?.nome || "Cliente",
+            customer_phone: phone,
+            message_sent: formattedMessage,
+            status: 'failed',
+            error_message: error instanceof Error ? error.message : String(error),
+            driver_name: selectedCarga?.nomeMotorista || null,
+            peso_total: pedido.pesoBruto || 0,
+            valor_total: pedido.valor || 0,
+            quantidade_entregas: 1,
+            quantidade_skus: pedido.produtos?.length || 0,
+            quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0
+          });
+          if (!inserted) {
+            console.error('Erro ao salvar registro de falha (após retentativas).');
           }
           
           setSendProgress(prev => ({ ...prev, current: i + 1, failed: prev.failed + 1 }));
