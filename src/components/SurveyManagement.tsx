@@ -123,9 +123,9 @@ export function SurveyManagement() {
       return;
     }
 
-    // Verificar se há pesquisas respondidas selecionadas
+    // Verificar se há pesquisas respondidas selecionadas (status responded OU rating presente)
     const hasRespondedSurveys = items.some(
-      item => selectedIds.has(item.campaign_send_id) && item.status === 'responded'
+      item => selectedIds.has(item.campaign_send_id) && (item.status === 'responded' || item.rating != null)
     );
 
     if (hasRespondedSurveys) {
@@ -258,19 +258,28 @@ export function SurveyManagement() {
   };
 
   const getStatusBadge = (status: string, rating: number | null) => {
+    // Se já existe nota, considerar como respondida independentemente do status
+    if (rating != null) {
+      return (
+        <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          Respondida ({rating}★)
+        </Badge>
+      );
+    }
     switch (status) {
       case 'responded':
         return (
           <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
             <CheckCircle2 className="h-3 w-3 mr-1" />
-            Respondida {rating ? `(${rating}★)` : ''}
+            Respondida
           </Badge>
         );
       case 'awaiting_feedback':
         return (
           <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
             <Clock className="h-3 w-3 mr-1" />
-            Aguardando feedback {rating ? `(${rating}★)` : ''}
+            Aguardando feedback
           </Badge>
         );
       case 'sent':
@@ -387,7 +396,7 @@ export function SurveyManagement() {
                       <Checkbox
                         checked={selectedIds.has(item.campaign_send_id)}
                         onCheckedChange={() => toggleSelection(item.campaign_send_id)}
-                        disabled={item.status === 'responded'}
+                        disabled={item.status === 'responded' || item.rating != null}
                       />
                     </TableCell>
                     <TableCell className="font-medium">{item.customer_name}</TableCell>
