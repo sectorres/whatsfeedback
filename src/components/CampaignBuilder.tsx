@@ -366,29 +366,26 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         }
 
         try {
-          const { error } = await supabase.functions.invoke('whatsapp-send', {
-            body: { 
-              phone,
-              message: formattedMessage
+          // Enviar e registrar de forma atômica no backend
+          const { data, error } = await supabase.functions.invoke('campaign-send', {
+            body: {
+              campaignId: campaign.id,
+              customerName: pedido.cliente?.nome || 'Cliente',
+              customerPhone: phone,
+              message: formattedMessage,
+              driverName: selectedCarga?.nomeMotorista || null,
+              peso_total: pedido.pesoBruto || 0,
+              valor_total: pedido.valor || 0,
+              quantidade_entregas: 1,
+              quantidade_skus: pedido.produtos?.length || 0,
+              quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0,
             }
           });
 
           if (error) throw error;
-
-          // Registrar envio bem-sucedido
-          await insertCampaignSendWithRetry({
-            campaign_id: campaign.id,
-            customer_name: pedido.cliente?.nome || "Cliente",
-            customer_phone: phone,
-            message_sent: formattedMessage,
-            status: 'success',
-            driver_name: selectedCarga?.nomeMotorista || null,
-            peso_total: pedido.pesoBruto || 0,
-            valor_total: pedido.valor || 0,
-            quantidade_entregas: 1,
-            quantidade_skus: pedido.produtos?.length || 0,
-            quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0
-          });
+          if (data?.status !== 'success') {
+            throw new Error(data?.error || 'Falha no envio');
+          }
 
           successCount++;
           setSendProgress(prev => ({ ...prev, current: i + 1, success: prev.success + 1 }));
