@@ -1,5 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { formatPhoneForWhatsApp } from "../_shared/phone-utils.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+
+const whatsappSendSchema = z.object({
+  phone: z.string().min(10).max(20),
+  message: z.string().min(1).max(4096),
+});
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +18,18 @@ serve(async (req) => {
   }
 
   try {
-    const { phone, message } = await req.json();
+    const body = await req.json();
+    
+    // Validate input
+    const validationResult = whatsappSendSchema.safeParse(body);
+    if (!validationResult.success) {
+      return new Response(
+        JSON.stringify({ error: 'Dados inválidos', details: validationResult.error.errors }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { phone, message } = validationResult.data;
     const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
     const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
     const EVOLUTION_INSTANCE_NAME = Deno.env.get('EVOLUTION_INSTANCE_NAME');

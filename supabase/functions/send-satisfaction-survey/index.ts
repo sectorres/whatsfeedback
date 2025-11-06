@@ -1,5 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+
+const surveySendSchema = z.object({
+  campaignSendIds: z.array(z.string().uuid()).optional(),
+});
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,7 +24,17 @@ serve(async (req) => {
 
     // Aceitar envio individual ou em lote
     const body = await req.json().catch(() => ({}));
-    const campaignSendIds = body.campaignSendIds as string[] | undefined;
+    
+    // Validate input
+    const validationResult = surveySendSchema.safeParse(body);
+    if (!validationResult.success) {
+      return new Response(
+        JSON.stringify({ error: 'Dados inválidos', details: validationResult.error.errors }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const campaignSendIds = validationResult.data.campaignSendIds;
 
     console.log('Buscando envios de campanha elegíveis para pesquisa de satisfação...');
     

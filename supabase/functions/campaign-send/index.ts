@@ -1,6 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizePhone } from "../_shared/phone-utils.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+
+const campaignSendSchema = z.object({
+  campaignId: z.string().uuid(),
+  customerPhone: z.string().min(10).max(20),
+  message: z.string().min(1).max(4096),
+  customerName: z.string().max(255).optional(),
+  driverName: z.string().max(255).optional(),
+  quantidade_entregas: z.number().int().min(0).max(10000).optional(),
+  quantidade_skus: z.number().int().min(0).max(10000).optional(),
+  quantidade_itens: z.number().int().min(0).max(100000).optional(),
+  peso_total: z.number().min(0).max(1000000).optional(),
+  valor_total: z.number().min(0).max(10000000).optional(),
+});
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,6 +37,16 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     const body = await req.json();
+    
+    // Validate input
+    const validationResult = campaignSendSchema.safeParse(body);
+    if (!validationResult.success) {
+      return new Response(
+        JSON.stringify({ error: 'Dados inválidos', details: validationResult.error.errors }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const {
       campaignId,
       customerName,
@@ -34,7 +58,7 @@ serve(async (req) => {
       quantidade_entregas,
       quantidade_skus,
       quantidade_itens,
-    } = body || {};
+    } = validationResult.data;
 
     // Sanitize numeric fields to avoid integer syntax errors
     const qtEnt = Number.isFinite(Number(quantidade_entregas)) ? Math.round(Number(quantidade_entregas)) : 1;

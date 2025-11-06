@@ -1,13 +1,13 @@
 project_id = "netzgkrlmoqsnvckzbkh"
 
 [functions.fetch-cargas]
-verify_jwt = false
+verify_jwt = true
 
 [functions.whatsapp-connect]
-verify_jwt = false
+verify_jwt = true
 
 [functions.whatsapp-send]
-verify_jwt = false
+verify_jwt = true
 
 [functions.whatsapp-webhook]
 verify_jwt = false
@@ -31,7 +31,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.campaign-send]
-verify_jwt = false
+verify_jwt = true
+
+[functions.send-satisfaction-survey]
+verify_jwt = true
 
 [functions.expire-pending-surveys]
 verify_jwt = false
