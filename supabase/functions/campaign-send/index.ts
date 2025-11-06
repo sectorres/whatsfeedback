@@ -36,6 +36,13 @@ serve(async (req) => {
       quantidade_itens,
     } = body || {};
 
+    // Sanitize numeric fields to avoid integer syntax errors
+    const qtEnt = Number.isFinite(Number(quantidade_entregas)) ? Math.round(Number(quantidade_entregas)) : 1;
+    const qtSkus = Number.isFinite(Number(quantidade_skus)) ? Math.round(Number(quantidade_skus)) : 0;
+    const qtItens = Number.isFinite(Number(quantidade_itens)) ? Math.round(Number(quantidade_itens)) : 0;
+    const pesoTotalNum = Number.isFinite(Number(peso_total)) ? Number(peso_total) : 0;
+    const valorTotalNum = Number.isFinite(Number(valor_total)) ? Number(valor_total) : 0;
+
     if (!campaignId || !customerPhone || !message) {
       return new Response(
         JSON.stringify({ error: 'Parâmetros obrigatórios ausentes (campaignId, customerPhone, message)' }),
@@ -45,6 +52,17 @@ serve(async (req) => {
 
     // Normalizar telefone para garantir formato consistente
     const normalizedPhone = normalizePhone(customerPhone);
+
+    console.log('campaign-send: prepared insert', {
+      campaignId,
+      customerPhone,
+      normalizedPhone,
+      qtEnt,
+      qtSkus,
+      qtItens,
+      pesoTotalNum,
+      valorTotalNum,
+    });
 
     // 1) Inserir registro como pending
     const { data: sendRow, error: insertError } = await supabase
@@ -56,11 +74,11 @@ serve(async (req) => {
         message_sent: message,
         status: 'pending',
         driver_name: driverName ?? null,
-        peso_total: peso_total ?? 0,
-        valor_total: valor_total ?? 0,
-        quantidade_entregas: quantidade_entregas ?? 1,
-        quantidade_skus: quantidade_skus ?? 0,
-        quantidade_itens: quantidade_itens ?? 0,
+        peso_total: pesoTotalNum,
+        valor_total: valorTotalNum,
+        quantidade_entregas: qtEnt,
+        quantidade_skus: qtSkus,
+        quantidade_itens: qtItens,
       })
       .select()
       .single();
@@ -102,8 +120,11 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Erro em campaign-send:', error);
+    const message = (error && typeof error === 'object' && 'message' in (error as any))
+      ? (error as any).message
+      : (error instanceof Error ? error.message : 'Erro desconhecido');
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
