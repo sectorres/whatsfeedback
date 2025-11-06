@@ -30,6 +30,7 @@ interface CampaignSend {
   status: string;
   error_message: string | null;
   sent_at: string;
+  driver_name: string | null;
 }
 
 export function SavedCampaigns() {
@@ -113,7 +114,7 @@ export function SavedCampaigns() {
     try {
       const { data, error } = await supabase
         .from('campaign_sends')
-        .select('*')
+        .select('id, customer_name, customer_phone, message_sent, status, error_message, sent_at, driver_name')
         .eq('campaign_id', campaignId)
         .order('sent_at', { ascending: false });
 
@@ -404,6 +405,11 @@ export function SavedCampaigns() {
                                         </>
                                       )}
                                     </div>
+                                    {send.driver_name && (
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        <span className="font-medium">Motorista:</span> {send.driver_name}
+                                      </p>
+                                    )}
                                     <p className="text-xs text-muted-foreground mt-1">
                                       {formatDistanceToNow(new Date(send.sent_at), {
                                         addSuffix: true,
