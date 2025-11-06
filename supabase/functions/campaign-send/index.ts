@@ -9,9 +9,9 @@ const campaignSendSchema = z.object({
   message: z.string().min(1).max(4096),
   customerName: z.string().max(255).optional(),
   driverName: z.string().max(255).optional(),
-  quantidade_entregas: z.number().int().min(0).max(10000).optional(),
-  quantidade_skus: z.number().int().min(0).max(10000).optional(),
-  quantidade_itens: z.number().int().min(0).max(100000).optional(),
+  quantidade_entregas: z.number().min(0).max(10000).transform(val => Math.round(val)).optional(),
+  quantidade_skus: z.number().min(0).max(10000).transform(val => Math.round(val)).optional(),
+  quantidade_itens: z.number().min(0).max(100000).transform(val => Math.round(val)).optional(),
   peso_total: z.number().min(0).max(1000000).optional(),
   valor_total: z.number().min(0).max(10000000).optional(),
 });
