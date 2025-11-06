@@ -813,7 +813,8 @@ export function SatisfactionSurveys() {
       <Tabs defaultValue="responses" className="space-y-4">
         <TabsList>
           <TabsTrigger value="responses">Respostas</TabsTrigger>
-          <TabsTrigger value="performance">Desempenho</TabsTrigger>
+          <TabsTrigger value="drivers">Indicadores por Motorista</TabsTrigger>
+          <TabsTrigger value="insights">Insights</TabsTrigger>
         </TabsList>
 
         <TabsContent value="responses" className="space-y-4">
@@ -1132,7 +1133,9 @@ export function SatisfactionSurveys() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
 
+        <TabsContent value="insights" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex flex-row items-center justify-between mb-4">
@@ -1176,7 +1179,6 @@ export function SatisfactionSurveys() {
                       selected={dateFrom}
                       onSelect={setDateFrom}
                       initialFocus
-                      className={cn("p-3 pointer-events-auto")}
                     />
                   </PopoverContent>
                 </Popover>
@@ -1200,7 +1202,6 @@ export function SatisfactionSurveys() {
                       selected={dateTo}
                       onSelect={setDateTo}
                       initialFocus
-                      className={cn("p-3 pointer-events-auto")}
                     />
                   </PopoverContent>
                 </Popover>
