@@ -177,11 +177,11 @@ IMPORTANTE:
         messages: [
           { 
             role: 'system', 
-            content: 'Você é um analista de negócios especializado em logística e distribuição de materiais de construção. Analise os dados e retorne insights estruturados em JSON puro, sem markdown ou texto adicional.' 
+            content: 'Você é um analista de negócios especializado em logística e distribuição de materiais de construção. Analise TODOS os dados fornecidos e retorne insights estruturados em JSON puro, sem markdown ou texto adicional.' 
           },
           { role: 'user', content: prompt }
         ],
-        max_tokens: 1000,
+        max_tokens: 2000,
       }),
     });
 
