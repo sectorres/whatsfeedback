@@ -62,40 +62,6 @@ Responda apenas com o número da sua avaliação.`;
     // Função auxiliar para enviar uma pesquisa
     const sendSingleSurvey = async (send: any) => {
       try {
-        // Consultar motorista atualizado na API antes de criar a pesquisa
-        let updatedDriverName = send.driver_name;
-        
-        try {
-          const orderNumber = send.message_sent?.match(/PEDIDO:\s*([^\n]+)/)?.[1];
-          if (orderNumber) {
-            console.log(`Consultando motorista atualizado para pedido ${orderNumber}`);
-            
-            const { data: cargaData, error: cargaError } = await supabaseClient.functions.invoke('fetch-cargas', {
-              body: { 
-                pedidos: [orderNumber],
-                skipCache: true 
-              }
-            });
-
-            if (!cargaError && cargaData?.cargas?.length > 0) {
-              const carga = cargaData.cargas[0];
-              if (carga.motorista) {
-                updatedDriverName = carga.motorista;
-                console.log(`Motorista atualizado: ${updatedDriverName}`);
-                
-                // Atualizar o driver_name no campaign_send também
-                await supabaseClient
-                  .from('campaign_sends')
-                  .update({ driver_name: updatedDriverName })
-                  .eq('id', send.id);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Erro ao consultar motorista atualizado:', error);
-          // Continua com o motorista original se houver erro
-        }
-
         // Verificar se já existe pesquisa para este envio
         const { data: existingSurvey } = await supabaseClient
           .from('satisfaction_surveys')

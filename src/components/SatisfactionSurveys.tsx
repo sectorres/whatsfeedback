@@ -144,70 +144,6 @@ export function SatisfactionSurveys() {
     }
   };
 
-  const updateDriverFromAPI = async (send: CampaignSend): Promise<string | null> => {
-    try {
-      const orderMatch = send.message_sent?.match(/PEDIDO:\s*([^\n]+)/);
-      if (!orderMatch) {
-        console.log('updateDriverFromAPI: Nenhum número de pedido encontrado', send.id);
-        return send.driver_name;
-      }
-
-      const orderNumber = orderMatch[1].trim();
-      console.log('updateDriverFromAPI: Buscando pedido', orderNumber, 'atual motorista:', send.driver_name);
-      
-      const { data: cargasData, error: cargasError } = await supabase.functions.invoke('fetch-cargas', {
-        body: {}
-      });
-
-      if (cargasError || !cargasData?.data) {
-        console.error('updateDriverFromAPI: Erro ao buscar cargas:', cargasError);
-        return send.driver_name;
-      }
-
-      console.log('updateDriverFromAPI: Total de cargas recebidas:', cargasData.data.length);
-      
-      const carga = cargasData.data.find((c: any) => c.numero_pedido === orderNumber);
-      
-      if (!carga) {
-        console.log('updateDriverFromAPI: Pedido não encontrado na API:', orderNumber);
-        console.log('updateDriverFromAPI: Primeiros 5 pedidos da API:', 
-          cargasData.data.slice(0, 5).map((c: any) => c.numero_pedido)
-        );
-        return send.driver_name;
-      }
-
-      if (!carga.motorista) {
-        console.log('updateDriverFromAPI: Carga encontrada mas sem motorista:', orderNumber);
-        return send.driver_name;
-      }
-
-      const updatedDriver = carga.motorista;
-      console.log('updateDriverFromAPI: Motorista na API:', updatedDriver, 'vs DB:', send.driver_name);
-      
-      if (updatedDriver !== send.driver_name) {
-        console.log('updateDriverFromAPI: Atualizando motorista de', send.driver_name, 'para', updatedDriver);
-        const { error: updateError } = await supabase
-          .from('campaign_sends')
-          .update({ driver_name: updatedDriver })
-          .eq('id', send.id);
-
-        if (updateError) {
-          console.error('updateDriverFromAPI: Erro ao atualizar motorista:', updateError);
-          return send.driver_name;
-        }
-        
-        console.log('updateDriverFromAPI: Motorista atualizado com sucesso');
-        return updatedDriver;
-      }
-      
-      console.log('updateDriverFromAPI: Motorista já está atualizado');
-      return send.driver_name;
-    } catch (error) {
-      console.error('updateDriverFromAPI: Erro ao atualizar motorista da API:', error);
-      return send.driver_name;
-    }
-  };
-
   const loadSurveys = async () => {
     setLoading(true);
     try {
@@ -218,18 +154,10 @@ export function SatisfactionSurveys() {
 
       if (sendsError) throw sendsError;
 
-      // Atualizar motoristas da API antes de exibir
-      const updatedSends = await Promise.all(
-        (sends || []).map(async (send) => {
-          const updatedDriver = await updateDriverFromAPI(send);
-          return { ...send, driver_name: updatedDriver };
-        })
-      );
-
-      const sendIds = updatedSends?.map(s => s.id) || [];
+      const sendIds = sends?.map(s => s.id) || [];
       
       const sendsMap: Record<string, CampaignSend> = {};
-      updatedSends?.forEach(send => {
+      sends?.forEach(send => {
         sendsMap[send.id] = send;
       });
       setCampaignSends(sendsMap);
@@ -288,25 +216,11 @@ export function SatisfactionSurveys() {
     setSurveyCountdown(0);
     
     try {
-      // Buscar envios pendentes
       const { data: sends, error: sendsError } = await supabase
         .from('campaign_sends')
-        .select('*')
+        .select('id')
         .in('status', ['success', 'sent']);
       if (sendsError) throw sendsError;
-
-      // Atualizar motoristas da API antes de enviar pesquisas
-      toast({
-        title: "Atualizando motoristas...",
-        description: "Consultando API para verificar atualizações",
-      });
-
-      await Promise.all(
-        (sends || []).map(async (send) => {
-          await updateDriverFromAPI(send);
-        })
-      );
-
       const sendIds = (sends || []).map((s: any) => s.id);
 
       const { data: existingSurveys, error: surveysError } = await supabase
@@ -503,44 +417,9 @@ export function SatisfactionSurveys() {
                 {Object.keys(campaignSends).length} clientes
               </CardDescription>
             </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={async () => {
-                  setLoading(true);
-                  try {
-                    let updated = 0;
-                    for (const send of Object.values(campaignSends)) {
-                      const oldDriver = send.driver_name;
-                      const newDriver = await updateDriverFromAPI(send);
-                      if (oldDriver !== newDriver) {
-                        updated++;
-                        console.log(`Atualizado: ${send.customer_name} - ${oldDriver} → ${newDriver}`);
-                      }
-                    }
-                    toast({
-                      title: updated > 0 ? "Motoristas atualizados!" : "Nenhuma atualização necessária",
-                      description: updated > 0 ? `${updated} motorista(s) atualizado(s)` : "Todos os motoristas já estão atualizados",
-                    });
-                    await loadSurveys();
-                  } catch (error: any) {
-                    toast({
-                      title: "Erro ao atualizar motoristas",
-                      description: error.message,
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-              >
-                🔄 Atualizar Motoristas
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setShowPreview((v) => !v)}>
-                {showPreview ? 'Ocultar prévia' : 'Mostrar prévia'}
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowPreview((v) => !v)}>
+              {showPreview ? 'Ocultar prévia' : 'Mostrar prévia'}
+            </Button>
           </CardHeader>
           {showPreview && (
             <CardContent>
