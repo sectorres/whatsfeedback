@@ -62,6 +62,30 @@ export type Database = {
         }
         Relationships: []
       }
+      app_config: {
+        Row: {
+          config_key: string
+          config_value: string | null
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          config_key: string
+          config_value?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          config_key?: string
+          config_value?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       blacklist: {
         Row: {
           added_at: string
