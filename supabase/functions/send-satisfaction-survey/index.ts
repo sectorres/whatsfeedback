@@ -72,9 +72,16 @@ Responda apenas com o número da sua avaliação.`;
         const numeroPedido = pedidoMatch[1].trim();
         console.log(`Verificando motorista para pedido: ${numeroPedido}`);
 
-        // Consultar API para obter dados atualizados do pedido
+        // Consultar API com range de 60 dias para garantir que encontramos o pedido
+        const dataFinal = new Date();
+        const dataInicial = new Date();
+        dataInicial.setDate(dataInicial.getDate() - 60);
+
         const { data: apiData, error: apiError } = await supabaseClient.functions.invoke('fetch-cargas', {
-          body: {}
+          body: {
+            dataInicial: dataInicial.toISOString().split('T')[0].replace(/-/g, ''),
+            dataFinal: dataFinal.toISOString().split('T')[0].replace(/-/g, '')
+          }
         });
 
         if (apiError) {
@@ -82,17 +89,28 @@ Responda apenas com o número da sua avaliação.`;
           return send;
         }
 
+        console.log(`API retornou ${apiData?.cargas?.length || 0} cargas`);
+
         // Procurar o pedido específico nas cargas
         let pedidoEncontrado = null;
         let motoristaAtual = null;
 
         if (apiData?.cargas) {
           for (const carga of apiData.cargas) {
-            const pedido = carga.pedidos?.find((p: any) => p.pedido === numeroPedido);
-            if (pedido) {
-              pedidoEncontrado = pedido;
-              motoristaAtual = carga.nomeMotorista;
-              break;
+            if (carga.pedidos && Array.isArray(carga.pedidos)) {
+              const pedido = carga.pedidos.find((p: any) => {
+                // Comparar removendo espaços e normalizando
+                const pedidoNormalizado = p.pedido?.trim().toUpperCase();
+                const numeroPedidoNormalizado = numeroPedido.trim().toUpperCase();
+                return pedidoNormalizado === numeroPedidoNormalizado;
+              });
+              
+              if (pedido) {
+                pedidoEncontrado = pedido;
+                motoristaAtual = carga.nomeMotorista;
+                console.log(`Pedido encontrado! Motorista na API: ${motoristaAtual}, Motorista no registro: ${send.driver_name}`);
+                break;
+              }
             }
           }
         }
@@ -113,9 +131,9 @@ Responda apenas com o número da sua avaliação.`;
             return { ...send, driver_name: motoristaAtual };
           }
         } else if (!pedidoEncontrado) {
-          console.log(`Pedido ${numeroPedido} não encontrado na API`);
-        } else {
-          console.log(`Motorista não mudou para ${send.customer_phone}`);
+          console.log(`Pedido ${numeroPedido} não encontrado na API após buscar ${apiData?.cargas?.length || 0} cargas`);
+        } else if (motoristaAtual === send.driver_name) {
+          console.log(`Motorista não mudou para ${send.customer_phone} (ambos: ${motoristaAtual})`);
         }
 
         return send;
