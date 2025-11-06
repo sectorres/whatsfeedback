@@ -272,15 +272,22 @@ export function SatisfactionSurveys() {
       if (sendsError) throw sendsError;
       const sendIds = (sends || []).map((s: any) => s.id);
 
-      const { data: responded, error: respondedError } = await supabase
+      // Buscar surveys que já foram enviadas, respondidas, expiradas ou canceladas
+      const { data: existingSurveys, error: surveysError } = await supabase
         .from('satisfaction_surveys')
-        .select('campaign_send_id')
-        .in('campaign_send_id', sendIds)
-        .eq('status', 'responded');
-      if (respondedError) throw respondedError;
+        .select('campaign_send_id, status')
+        .in('campaign_send_id', sendIds);
+      if (surveysError) throw surveysError;
 
-      const respondedSet = new Set((responded || []).map((r: any) => r.campaign_send_id));
-      const plannedIds = sendIds.filter((id: string) => !respondedSet.has(id));
+      // Filtrar apenas os que NÃO têm pesquisa ou que falharam (podem ser reenviados)
+      const excludedStatuses = ['sent', 'awaiting_feedback', 'responded', 'expired', 'cancelled'];
+      const alreadyProcessedSet = new Set(
+        (existingSurveys || [])
+          .filter((s: any) => excludedStatuses.includes(s.status))
+          .map((s: any) => s.campaign_send_id)
+      );
+      
+      const plannedIds = sendIds.filter((id: string) => !alreadyProcessedSet.has(id));
 
       plannedIdsRef.current = plannedIds;
       startTimeRef.current = new Date().toISOString();
