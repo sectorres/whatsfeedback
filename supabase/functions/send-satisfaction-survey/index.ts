@@ -72,15 +72,20 @@ Responda apenas com o número da sua avaliação.`;
         const numeroPedido = pedidoMatch[1].trim();
         console.log(`Verificando motorista para pedido: ${numeroPedido}`);
 
-        // Consultar API com range de 60 dias para garantir que encontramos o pedido
+        // Consultar API com range de 90 dias para garantir que encontramos o pedido
         const dataFinal = new Date();
         const dataInicial = new Date();
-        dataInicial.setDate(dataInicial.getDate() - 60);
+        dataInicial.setDate(dataInicial.getDate() - 90);
+
+        const dataInicialFormatada = dataInicial.toISOString().split('T')[0].replace(/-/g, '');
+        const dataFinalFormatada = dataFinal.toISOString().split('T')[0].replace(/-/g, '');
+
+        console.log(`Buscando cargas de ${dataInicialFormatada} até ${dataFinalFormatada}`);
 
         const { data: apiData, error: apiError } = await supabaseClient.functions.invoke('fetch-cargas', {
           body: {
-            dataInicial: dataInicial.toISOString().split('T')[0].replace(/-/g, ''),
-            dataFinal: dataFinal.toISOString().split('T')[0].replace(/-/g, '')
+            dataInicial: dataInicialFormatada,
+            dataFinal: dataFinalFormatada
           }
         });
 
@@ -89,11 +94,13 @@ Responda apenas com o número da sua avaliação.`;
           return send;
         }
 
-        console.log(`API retornou ${apiData?.cargas?.length || 0} cargas`);
+        const totalCargas = apiData?.cargas?.length || 0;
+        console.log(`API retornou ${totalCargas} cargas`);
 
         // Procurar o pedido específico nas cargas
         let pedidoEncontrado = null;
         let motoristaAtual = null;
+        let cargaData = null;
 
         if (apiData?.cargas) {
           for (const carga of apiData.cargas) {
@@ -108,7 +115,10 @@ Responda apenas com o número da sua avaliação.`;
               if (pedido) {
                 pedidoEncontrado = pedido;
                 motoristaAtual = carga.nomeMotorista;
-                console.log(`Pedido encontrado! Motorista na API: ${motoristaAtual}, Motorista no registro: ${send.driver_name}`);
+                cargaData = carga.data;
+                console.log(`✅ Pedido encontrado na carga ${carga.id} (data: ${cargaData})`);
+                console.log(`   Motorista na API: "${motoristaAtual}"`);
+                console.log(`   Motorista no registro: "${send.driver_name}"`);
                 break;
               }
             }
@@ -117,7 +127,7 @@ Responda apenas com o número da sua avaliação.`;
 
         // Se encontrou o pedido e o motorista mudou, atualizar
         if (pedidoEncontrado && motoristaAtual && motoristaAtual !== send.driver_name) {
-          console.log(`Motorista mudou de "${send.driver_name}" para "${motoristaAtual}"`);
+          console.log(`🔄 Atualizando motorista de "${send.driver_name}" para "${motoristaAtual}"`);
           
           const { error: updateError } = await supabaseClient
             .from('campaign_sends')
@@ -125,20 +135,20 @@ Responda apenas com o número da sua avaliação.`;
             .eq('id', send.id);
 
           if (updateError) {
-            console.error('Erro ao atualizar motorista:', updateError);
+            console.error('❌ Erro ao atualizar motorista:', updateError);
           } else {
-            console.log(`Motorista atualizado com sucesso para ${send.customer_phone}`);
+            console.log(`✅ Motorista atualizado com sucesso para ${send.customer_phone}`);
             return { ...send, driver_name: motoristaAtual };
           }
         } else if (!pedidoEncontrado) {
-          console.log(`Pedido ${numeroPedido} não encontrado na API após buscar ${apiData?.cargas?.length || 0} cargas`);
+          console.log(`❌ Pedido ${numeroPedido} não encontrado após buscar ${totalCargas} cargas`);
         } else if (motoristaAtual === send.driver_name) {
-          console.log(`Motorista não mudou para ${send.customer_phone} (ambos: ${motoristaAtual})`);
+          console.log(`✓ Motorista não mudou (mantém: ${motoristaAtual})`);
         }
 
         return send;
       } catch (error) {
-        console.error('Erro ao verificar motorista:', error);
+        console.error('❌ Erro ao verificar motorista:', error);
         return send;
       }
     };
