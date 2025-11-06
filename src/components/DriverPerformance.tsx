@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Star, TrendingUp, TrendingDown, Loader2, BarChart3, CalendarIcon, Download, Truck, Users, PackageCheck, AlertCircle } from "lucide-react";
+import { Star, TrendingUp, TrendingDown, Loader2, BarChart3, CalendarIcon, Download, Truck, Users, PackageCheck, AlertCircle, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
@@ -73,6 +74,12 @@ export function DriverPerformance() {
     date.setMonth(date.getMonth() + 1, 0); // Último dia do mês
     return date;
   });
+  
+  // Filtros para a aba Feedback
+  const [feedbackDateFrom, setFeedbackDateFrom] = useState<Date | undefined>();
+  const [feedbackDateTo, setFeedbackDateTo] = useState<Date | undefined>();
+  const [feedbackPedido, setFeedbackPedido] = useState("");
+  const [feedbackMotorista, setFeedbackMotorista] = useState("");
   
   const { toast } = useToast();
 
@@ -910,37 +917,168 @@ export function DriverPerformance() {
             <CardHeader>
               <CardTitle>Feedbacks Recebidos</CardTitle>
               <CardDescription>
-                Todos os feedbacks de satisfação filtrados por período
+                Todos os feedbacks de satisfação com filtros
               </CardDescription>
+              
+              {/* Filtros */}
+              <div className="flex flex-wrap gap-3 pt-4 border-t">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {feedbackDateFrom ? format(feedbackDateFrom, "dd/MM/yyyy", { locale: ptBR }) : "Data inicial"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={feedbackDateFrom}
+                      onSelect={setFeedbackDateFrom}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+                
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {feedbackDateTo ? format(feedbackDateTo, "dd/MM/yyyy", { locale: ptBR }) : "Data final"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={feedbackDateTo}
+                      onSelect={setFeedbackDateTo}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                <div className="relative flex-1 min-w-[200px]">
+                  <Input
+                    placeholder="Filtrar por pedido..."
+                    value={feedbackPedido}
+                    onChange={(e) => setFeedbackPedido(e.target.value)}
+                    className="pr-8"
+                  />
+                  {feedbackPedido && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                      onClick={() => setFeedbackPedido("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+
+                <div className="relative flex-1 min-w-[200px]">
+                  <Input
+                    placeholder="Filtrar por motorista..."
+                    value={feedbackMotorista}
+                    onChange={(e) => setFeedbackMotorista(e.target.value)}
+                    className="pr-8"
+                  />
+                  {feedbackMotorista && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                      onClick={() => setFeedbackMotorista("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+
+                {(feedbackDateFrom || feedbackDateTo || feedbackPedido || feedbackMotorista) && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setFeedbackDateFrom(undefined);
+                      setFeedbackDateTo(undefined);
+                      setFeedbackPedido("");
+                      setFeedbackMotorista("");
+                    }}
+                  >
+                    Limpar Filtros
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {loadingDriverData ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-              ) : filteredSurveysByDate.filter(s => s.feedback).length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Nenhum feedback encontrado no período selecionado
-                </p>
-              ) : (
-                <ScrollArea className="h-[600px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Pedido</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Carga</TableHead>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Motorista</TableHead>
-                        <TableHead>Nota</TableHead>
-                        <TableHead className="max-w-md">Feedback</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredSurveysByDate
-                        .filter(survey => survey.feedback)
-                        .sort((a, b) => new Date(b.responded_at || b.sent_at).getTime() - new Date(a.responded_at || a.sent_at).getTime())
-                        .map((survey) => {
+              ) : (() => {
+                const feedbacksComFiltro = filteredSurveysByDate
+                  .filter(survey => {
+                    if (!survey.feedback) return false;
+                    
+                    const send = allCampaignSends[survey.campaign_send_id];
+                    
+                    // Filtro de data
+                    if (feedbackDateFrom || feedbackDateTo) {
+                      const surveyDate = new Date(survey.responded_at || survey.sent_at);
+                      if (feedbackDateFrom && surveyDate < feedbackDateFrom) return false;
+                      if (feedbackDateTo) {
+                        const endDate = new Date(feedbackDateTo);
+                        endDate.setHours(23, 59, 59, 999);
+                        if (surveyDate > endDate) return false;
+                      }
+                    }
+                    
+                    // Filtro de pedido
+                    if (feedbackPedido) {
+                      let numeroPedido = '';
+                      if (send?.message_sent) {
+                        const pedidoMatch = send.message_sent.match(/PEDIDO:\s*([^\n]+)/i);
+                        if (pedidoMatch) {
+                          numeroPedido = pedidoMatch[1].trim();
+                        }
+                      }
+                      if (!numeroPedido.toLowerCase().includes(feedbackPedido.toLowerCase())) {
+                        return false;
+                      }
+                    }
+                    
+                    // Filtro de motorista
+                    if (feedbackMotorista) {
+                      const driverName = send?.driver_name || '';
+                      if (!driverName.toLowerCase().includes(feedbackMotorista.toLowerCase())) {
+                        return false;
+                      }
+                    }
+                    
+                    return true;
+                  })
+                  .sort((a, b) => new Date(b.responded_at || b.sent_at).getTime() - new Date(a.responded_at || a.sent_at).getTime());
+
+                return feedbacksComFiltro.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">
+                    Nenhum feedback encontrado com os filtros aplicados
+                  </p>
+                ) : (
+                  <ScrollArea className="h-[600px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Pedido</TableHead>
+                          <TableHead>Cliente</TableHead>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Motorista</TableHead>
+                          <TableHead>Nota</TableHead>
+                          <TableHead className="max-w-md">Feedback</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {feedbacksComFiltro.map((survey) => {
                           const send = allCampaignSends[survey.campaign_send_id];
                           
                           // Extrair número do pedido da mensagem
@@ -956,13 +1094,6 @@ export function DriverPerformance() {
                             <TableRow key={survey.id}>
                               <TableCell className="font-medium">{numeroPedido}</TableCell>
                               <TableCell>{survey.customer_name || 'N/A'}</TableCell>
-                              <TableCell>
-                                {send?.campaign_id ? (
-                                  <Badge variant="outline" className="whitespace-nowrap">
-                                    Carga #{send.campaign_id.slice(0, 8)}
-                                  </Badge>
-                                ) : 'N/A'}
-                              </TableCell>
                               <TableCell className="whitespace-nowrap">
                                 {format(new Date(survey.responded_at || survey.sent_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                               </TableCell>
@@ -981,10 +1112,11 @@ export function DriverPerformance() {
                             </TableRow>
                           );
                         })}
-                    </TableBody>
-                  </Table>
-                </ScrollArea>
-              )}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
