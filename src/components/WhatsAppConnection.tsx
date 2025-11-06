@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Button } from "./ui/button";
 import { Loader2, QrCode, CheckCircle, XCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -15,6 +17,9 @@ export const WhatsAppConnection = ({ onConnectionChange }: WhatsAppConnectionPro
   const [isConnected, setIsConnected] = useState(false);
   const [qrCode, setQrCode] = useState<string>("");
   const [showQRDialog, setShowQRDialog] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [password, setPassword] = useState("");
+  const [pendingAction, setPendingAction] = useState<'connect' | 'disconnect' | null>(null);
 
   useEffect(() => {
     checkConnectionStatus();
@@ -36,7 +41,48 @@ export const WhatsAppConnection = ({ onConnectionChange }: WhatsAppConnectionPro
     }
   };
 
-  const handleConnect = async () => {
+  const verifyPassword = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: 'admin@admin.com',
+        password: password,
+      });
+
+      if (error) {
+        toast.error("Senha incorreta");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      toast.error("Erro ao verificar senha");
+      return false;
+    }
+  };
+
+  const handlePasswordSubmit = async () => {
+    const isValid = await verifyPassword();
+    
+    if (isValid) {
+      setShowPasswordDialog(false);
+      setPassword("");
+      
+      if (pendingAction === 'connect') {
+        executeConnect();
+      } else if (pendingAction === 'disconnect') {
+        executeDisconnect();
+      }
+      
+      setPendingAction(null);
+    }
+  };
+
+  const handleConnect = () => {
+    setPendingAction('connect');
+    setShowPasswordDialog(true);
+  };
+
+  const executeConnect = async () => {
     setIsConnecting(true);
     setShowQRDialog(true);
     
@@ -87,7 +133,12 @@ export const WhatsAppConnection = ({ onConnectionChange }: WhatsAppConnectionPro
     }
   };
 
-  const handleDisconnect = async () => {
+  const handleDisconnect = () => {
+    setPendingAction('disconnect');
+    setShowPasswordDialog(true);
+  };
+
+  const executeDisconnect = async () => {
     try {
       const { error } = await supabase.functions.invoke('whatsapp-connect', {
         body: { action: 'disconnect' }
@@ -199,6 +250,49 @@ export const WhatsAppConnection = ({ onConnectionChange }: WhatsAppConnectionPro
                 </div>
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Autenticação Necessária</DialogTitle>
+            <DialogDescription>
+              Digite a senha do administrador para {pendingAction === 'connect' ? 'conectar' : 'desconectar'} o WhatsApp
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Digite a senha"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handlePasswordSubmit();
+                  }
+                }}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowPasswordDialog(false);
+                  setPassword("");
+                  setPendingAction(null);
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handlePasswordSubmit}>
+                Confirmar
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
