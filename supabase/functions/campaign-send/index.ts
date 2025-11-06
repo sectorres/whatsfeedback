@@ -7,13 +7,13 @@ const campaignSendSchema = z.object({
   campaignId: z.string().uuid(),
   customerPhone: z.string().min(10).max(20),
   message: z.string().min(1).max(4096),
-  customerName: z.string().max(255).optional(),
-  driverName: z.string().max(255).optional(),
-  quantidade_entregas: z.number().int().min(0).max(10000).optional(),
-  quantidade_skus: z.number().int().min(0).max(10000).optional(),
-  quantidade_itens: z.number().int().min(0).max(100000).optional(),
-  peso_total: z.number().min(0).max(1000000).optional(),
-  valor_total: z.number().min(0).max(10000000).optional(),
+  customerName: z.string().max(255).nullish(),
+  driverName: z.string().max(255).nullish(),
+  quantidade_entregas: z.number().min(0).max(10000).transform(val => Math.round(val)).nullish(),
+  quantidade_skus: z.number().min(0).max(10000).transform(val => Math.round(val)).nullish(),
+  quantidade_itens: z.number().min(0).max(100000).transform(val => Math.round(val)).nullish(),
+  peso_total: z.number().min(0).max(1000000).nullish(),
+  valor_total: z.number().min(0).max(10000000).nullish(),
 });
 
 const corsHeaders = {
@@ -60,12 +60,6 @@ serve(async (req) => {
       quantidade_itens,
     } = validationResult.data;
 
-    // Sanitize numeric fields to avoid integer syntax errors
-    const qtEnt = Number.isFinite(Number(quantidade_entregas)) ? Math.round(Number(quantidade_entregas)) : 1;
-    const qtSkus = Number.isFinite(Number(quantidade_skus)) ? Math.round(Number(quantidade_skus)) : 0;
-    const qtItens = Number.isFinite(Number(quantidade_itens)) ? Math.round(Number(quantidade_itens)) : 0;
-    const pesoTotalNum = Number.isFinite(Number(peso_total)) ? Number(peso_total) : 0;
-    const valorTotalNum = Number.isFinite(Number(valor_total)) ? Number(valor_total) : 0;
 
     if (!campaignId || !customerPhone || !message) {
       return new Response(
@@ -81,11 +75,11 @@ serve(async (req) => {
       campaignId,
       customerPhone,
       normalizedPhone,
-      qtEnt,
-      qtSkus,
-      qtItens,
-      pesoTotalNum,
-      valorTotalNum,
+      quantidade_entregas,
+      quantidade_skus,
+      quantidade_itens,
+      peso_total,
+      valor_total,
     });
 
     // 1) Inserir registro como pending
@@ -98,11 +92,11 @@ serve(async (req) => {
         message_sent: message,
         status: 'pending',
         driver_name: driverName ?? null,
-        peso_total: pesoTotalNum,
-        valor_total: valorTotalNum,
-        quantidade_entregas: qtEnt,
-        quantidade_skus: qtSkus,
-        quantidade_itens: qtItens,
+        peso_total: peso_total ?? 0,
+        valor_total: valor_total ?? 0,
+        quantidade_entregas: quantidade_entregas ?? 1,
+        quantidade_skus: quantidade_skus ?? 0,
+        quantidade_itens: quantidade_itens ?? 0,
       })
       .select()
       .single();
