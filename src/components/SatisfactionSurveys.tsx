@@ -87,11 +87,17 @@ export function SatisfactionSurveys() {
   const startTimeRef = useRef<string>("");
   const countdownIntervalRef = useRef<number | null>(null);
   
-  // Estados para filtro de data
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(
-    new Date(new Date().setDate(new Date().getDate() - 30))
-  );
-  const [dateTo, setDateTo] = useState<Date | undefined>(new Date());
+  // Estados para filtro de data - primeiro e último dia do mês corrente
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(() => {
+    const date = new Date();
+    date.setDate(1); // Primeiro dia do mês
+    return date;
+  });
+  const [dateTo, setDateTo] = useState<Date | undefined>(() => {
+    const date = new Date();
+    date.setMonth(date.getMonth() + 1, 0); // Último dia do mês
+    return date;
+  });
   
   const { toast } = useToast();
 
