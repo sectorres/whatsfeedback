@@ -105,7 +105,6 @@ serve(async (req) => {
         const driverName = send?.driver_name || 'N/A';
         return `[${driverName}] Nota ${s.rating}/5: "${s.feedback}"`;
       })
-      .slice(0, 15) // Aumentar para 15 feedbacks
       .join('\n');
 
     const prompt = `Você está analisando dados de satisfação da TORRES CABRAL, empresa de materiais de construção.
