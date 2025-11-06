@@ -17,7 +17,7 @@ import { Calendar } from "./ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
 import { normalizePhone } from "@/lib/phone-utils";
-import { getSendDelayConfig } from "./SendDelayConfig";
+import { getProgressiveDelay } from "./SendDelayConfig";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -417,12 +417,10 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         }
 
         if (i < pedidosParaEnviar.length - 1) {
-          // Delay aleatório configurável
-          const delayConfig = getSendDelayConfig();
-          const minMs = delayConfig.min * 1000;
-          const maxMs = delayConfig.max * 1000;
-          const delay = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
-          await new Promise(resolve => setTimeout(resolve, delay));
+          // Delay progressivo: 2s → 5s → 7s → 9s → 11s → 13s → 17s
+          const delaySeconds = getProgressiveDelay(i);
+          const delayMs = delaySeconds * 1000;
+          await new Promise(resolve => setTimeout(resolve, delayMs));
         }
       }
       
