@@ -2,6 +2,14 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
+// Sequência progressiva de delays entre mensagens (em segundos)
+const DELAY_STAGES = [2, 5, 7, 9, 11, 13, 17];
+
+const getProgressiveDelay = (messageIndex: number): number => {
+  const stageIndex = messageIndex % DELAY_STAGES.length;
+  return DELAY_STAGES[stageIndex];
+};
+
 const surveySendSchema = z.object({
   campaignSendIds: z.array(z.string().uuid()).optional(),
 });
@@ -293,10 +301,11 @@ Responda apenas com o número da sua avaliação.`;
         });
       }
 
-      // Delay fixo de 10 segundos entre envios
+      // Delay progressivo: 2s → 5s → 7s → 9s → 11s → 13s → 17s
       if (i < sendsToProcess.length - 1) {
-        console.log('Aguardando 10 segundos antes do próximo envio...');
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        const delaySeconds = getProgressiveDelay(i);
+        console.log(`Aguardando ${delaySeconds} segundos antes do próximo envio...`);
+        await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
       }
     }
 

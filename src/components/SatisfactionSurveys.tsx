@@ -20,6 +20,7 @@ import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carouse
 import Autoplay from "embla-carousel-autoplay";
 import * as XLSX from 'xlsx';
 import { SurveyManagement } from "@/components/SurveyManagement";
+import { getProgressiveDelay } from "./SendDelayConfig";
 
 interface Campaign {
   id: string;
@@ -315,9 +316,10 @@ export function SatisfactionSurveys() {
         const current = Math.min(success + failed, plannedIdsRef.current.length);
 
         setSendProgress(prev => {
-          // Se o current aumentou, resetar countdown para 10s
+          // Se o current aumentou, resetar countdown baseado na sequência progressiva
           if (current > prev.current && current < plannedIdsRef.current.length) {
-            setSurveyCountdown(10);
+            const nextDelaySeconds = getProgressiveDelay(current);
+            setSurveyCountdown(nextDelaySeconds);
           }
           return { current, total: plannedIdsRef.current.length, success, failed };
         });
