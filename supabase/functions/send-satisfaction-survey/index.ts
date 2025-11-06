@@ -59,14 +59,83 @@ De uma nota de 1 a 5 para a entrega de seus produtos.
 
 Responda apenas com o número da sua avaliação.`;
 
+    // Função auxiliar para verificar e atualizar motorista via API
+    const checkAndUpdateDriver = async (send: any) => {
+      try {
+        // Extrair número do pedido da mensagem
+        const pedidoMatch = send.message_sent?.match(/PEDIDO:\s*([^\n]+)/);
+        if (!pedidoMatch || !pedidoMatch[1]) {
+          console.log(`Pedido não encontrado na mensagem para ${send.customer_phone}`);
+          return send;
+        }
+
+        const numeroPedido = pedidoMatch[1].trim();
+        console.log(`Verificando motorista para pedido: ${numeroPedido}`);
+
+        // Consultar API para obter dados atualizados do pedido
+        const { data: apiData, error: apiError } = await supabaseClient.functions.invoke('fetch-cargas', {
+          body: {}
+        });
+
+        if (apiError) {
+          console.error('Erro ao consultar API:', apiError);
+          return send;
+        }
+
+        // Procurar o pedido específico nas cargas
+        let pedidoEncontrado = null;
+        let motoristaAtual = null;
+
+        if (apiData?.cargas) {
+          for (const carga of apiData.cargas) {
+            const pedido = carga.pedidos?.find((p: any) => p.pedido === numeroPedido);
+            if (pedido) {
+              pedidoEncontrado = pedido;
+              motoristaAtual = carga.nomeMotorista;
+              break;
+            }
+          }
+        }
+
+        // Se encontrou o pedido e o motorista mudou, atualizar
+        if (pedidoEncontrado && motoristaAtual && motoristaAtual !== send.driver_name) {
+          console.log(`Motorista mudou de "${send.driver_name}" para "${motoristaAtual}"`);
+          
+          const { error: updateError } = await supabaseClient
+            .from('campaign_sends')
+            .update({ driver_name: motoristaAtual })
+            .eq('id', send.id);
+
+          if (updateError) {
+            console.error('Erro ao atualizar motorista:', updateError);
+          } else {
+            console.log(`Motorista atualizado com sucesso para ${send.customer_phone}`);
+            return { ...send, driver_name: motoristaAtual };
+          }
+        } else if (!pedidoEncontrado) {
+          console.log(`Pedido ${numeroPedido} não encontrado na API`);
+        } else {
+          console.log(`Motorista não mudou para ${send.customer_phone}`);
+        }
+
+        return send;
+      } catch (error) {
+        console.error('Erro ao verificar motorista:', error);
+        return send;
+      }
+    };
+
     // Função auxiliar para enviar uma pesquisa
     const sendSingleSurvey = async (send: any) => {
       try {
+        // Verificar e atualizar motorista antes de enviar
+        const updatedSend = await checkAndUpdateDriver(send);
+        
         // Verificar se já existe pesquisa para este envio
         const { data: existingSurvey } = await supabaseClient
           .from('satisfaction_surveys')
           .select('*')
-          .eq('campaign_send_id', send.id)
+          .eq('campaign_send_id', updatedSend.id)
           .maybeSingle();
 
         let survey = existingSurvey;
@@ -77,9 +146,9 @@ Responda apenas com o número da sua avaliação.`;
           const { data: newSurvey, error: surveyError } = await supabaseClient
             .from('satisfaction_surveys')
             .insert({
-              campaign_send_id: send.id,
-              customer_phone: send.customer_phone,
-              customer_name: send.customer_name,
+              campaign_send_id: updatedSend.id,
+              customer_phone: updatedSend.customer_phone,
+              customer_name: updatedSend.customer_name,
               status: 'pending',
               sent_at: new Date().toISOString()
             })
@@ -108,8 +177,8 @@ Responda apenas com o número da sua avaliação.`;
         // Enviar mensagem via WhatsApp
         const { error: whatsappError } = await supabaseClient.functions.invoke('whatsapp-send', {
           body: {
-            phone: send.customer_phone,
-            message: getSurveyMessage(send.customer_name)
+            phone: updatedSend.customer_phone,
+            message: getSurveyMessage(updatedSend.customer_name)
           }
         });
 
@@ -127,7 +196,7 @@ Responda apenas com o número da sua avaliação.`;
           .update({ status: 'sent' })
           .eq('id', survey.id);
 
-        console.log(`Pesquisa enviada para ${send.customer_phone}`);
+        console.log(`Pesquisa enviada para ${updatedSend.customer_phone}`);
         return { success: true, isNew, survey };
       } catch (error) {
         console.error(`Erro ao enviar pesquisa para ${send.customer_phone}:`, error);
