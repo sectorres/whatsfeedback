@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_config: {
+        Row: {
+          config_key: string
+          created_at: string
+          id: string
+          prompt: string
+          updated_at: string
+        }
+        Insert: {
+          config_key: string
+          created_at?: string
+          id?: string
+          prompt: string
+          updated_at?: string
+        }
+        Update: {
+          config_key?: string
+          created_at?: string
+          id?: string
+          prompt?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       allowed_ips: {
         Row: {
           created_at: string
@@ -340,7 +364,7 @@ export type Database = {
           {
             foreignKeyName: "satisfaction_surveys_campaign_send_id_fkey"
             columns: ["campaign_send_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "campaign_sends"
             referencedColumns: ["id"]
           },
