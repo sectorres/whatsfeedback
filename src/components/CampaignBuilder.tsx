@@ -252,6 +252,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         quantidade_entregas?: number | null;
         quantidade_skus?: number | null;
         quantidade_itens?: number | null;
+        pedido_id?: number | null;
       },
       retries = 2,
       delayMs = 500
@@ -332,7 +333,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             valor_total: pedido.valor || 0,
             quantidade_entregas: 1,
             quantidade_skus: pedido.produtos?.length || 0,
-            quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0
+            quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0,
+            pedido_id: pedido.id
           });
           
           setSendProgress(prev => ({ ...prev, current: i + 1, failed: prev.failed + 1 }));
@@ -363,7 +365,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             valor_total: pedido.valor || 0,
             quantidade_entregas: 1,
             quantidade_skus: pedido.produtos?.length || 0,
-            quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0
+            quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0,
+            pedido_id: pedido.id
           });
           
           setSendProgress(prev => ({ ...prev, current: i + 1, blocked: prev.blocked + 1 }));
@@ -384,6 +387,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               quantidade_entregas: 1,
               quantidade_skus: pedido.produtos?.length || 0,
               quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0,
+              pedido_id: pedido.id, // ID do pedido da API
             }
           });
 
@@ -412,7 +416,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             valor_total: pedido.valor || 0,
             quantidade_entregas: 1,
             quantidade_skus: pedido.produtos?.length || 0,
-            quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0
+            quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0,
+            pedido_id: pedido.id
           });
           if (!inserted) {
             console.error('Erro ao salvar registro de falha (após retentativas).');

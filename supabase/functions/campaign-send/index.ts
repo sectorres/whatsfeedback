@@ -14,6 +14,7 @@ const campaignSendSchema = z.object({
   quantidade_itens: z.number().min(0).max(100000).transform(val => Math.round(val)).nullish(),
   peso_total: z.number().min(0).max(1000000).nullish(),
   valor_total: z.number().min(0).max(10000000).nullish(),
+  pedido_id: z.number().int().positive().nullish(),
 });
 
 const corsHeaders = {
@@ -58,6 +59,7 @@ serve(async (req) => {
       quantidade_entregas,
       quantidade_skus,
       quantidade_itens,
+      pedido_id,
     } = validationResult.data;
 
 
@@ -97,6 +99,7 @@ serve(async (req) => {
         quantidade_entregas: quantidade_entregas ?? 1,
         quantidade_skus: quantidade_skus ?? 0,
         quantidade_itens: quantidade_itens ?? 0,
+        pedido_id: pedido_id ?? null,
       })
       .select()
       .single();

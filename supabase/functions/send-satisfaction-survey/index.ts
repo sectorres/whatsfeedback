@@ -59,20 +59,18 @@ De uma nota de 1 a 5 para a entrega de seus produtos.
 
 Responda apenas com o número da sua avaliação.`;
 
-    // Função auxiliar para verificar e atualizar motorista via API
+    // Função auxiliar para verificar e atualizar motorista via API usando pedido_id
     const checkAndUpdateDriver = async (send: any) => {
       try {
-        // Extrair número do pedido da mensagem
-        const pedidoMatch = send.message_sent?.match(/PEDIDO:\s*([^\n]+)/);
-        if (!pedidoMatch || !pedidoMatch[1]) {
-          console.log(`Pedido não encontrado na mensagem para ${send.customer_phone}`);
+        // Verificar se tem pedido_id
+        if (!send.pedido_id) {
+          console.log(`⚠️ Pedido sem pedido_id para ${send.customer_phone}`);
           return send;
         }
 
-        const numeroPedido = pedidoMatch[1].trim();
-        console.log(`Verificando motorista para pedido: ${numeroPedido}`);
+        console.log(`🔍 Verificando motorista para pedido_id: ${send.pedido_id}`);
 
-        // Consultar API com range de 90 dias para garantir que encontramos o pedido
+        // Consultar API com range de 90 dias
         const dataFinal = new Date();
         const dataInicial = new Date();
         dataInicial.setDate(dataInicial.getDate() - 90);
@@ -90,33 +88,28 @@ Responda apenas com o número da sua avaliação.`;
         });
 
         if (apiError) {
-          console.error('Erro ao consultar API:', apiError);
+          console.error('❌ Erro ao consultar API:', apiError);
           return send;
         }
 
-        const totalCargas = apiData?.cargas?.length || 0;
+        const totalCargas = apiData?.retorno?.cargas?.length || 0;
         console.log(`API retornou ${totalCargas} cargas`);
 
-        // Procurar o pedido específico nas cargas
+        // Procurar o pedido específico pelo ID
         let pedidoEncontrado = null;
         let motoristaAtual = null;
-        let cargaData = null;
+        let cargaId = null;
 
-        if (apiData?.cargas) {
-          for (const carga of apiData.cargas) {
+        if (apiData?.retorno?.cargas) {
+          for (const carga of apiData.retorno.cargas) {
             if (carga.pedidos && Array.isArray(carga.pedidos)) {
-              const pedido = carga.pedidos.find((p: any) => {
-                // Comparar removendo espaços e normalizando
-                const pedidoNormalizado = p.pedido?.trim().toUpperCase();
-                const numeroPedidoNormalizado = numeroPedido.trim().toUpperCase();
-                return pedidoNormalizado === numeroPedidoNormalizado;
-              });
+              const pedido = carga.pedidos.find((p: any) => p.id === send.pedido_id);
               
               if (pedido) {
                 pedidoEncontrado = pedido;
                 motoristaAtual = carga.nomeMotorista;
-                cargaData = carga.data;
-                console.log(`✅ Pedido encontrado na carga ${carga.id} (data: ${cargaData})`);
+                cargaId = carga.id;
+                console.log(`✅ Pedido ${send.pedido_id} encontrado na carga ${cargaId}`);
                 console.log(`   Motorista na API: "${motoristaAtual}"`);
                 console.log(`   Motorista no registro: "${send.driver_name}"`);
                 break;
@@ -141,7 +134,7 @@ Responda apenas com o número da sua avaliação.`;
             return { ...send, driver_name: motoristaAtual };
           }
         } else if (!pedidoEncontrado) {
-          console.log(`❌ Pedido ${numeroPedido} não encontrado após buscar ${totalCargas} cargas`);
+          console.log(`❌ Pedido ID ${send.pedido_id} não encontrado após buscar ${totalCargas} cargas`);
         } else if (motoristaAtual === send.driver_name) {
           console.log(`✓ Motorista não mudou (mantém: ${motoristaAtual})`);
         }
