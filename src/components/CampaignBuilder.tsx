@@ -387,9 +387,17 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             }
           });
 
-          if (error) throw error;
+          if (error) {
+            const serverMsg =
+              data && typeof data === 'object' && 'error' in (data as any)
+                ? (data as any).error
+                : (error as any)?.message || 'Edge Function error';
+            console.error('campaign-send invoke failed:', { error, data });
+            throw new Error(serverMsg);
+          }
           if (data?.status !== 'success') {
-            throw new Error(data?.error || 'Falha no envio');
+            const msg = (data as any)?.error || 'Falha no envio';
+            throw new Error(msg);
           }
 
           successCount++;
