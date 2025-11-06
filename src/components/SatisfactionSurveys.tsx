@@ -188,12 +188,12 @@ export function SatisfactionSurveys() {
       });
       setCampaignSends(sendsMap);
 
-      // Buscar pesquisas (excluindo canceladas)
+      // Buscar pesquisas (excluindo apenas canceladas e não enviadas)
       const { data, error } = await supabase
         .from('satisfaction_surveys')
         .select('*')
         .in('campaign_send_id', sendIds)
-        .neq('status', 'cancelled')
+        .not('status', 'in', '("cancelled","not_sent")')
         .order('sent_at', { ascending: false });
 
       if (!error && data) {
@@ -225,12 +225,12 @@ export function SatisfactionSurveys() {
       });
       setAllCampaignSends(sendsMap);
 
-      // Buscar todas as pesquisas (excluindo canceladas)
+      // Buscar todas as pesquisas (excluindo apenas canceladas e não enviadas)
       const { data: allSurveysData, error: surveysError } = await supabase
         .from('satisfaction_surveys')
         .select('*')
         .in('campaign_send_id', sendIds)
-        .neq('status', 'cancelled')
+        .not('status', 'in', '("cancelled","not_sent")')
         .order('sent_at', { ascending: false });
 
       if (!surveysError && allSurveysData) {
