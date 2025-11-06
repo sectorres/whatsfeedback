@@ -15,6 +15,8 @@ import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carouse
 import Autoplay from "embla-carousel-autoplay";
 import * as XLSX from 'xlsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Survey {
   id: string;
@@ -446,6 +448,7 @@ export function DriverPerformance() {
         <TabsList>
           <TabsTrigger value="motoristas">Desempenho por Motorista</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
+          <TabsTrigger value="feedback">Feedback</TabsTrigger>
         </TabsList>
 
         <TabsContent value="motoristas" className="space-y-6">
@@ -899,6 +902,90 @@ export function DriverPerformance() {
             </p>
           )}
         </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="feedback" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Feedbacks Recebidos</CardTitle>
+              <CardDescription>
+                Todos os feedbacks de satisfação filtrados por período
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingDriverData ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : filteredSurveysByDate.filter(s => s.feedback).length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Nenhum feedback encontrado no período selecionado
+                </p>
+              ) : (
+                <ScrollArea className="h-[600px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Pedido</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Carga</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Motorista</TableHead>
+                        <TableHead>Nota</TableHead>
+                        <TableHead className="max-w-md">Feedback</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredSurveysByDate
+                        .filter(survey => survey.feedback)
+                        .sort((a, b) => new Date(b.responded_at || b.sent_at).getTime() - new Date(a.responded_at || a.sent_at).getTime())
+                        .map((survey) => {
+                          const send = allCampaignSends[survey.campaign_send_id];
+                          
+                          // Extrair número do pedido da mensagem
+                          let numeroPedido = 'N/A';
+                          if (send?.message_sent) {
+                            const pedidoMatch = send.message_sent.match(/PEDIDO:\s*([^\n]+)/i);
+                            if (pedidoMatch) {
+                              numeroPedido = pedidoMatch[1].trim();
+                            }
+                          }
+
+                          return (
+                            <TableRow key={survey.id}>
+                              <TableCell className="font-medium">{numeroPedido}</TableCell>
+                              <TableCell>{survey.customer_name || 'N/A'}</TableCell>
+                              <TableCell>
+                                {send?.campaign_id ? (
+                                  <Badge variant="outline" className="whitespace-nowrap">
+                                    Carga #{send.campaign_id.slice(0, 8)}
+                                  </Badge>
+                                ) : 'N/A'}
+                              </TableCell>
+                              <TableCell className="whitespace-nowrap">
+                                {format(new Date(survey.responded_at || survey.sent_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                              </TableCell>
+                              <TableCell>{send?.driver_name || 'N/A'}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Star className={`h-4 w-4 ${getRatingColor(survey.rating || 0)} fill-current`} />
+                                  <span className={`font-semibold ${getRatingColor(survey.rating || 0)}`}>
+                                    {survey.rating || 'N/A'}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="max-w-md">
+                                <p className="text-sm line-clamp-3">{survey.feedback}</p>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              )}
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
