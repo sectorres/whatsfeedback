@@ -430,6 +430,9 @@ export function SatisfactionSurveys() {
                       <div className="truncate">
                         <p className="font-medium truncate">{send.customer_name}</p>
                         <p className="text-[11px] text-muted-foreground truncate">{send.customer_phone}</p>
+                        {send.driver_name && (
+                          <p className="text-[11px] text-muted-foreground truncate"><span className="font-medium">Motorista:</span> {send.driver_name}</p>
+                        )}
                       </div>
                       <div className="col-span-2 text-right text-[11px] text-muted-foreground truncate">
                         {send.message_sent?.match(/PEDIDO:\s*([^\n]+)/)?.[1] || 'Pedido N/A'}
