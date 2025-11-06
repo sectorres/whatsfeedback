@@ -22,7 +22,7 @@ export const DashboardHeader = () => {
           <div>
             <h1 className="text-lg font-bold">WhatsFeedback</h1>
             <p className="text-xs text-muted-foreground">
-              Gerenciamento de WhatsApp e Pedidos
+              Gerenciamento de informativos e Pesquisa de satisfação
             </p>
           </div>
         </div>
