@@ -14,7 +14,7 @@ import { SendDelayConfig } from "@/components/SendDelayConfig";
 import { DataClearConfig } from "@/components/DataClearConfig";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Package, Settings, Headphones, LayoutDashboard, Star } from "lucide-react";
+import { Calendar, Package, Settings, Headphones, LayoutDashboard, Star, BarChart3 } from "lucide-react";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { useWhatsAppStatus } from "@/hooks/useWhatsAppStatus";
 import { SatisfactionSurveys } from "@/components/SatisfactionSurveys";
@@ -31,7 +31,7 @@ const Index = () => {
       
       <main className="container mx-auto px-6 py-4">
         <Tabs defaultValue="dashboard" className="space-y-3">
-          <TabsList className="grid w-full grid-cols-6 bg-primary text-primary-foreground">
+          <TabsList className="grid w-full grid-cols-7 bg-primary text-primary-foreground">
             <TabsTrigger value="dashboard" className="flex items-center gap-1.5 text-xs sm:text-sm">
               <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -52,6 +52,10 @@ const Index = () => {
                   {unreadCount}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="desempenho" className="flex items-center gap-1.5 text-xs sm:text-sm">
+              <BarChart3 className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Desempenho</span>
             </TabsTrigger>
             <TabsTrigger value="orders" className="flex items-center gap-1.5 text-xs sm:text-sm">
               <Package className="h-4 w-4 flex-shrink-0" />
@@ -85,6 +89,16 @@ const Index = () => {
 
           <TabsContent value="satisfaction">
             <SatisfactionSurveys />
+          </TabsContent>
+
+          <TabsContent value="desempenho" className="space-y-2">
+            <div>
+              <h2 className="text-xl font-bold mb-2">Desempenho</h2>
+              <p className="text-muted-foreground mb-3 text-sm">
+                Análise de desempenho dos motoristas e insights de satisfação
+              </p>
+              {/* Conteúdo será movido do SatisfactionSurveys */}
+            </div>
           </TabsContent>
 
           <TabsContent value="orders">
