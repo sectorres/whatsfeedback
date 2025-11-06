@@ -116,6 +116,7 @@ export type Database = {
       campaign_sends: {
         Row: {
           campaign_id: string
+          carga_id: number | null
           created_at: string
           customer_name: string | null
           customer_phone: string
@@ -123,6 +124,7 @@ export type Database = {
           error_message: string | null
           id: string
           message_sent: string
+          pedido_id: number | null
           peso_total: number | null
           quantidade_entregas: number | null
           quantidade_itens: number | null
@@ -133,6 +135,7 @@ export type Database = {
         }
         Insert: {
           campaign_id: string
+          carga_id?: number | null
           created_at?: string
           customer_name?: string | null
           customer_phone: string
@@ -140,6 +143,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           message_sent: string
+          pedido_id?: number | null
           peso_total?: number | null
           quantidade_entregas?: number | null
           quantidade_itens?: number | null
@@ -150,6 +154,7 @@ export type Database = {
         }
         Update: {
           campaign_id?: string
+          carga_id?: number | null
           created_at?: string
           customer_name?: string | null
           customer_phone?: string
@@ -157,6 +162,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           message_sent?: string
+          pedido_id?: number | null
           peso_total?: number | null
           quantidade_entregas?: number | null
           quantidade_itens?: number | null
