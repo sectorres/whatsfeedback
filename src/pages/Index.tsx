@@ -19,6 +19,7 @@ import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { useWhatsAppStatus } from "@/hooks/useWhatsAppStatus";
 import { SatisfactionSurveys } from "@/components/SatisfactionSurveys";
 import { IpWhitelistManager } from "@/components/IpWhitelistManager";
+import { DriverPerformance } from "@/components/DriverPerformance";
 
 const Index = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
@@ -91,14 +92,8 @@ const Index = () => {
             <SatisfactionSurveys />
           </TabsContent>
 
-          <TabsContent value="desempenho" className="space-y-2">
-            <div>
-              <h2 className="text-xl font-bold mb-2">Desempenho</h2>
-              <p className="text-muted-foreground mb-3 text-sm">
-                Análise de desempenho dos motoristas e insights de satisfação
-              </p>
-              {/* Conteúdo será movido do SatisfactionSurveys */}
-            </div>
+          <TabsContent value="desempenho">
+            <DriverPerformance />
           </TabsContent>
 
           <TabsContent value="orders">
