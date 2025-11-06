@@ -7,13 +7,13 @@ const campaignSendSchema = z.object({
   campaignId: z.string().uuid(),
   customerPhone: z.string().min(10).max(20),
   message: z.string().min(1).max(4096),
-  customerName: z.string().max(255).optional(),
-  driverName: z.string().max(255).optional(),
-  quantidade_entregas: z.number().min(0).max(10000).transform(val => Math.round(val)).optional(),
-  quantidade_skus: z.number().min(0).max(10000).transform(val => Math.round(val)).optional(),
-  quantidade_itens: z.number().min(0).max(100000).transform(val => Math.round(val)).optional(),
-  peso_total: z.number().min(0).max(1000000).optional(),
-  valor_total: z.number().min(0).max(10000000).optional(),
+  customerName: z.string().max(255).nullish(),
+  driverName: z.string().max(255).nullish(),
+  quantidade_entregas: z.number().min(0).max(10000).transform(val => Math.round(val)).nullish(),
+  quantidade_skus: z.number().min(0).max(10000).transform(val => Math.round(val)).nullish(),
+  quantidade_itens: z.number().min(0).max(100000).transform(val => Math.round(val)).nullish(),
+  peso_total: z.number().min(0).max(1000000).nullish(),
+  valor_total: z.number().min(0).max(10000000).nullish(),
 });
 
 const corsHeaders = {
