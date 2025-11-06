@@ -99,6 +99,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, success: 0, failed: 0, blocked: 0 });
+  const [countdown, setCountdown] = useState<number>(0);
   
   // Datas padrão: hoje até hoje + 30 dias
   const [startDate, setStartDate] = useState<Date>(() => new Date());
@@ -419,8 +420,14 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         if (i < pedidosParaEnviar.length - 1) {
           // Delay progressivo: 2s → 5s → 7s → 9s → 11s → 13s → 17s
           const delaySeconds = getProgressiveDelay(i);
-          const delayMs = delaySeconds * 1000;
-          await new Promise(resolve => setTimeout(resolve, delayMs));
+          setCountdown(delaySeconds);
+          
+          // Countdown visual
+          for (let sec = delaySeconds; sec > 0; sec--) {
+            setCountdown(sec);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+          setCountdown(0);
         }
       }
       
@@ -878,9 +885,16 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                   </div>
                 </div>
 
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Aguarde enquanto as mensagens são enviadas...</span>
+                <div className="flex flex-col items-center justify-center gap-2 text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Aguarde enquanto as mensagens são enviadas...</span>
+                  </div>
+                  {countdown > 0 && (
+                    <div className="flex items-center gap-2 text-primary font-medium">
+                      <span>Próxima mensagem em {countdown}s</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </DialogContent>

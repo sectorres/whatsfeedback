@@ -80,9 +80,11 @@ export function SatisfactionSurveys() {
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
   const [showManagementDialog, setShowManagementDialog] = useState(false);
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
+  const [surveyCountdown, setSurveyCountdown] = useState<number>(0);
   const pollTimerRef = useRef<number | null>(null);
   const plannedIdsRef = useRef<string[]>([]);
   const startTimeRef = useRef<string>("");
+  const countdownIntervalRef = useRef<number | null>(null);
   
   // Estados para filtro de data
   const [dateFrom, setDateFrom] = useState<Date | undefined>(
@@ -108,6 +110,9 @@ export function SatisfactionSurveys() {
     return () => {
       if (pollTimerRef.current) {
         window.clearInterval(pollTimerRef.current);
+      }
+      if (countdownIntervalRef.current) {
+        window.clearInterval(countdownIntervalRef.current);
       }
     };
   }, []);
@@ -262,6 +267,7 @@ export function SatisfactionSurveys() {
   const sendSurveys = async () => {
     setSendingSurveys(true);
     setSendProgress({ current: 0, total: 0, success: 0, failed: 0 });
+    setSurveyCountdown(0);
     
     try {
       // Calcular previamente o total planejado (mesma lógica da função de backend)
@@ -308,13 +314,28 @@ export function SatisfactionSurveys() {
         const success = statuses.filter(s => s === 'sent' || s === 'awaiting_feedback' || s === 'responded').length;
         const current = Math.min(success + failed, plannedIdsRef.current.length);
 
-        setSendProgress({ current, total: plannedIdsRef.current.length, success, failed });
+        setSendProgress(prev => {
+          // Se o current aumentou, resetar countdown para 10s
+          if (current > prev.current && current < plannedIdsRef.current.length) {
+            setSurveyCountdown(10);
+          }
+          return { current, total: plannedIdsRef.current.length, success, failed };
+        });
 
         if (current >= plannedIdsRef.current.length && pollTimerRef.current) {
           window.clearInterval(pollTimerRef.current);
           pollTimerRef.current = null;
+          if (countdownIntervalRef.current) {
+            window.clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+          }
         }
       };
+      
+      // Countdown timer separado
+      countdownIntervalRef.current = window.setInterval(() => {
+        setSurveyCountdown(prev => prev > 0 ? prev - 1 : 0);
+      }, 1000);
 
       // Disparar imediatamente e a cada 1s
       await poll();
@@ -363,11 +384,16 @@ export function SatisfactionSurveys() {
         variant: "destructive",
       });
     } finally {
+      setSendingSurveys(false);
+      setSurveyCountdown(0);
       if (pollTimerRef.current) {
         window.clearInterval(pollTimerRef.current);
         pollTimerRef.current = null;
       }
-      setSendingSurveys(false);
+      if (countdownIntervalRef.current) {
+        window.clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
     }
   };
 
@@ -1383,9 +1409,16 @@ export function SatisfactionSurveys() {
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Aguarde enquanto as pesquisas são enviadas...</span>
+            <div className="flex flex-col items-center justify-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Aguarde enquanto as pesquisas são enviadas...</span>
+              </div>
+              {surveyCountdown > 0 && sendProgress.current < sendProgress.total && (
+                <div className="flex items-center gap-2 text-primary font-medium">
+                  <span>Próxima pesquisa em {surveyCountdown}s</span>
+                </div>
+              )}
             </div>
           </div>
         </DialogContent>
