@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
 import * as XLSX from 'xlsx';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Survey {
   id: string;
@@ -441,8 +442,16 @@ export function DriverPerformance() {
         </div>
       </div>
 
-      {/* Indicadores por Motorista */}
-      <Card>
+      <Tabs defaultValue="motoristas" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="motoristas">Desempenho por Motorista</TabsTrigger>
+          <TabsTrigger value="insights">Insights</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="motoristas" className="space-y-6">
+
+          {/* Indicadores por Motorista */}
+          <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -650,10 +659,12 @@ export function DriverPerformance() {
             </div>
           )}
         </CardContent>
-      </Card>
+          </Card>
+        </TabsContent>
 
-      {/* Insights */}
-      <Card>
+        <TabsContent value="insights" className="space-y-6">
+          {/* Insights */}
+          <Card>
         <CardHeader>
           <div className="flex flex-row items-center justify-between mb-4">
             <div>
@@ -888,7 +899,9 @@ export function DriverPerformance() {
             </p>
           )}
         </CardContent>
-      </Card>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
