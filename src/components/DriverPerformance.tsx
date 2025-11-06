@@ -74,20 +74,26 @@ export function DriverPerformance() {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log('DriverPerformance: Carregando dados...');
     loadAllDriverData();
     loadInsights();
   }, []);
 
   const loadAllDriverData = async () => {
     setLoadingDriverData(true);
+    console.log('DriverPerformance: Iniciando loadAllDriverData');
     try {
       // Buscar todos os envios de campanha
       const { data: sends, error: sendsError } = await supabase
         .from('campaign_sends')
         .select('*');
 
-      if (sendsError) throw sendsError;
+      if (sendsError) {
+        console.error('DriverPerformance: Erro ao buscar envios:', sendsError);
+        throw sendsError;
+      }
 
+      console.log('DriverPerformance: Envios carregados:', sends?.length);
       const sendIds = sends?.map(s => s.id) || [];
       
       // Criar mapa de todos os envios
@@ -106,12 +112,14 @@ export function DriverPerformance() {
         .order('sent_at', { ascending: false });
 
       if (!surveysError && allSurveysData) {
+        console.log('DriverPerformance: Surveys carregadas:', allSurveysData.length);
         setAllSurveys(allSurveysData);
       }
     } catch (error) {
-      console.error('Erro ao carregar dados de motoristas:', error);
+      console.error('DriverPerformance: Erro ao carregar dados de motoristas:', error);
     } finally {
       setLoadingDriverData(false);
+      console.log('DriverPerformance: Finalizou loadAllDriverData');
     }
   };
 
