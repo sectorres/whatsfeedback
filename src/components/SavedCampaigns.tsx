@@ -116,7 +116,8 @@ export function SavedCampaigns() {
         .from('campaign_sends')
         .select('id, customer_name, customer_phone, message_sent, status, error_message, sent_at, driver_name')
         .eq('campaign_id', campaignId)
-        .order('sent_at', { ascending: false });
+        .order('sent_at', { ascending: false })
+        .limit(1000);
 
       if (error) throw error;
       setCampaignSends(prev => ({ ...prev, [campaignId]: data || [] }));
