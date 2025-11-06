@@ -305,6 +305,8 @@ export type Database = {
           average_rating: number | null
           campaign_id: string | null
           created_at: string
+          date_from: string | null
+          date_to: string | null
           generated_at: string
           id: string
           insights: string | null
@@ -316,6 +318,8 @@ export type Database = {
           average_rating?: number | null
           campaign_id?: string | null
           created_at?: string
+          date_from?: string | null
+          date_to?: string | null
           generated_at?: string
           id?: string
           insights?: string | null
@@ -327,6 +331,8 @@ export type Database = {
           average_rating?: number | null
           campaign_id?: string | null
           created_at?: string
+          date_from?: string | null
+          date_to?: string | null
           generated_at?: string
           id?: string
           insights?: string | null

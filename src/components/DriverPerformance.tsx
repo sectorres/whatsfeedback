@@ -53,6 +53,8 @@ interface Insight {
   insights: string;
   sentiment_summary: string;
   generated_at: string;
+  date_from: string | null;
+  date_to: string | null;
 }
 
 export function DriverPerformance() {
@@ -756,6 +758,16 @@ export function DriverPerformance() {
         <CardContent>
           {insights ? (
             <div className="space-y-6">
+              {/* Período Analisado */}
+              {insights.date_from && insights.date_to && (
+                <div className="flex items-center justify-center gap-2 p-3 bg-muted/50 rounded-lg border">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">
+                    Período analisado: {format(new Date(insights.date_from), "dd/MM/yyyy", { locale: ptBR })} até {format(new Date(insights.date_to), "dd/MM/yyyy", { locale: ptBR })}
+                  </span>
+                </div>
+              )}
+              
               {/* Estatísticas Resumidas */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="border-2">

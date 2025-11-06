@@ -211,7 +211,9 @@ IMPORTANTE:
         average_rating: averageRating,
         rating_distribution: ratingDistribution,
         insights: insights,
-        sentiment_summary: averageRating >= 4 ? 'Positivo' : averageRating >= 3 ? 'Neutro' : 'Negativo'
+        sentiment_summary: averageRating >= 4 ? 'Positivo' : averageRating >= 3 ? 'Neutro' : 'Negativo',
+        date_from: dateFrom,
+        date_to: dateTo
       })
       .select()
       .single();
