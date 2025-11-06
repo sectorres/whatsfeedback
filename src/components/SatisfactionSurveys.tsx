@@ -503,9 +503,44 @@ export function SatisfactionSurveys() {
                 {Object.keys(campaignSends).length} clientes
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setShowPreview((v) => !v)}>
-              {showPreview ? 'Ocultar prévia' : 'Mostrar prévia'}
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={async () => {
+                  setLoading(true);
+                  try {
+                    let updated = 0;
+                    for (const send of Object.values(campaignSends)) {
+                      const oldDriver = send.driver_name;
+                      const newDriver = await updateDriverFromAPI(send);
+                      if (oldDriver !== newDriver) {
+                        updated++;
+                        console.log(`Atualizado: ${send.customer_name} - ${oldDriver} → ${newDriver}`);
+                      }
+                    }
+                    toast({
+                      title: updated > 0 ? "Motoristas atualizados!" : "Nenhuma atualização necessária",
+                      description: updated > 0 ? `${updated} motorista(s) atualizado(s)` : "Todos os motoristas já estão atualizados",
+                    });
+                    await loadSurveys();
+                  } catch (error: any) {
+                    toast({
+                      title: "Erro ao atualizar motoristas",
+                      description: error.message,
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
+                🔄 Atualizar Motoristas
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowPreview((v) => !v)}>
+                {showPreview ? 'Ocultar prévia' : 'Mostrar prévia'}
+              </Button>
+            </div>
           </CardHeader>
           {showPreview && (
             <CardContent>
