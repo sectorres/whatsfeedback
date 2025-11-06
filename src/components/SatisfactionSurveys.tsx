@@ -812,8 +812,9 @@ export function SatisfactionSurveys() {
 
       <Tabs defaultValue="responses" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="responses">Pesquisa de Satisfação</TabsTrigger>
-          <TabsTrigger value="performance">Desempenho</TabsTrigger>
+          <TabsTrigger value="responses">Respostas</TabsTrigger>
+          <TabsTrigger value="drivers">Indicadores por Motorista</TabsTrigger>
+          <TabsTrigger value="insights">Insights</TabsTrigger>
         </TabsList>
 
         <TabsContent value="responses" className="space-y-4">
@@ -922,7 +923,7 @@ export function SatisfactionSurveys() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="performance" className="space-y-4">
+        <TabsContent value="drivers" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -1132,7 +1133,9 @@ export function SatisfactionSurveys() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
 
+        <TabsContent value="insights" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex flex-row items-center justify-between mb-4">
@@ -1154,6 +1157,54 @@ export function SatisfactionSurveys() {
                   )}
                   Gerar Insights
                 </Button>
+              </div>
+              
+              <div className="flex flex-wrap gap-3 pt-2 border-t">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !dateFrom && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateFrom ? format(dateFrom, "PPP", { locale: ptBR }) : "Data início"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateFrom}
+                      onSelect={setDateFrom}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !dateTo && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateTo ? format(dateTo, "PPP", { locale: ptBR }) : "Data fim"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateTo}
+                      onSelect={setDateTo}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </CardHeader>
             <CardContent>
