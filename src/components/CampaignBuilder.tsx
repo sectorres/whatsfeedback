@@ -101,7 +101,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, success: 0, failed: 0, blocked: 0 });
   const [countdown, setCountdown] = useState<number>(0);
   
-  // Datas padrão: primeiro dia do mês corrente até hoje + 30 dias
+  // Datas padrão: primeiro dia do mês corrente até o último dia do mês
   const [startDate, setStartDate] = useState<Date>(() => {
     const date = new Date();
     date.setDate(1); // Primeiro dia do mês
@@ -109,7 +109,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   });
   const [endDate, setEndDate] = useState<Date>(() => {
     const date = new Date();
-    date.setDate(date.getDate() + 30);
+    date.setMonth(date.getMonth() + 1, 0); // Último dia do mês
     return date;
   });
 
