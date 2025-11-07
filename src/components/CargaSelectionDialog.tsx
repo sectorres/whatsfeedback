@@ -46,25 +46,67 @@ export function CargaSelectionDialog({
   const loadCargas = async () => {
     setLoading(true);
     try {
-      // Buscar campanhas de aviso de entrega já enviadas
-      const { data, error } = await supabase
+      // Buscar campanhas de aviso de entrega já concluídas
+      const { data: campaignsData, error: campaignsError } = await supabase
         .from('campaigns')
         .select('*')
         .eq('target_type', 'carga')
         .in('status', ['completed', 'completed_with_errors'])
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (campaignsError) throw campaignsError;
 
-      if (data && data.length > 0) {
-        setCampaigns(data);
-      } else {
+      if (!campaignsData || campaignsData.length === 0) {
+        setCampaigns([]);
         toast({
           title: "Nenhuma campanha encontrada",
           description: "Não há campanhas de aviso de entrega disponíveis",
-          variant: "destructive",
         });
+        return;
       }
+
+      const campaignIds = campaignsData.map(c => c.id);
+
+      // Buscar sends dessas campanhas
+      const { data: sendsData, error: sendsError } = await supabase
+        .from('campaign_sends')
+        .select('id, campaign_id')
+        .in('campaign_id', campaignIds)
+        .in('status', ['success', 'sent']);
+
+      if (sendsError) throw sendsError;
+
+      const sendsByCampaign = new Map<string, string[]>();
+      const allSendIds: string[] = [];
+      (sendsData || []).forEach((s) => {
+        allSendIds.push(s.id);
+        const arr = sendsByCampaign.get(s.campaign_id) || [];
+        arr.push(s.id);
+        sendsByCampaign.set(s.campaign_id, arr);
+      });
+
+      if (allSendIds.length === 0) {
+        setCampaigns([]);
+        return;
+      }
+
+      // Buscar pesquisas existentes para esses sends
+      const { data: surveysData, error: surveysError } = await supabase
+        .from('satisfaction_surveys')
+        .select('campaign_send_id')
+        .in('campaign_send_id', allSendIds);
+
+      if (surveysError) throw surveysError;
+
+      const surveyedSendIds = new Set((surveysData || []).map(s => s.campaign_send_id));
+
+      // Manter apenas campanhas que ainda tenham ao menos um send sem pesquisa criada
+      const withPending = campaignsData.filter((c) => {
+        const sendIds = sendsByCampaign.get(c.id) || [];
+        return sendIds.some((id) => !surveyedSendIds.has(id));
+      });
+
+      setCampaigns(withPending);
     } catch (error: any) {
       console.error('Erro ao carregar campanhas:', error);
       toast({
