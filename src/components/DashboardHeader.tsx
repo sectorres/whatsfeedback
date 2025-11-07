@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { WhatsAppStatusIndicator } from "@/components/WhatsAppStatusIndicator";
-import { SendCounters } from "@/components/SendCounters";
 
 export const DashboardHeader = () => {
   const [loggingOut, setLoggingOut] = useState(false);
@@ -57,7 +56,6 @@ export const DashboardHeader = () => {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <SendCounters />
           <WhatsAppStatusIndicator />
           <Button 
             variant="outline" 
