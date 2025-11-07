@@ -87,8 +87,28 @@ export function ConversationsPanel() {
       )
       .subscribe();
 
+    // Realtime para todas as mensagens (notificação sonora)
+    const allMessagesChannel = supabase
+      .channel('all-messages-notification')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        (payload) => {
+          // Tocar notificação sonora se for mensagem de cliente
+          if (payload.new.sender_type === 'customer') {
+            audioRef.current?.play().catch(err => console.log('Erro ao tocar notificação:', err));
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(conversationsChannel);
+      supabase.removeChannel(allMessagesChannel);
     };
   }, []);
 
@@ -114,9 +134,6 @@ export function ConversationsPanel() {
             setMessages(prev => [...prev, payload.new as Message]);
             // Incrementar contador de não lidas se for mensagem do cliente
             if (payload.new.sender_type === 'customer') {
-              // Tocar notificação sonora
-              audioRef.current?.play().catch(err => console.log('Erro ao tocar notificação:', err));
-              
               supabase
                 .from('conversations')
                 .update({ 
