@@ -402,6 +402,9 @@ export function SatisfactionSurveys() {
         <SelectContent 
           className="bg-background z-50" 
           onCloseAutoFocus={(e) => e.preventDefault()}
+          side="bottom"
+          align="start"
+          sideOffset={4}
         >
           <div className="p-2 border-b bg-background" onMouseDown={(e) => e.preventDefault()}>
             <div className="relative">
