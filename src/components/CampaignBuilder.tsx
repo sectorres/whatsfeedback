@@ -652,8 +652,9 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                   side="bottom"
                   align="start"
                   sideOffset={4}
+                  position="popper"
                 >
-                  <div className="p-2 border-b bg-background" onMouseDown={(e) => e.preventDefault()}>
+                  <div className="p-2 border-b bg-background" onPointerDown={(e) => e.stopPropagation()}>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                       <Input
@@ -661,9 +662,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                         value={cargaSearch}
                         onChange={(e) => setCargaSearch(e.target.value)}
                         className="pl-9 h-9"
-                        onKeyDown={(e) => {
-                          e.stopPropagation();
-                        }}
+                        onKeyDown={(e) => { e.stopPropagation(); }}
+                        onPointerDown={(e) => { e.stopPropagation(); }}
                       />
                     </div>
                   </div>
