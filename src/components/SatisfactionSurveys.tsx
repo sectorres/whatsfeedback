@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Star, Loader2, Send, ChevronDown, ChevronUp, List, Search } from "lucide-react";
+import { Star, Loader2, Send, ChevronDown, ChevronUp, List, Search, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -65,6 +65,7 @@ export function SatisfactionSurveys() {
   const [surveyCountdown, setSurveyCountdown] = useState<number>(0);
   const [showCargaSelection, setShowCargaSelection] = useState(false);
   const pollTimerRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const plannedIdsRef = useRef<string[]>([]);
   const startTimeRef = useRef<string>("");
   const countdownIntervalRef = useRef<number | null>(null);
@@ -85,6 +86,16 @@ export function SatisfactionSurveys() {
       loadSurveys();
     }
   }, [selectedCampaignId]);
+
+  const handleAbortSurveys = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      toast({
+        title: "Abortando envio",
+        description: "O processo de envio está sendo cancelado...",
+      });
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -245,6 +256,9 @@ export function SatisfactionSurveys() {
     setSendProgress({ current: 0, total: 0, success: 0, failed: 0 });
     setSurveyCountdown(0);
     
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    
     try {
       const { data: sends, error: sendsError } = await supabase
         .from('campaign_sends')
@@ -358,13 +372,22 @@ export function SatisfactionSurveys() {
 
       loadSurveys();
     } catch (error: any) {
-      toast({
-        title: "Erro ao enviar pesquisas",
-        description: error.message || 'Erro desconhecido',
-        variant: "destructive",
-      });
+      console.error('Erro ao enviar pesquisas:', error);
+      if (abortController.signal.aborted) {
+        toast({
+          title: "Envio cancelado",
+          description: "O processo de envio foi abortado",
+        });
+      } else {
+        toast({
+          title: "Erro ao enviar pesquisas",
+          description: error.message || 'Erro desconhecido',
+          variant: "destructive",
+        });
+      }
     } finally {
       setSendingSurveys(false);
+      setShowCargaSelection(false);
       setSurveyCountdown(0);
       if (pollTimerRef.current) {
         window.clearInterval(pollTimerRef.current);
@@ -374,6 +397,8 @@ export function SatisfactionSurveys() {
         window.clearInterval(countdownIntervalRef.current);
         countdownIntervalRef.current = null;
       }
+      abortControllerRef.current = null;
+      loadSurveys();
     }
   };
 
@@ -420,6 +445,16 @@ export function SatisfactionSurveys() {
             <List className="h-4 w-4" />
             Gerenciamento de Envios
           </Button>
+          {sendingSurveys && (
+            <Button 
+              onClick={handleAbortSurveys}
+              variant="destructive"
+              className="gap-2"
+            >
+              <X className="h-4 w-4" />
+              Abortar Envio
+            </Button>
+          )}
         </div>
       </div>
 
