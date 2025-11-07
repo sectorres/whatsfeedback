@@ -445,16 +445,15 @@ export function SatisfactionSurveys() {
             <List className="h-4 w-4" />
             Gerenciamento de Envios
           </Button>
-          {sendingSurveys && (
-            <Button 
-              onClick={handleAbortSurveys}
-              variant="destructive"
-              className="gap-2"
-            >
-              <X className="h-4 w-4" />
-              Abortar Envio
-            </Button>
-          )}
+          <Button 
+            onClick={handleAbortSurveys}
+            variant="destructive"
+            disabled={!sendingSurveys}
+            className="gap-2"
+          >
+            <X className="h-4 w-4" />
+            Abortar Envio
+          </Button>
         </div>
       </div>
 
