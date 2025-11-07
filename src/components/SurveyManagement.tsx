@@ -399,27 +399,36 @@ export function SurveyManagement() {
               Visualize e gerencie o envio individual de pesquisas de satisfação
             </CardDescription>
           </div>
-          <div className="flex flex-col gap-2 w-[280px]">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar campanha..."
-                value={campaignSearch}
-                onChange={(e) => setCampaignSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+          <div className="w-[280px]">
             <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecione uma campanha" />
               </SelectTrigger>
               <SelectContent className="bg-background z-50">
+                <div className="p-2 border-b sticky top-0 bg-background">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar campanha..."
+                      value={campaignSearch}
+                      onChange={(e) => setCampaignSearch(e.target.value)}
+                      className="pl-9 h-9"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                </div>
                 <ScrollArea className="h-[200px]">
-                  {filteredCampaigns.map((campaign) => (
-                    <SelectItem key={campaign.id} value={campaign.id}>
-                      {campaign.name}
-                    </SelectItem>
-                  ))}
+                  {filteredCampaigns.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Nenhuma campanha encontrada
+                    </div>
+                  ) : (
+                    filteredCampaigns.map((campaign) => (
+                      <SelectItem key={campaign.id} value={campaign.id}>
+                        {campaign.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </ScrollArea>
               </SelectContent>
             </Select>

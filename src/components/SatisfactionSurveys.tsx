@@ -395,23 +395,30 @@ export function SatisfactionSurveys() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar campanha..."
-            value={campaignSearch}
-            onChange={(e) => setCampaignSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Selecione uma campanha" />
-          </SelectTrigger>
-          <SelectContent className="bg-background z-50">
-            <ScrollArea className="h-[300px]">
-              {filteredCampaigns.map((campaign) => {
+      <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
+        <SelectTrigger className="w-full max-w-md">
+          <SelectValue placeholder="Selecione uma campanha" />
+        </SelectTrigger>
+        <SelectContent className="bg-background z-50">
+          <div className="p-2 border-b sticky top-0 bg-background">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar campanha..."
+                value={campaignSearch}
+                onChange={(e) => setCampaignSearch(e.target.value)}
+                className="pl-9 h-9"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          </div>
+          <ScrollArea className="h-[300px]">
+            {filteredCampaigns.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                Nenhuma campanha encontrada
+              </div>
+            ) : (
+              filteredCampaigns.map((campaign) => {
                 const hasSurveys = allSurveys.some(survey => {
                   const send = allCampaignSends[survey.campaign_send_id];
                   return send?.campaign_id === campaign.id;
@@ -429,11 +436,11 @@ export function SatisfactionSurveys() {
                     </div>
                   </SelectItem>
                 );
-              })}
-            </ScrollArea>
-          </SelectContent>
-        </Select>
-      </div>
+              })
+            )}
+          </ScrollArea>
+        </SelectContent>
+      </Select>
 
       {selectedCampaignId && campaignSends && Object.keys(campaignSends).length > 0 && (
         <Card className="bg-muted/50">
