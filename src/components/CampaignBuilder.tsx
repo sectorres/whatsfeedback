@@ -604,7 +604,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           </div>
 
           {/* Filtros de Carga */}
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <Filter className="h-4 w-4" />
@@ -624,34 +624,14 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             </div>
 
             <div className="space-y-2">
-              <Label>Filtrar por Número</Label>
-              <Input
-                placeholder="Digite o número da carga"
-                type="number"
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value) {
-                    const found = cargas.find(c => c.id.toString() === value);
-                    if (found) {
-                      setSelectedCargaId(value);
-                    }
-                  }
-                }}
-              />
-            </div>
-
-            <div className="space-y-2">
               <Label>Selecionar Carga</Label>
               <Select value={selectedCargaId} onValueChange={setSelectedCargaId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Escolha uma carga" />
                 </SelectTrigger>
                 <SelectContent 
-                  className="bg-background z-50" 
+                  className="bg-background z-50 max-h-[400px]" 
                   onCloseAutoFocus={(e) => e.preventDefault()}
-                  side="bottom"
-                  align="start"
-                  sideOffset={4}
                   position="popper"
                 >
                   <div className="p-2 border-b bg-background" onPointerDown={(e) => e.stopPropagation()}>
