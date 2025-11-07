@@ -409,6 +409,36 @@ export type Database = {
           },
         ]
       }
+      survey_send_runs: {
+        Row: {
+          campaign_id: string | null
+          cancelled_at: string | null
+          created_at: string
+          id: string
+          started_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          id?: string
+          started_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          id?: string
+          started_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_modules: {
         Row: {
           created_at: string

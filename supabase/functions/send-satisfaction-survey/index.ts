@@ -51,6 +51,24 @@ serve(async (req) => {
     console.log('Quantidade de IDs:', campaignSendIds?.length || 0);
     console.log('Buscando envios de campanha elegíveis para pesquisa de satisfação...');
 
+    // Criar run de envio para permitir cancelamento
+    const { data: runData, error: runError } = await supabaseClient
+      .from('survey_send_runs')
+      .insert({
+        campaign_id: campaignId || null,
+        status: 'running'
+      })
+      .select()
+      .single();
+
+    if (runError) {
+      console.error('Erro ao criar run:', runError);
+      throw runError;
+    }
+
+    const runId = runData.id;
+    console.log(`Run criado: ${runId}`);
+
     // Se o payload incluir campaignSendIds mas estiver vazio, NÃO deve enviar para todos
     if (Array.isArray(campaignSendIds) && campaignSendIds.length === 0) {
       console.log('Nenhum envio elegível — recebidos 0 IDs; abortando.');
@@ -406,8 +424,38 @@ Responda apenas com o número da sua avaliação.`;
       errors: [] as any[]
     };
 
-    // Processar envios com delay
+    // Processar envios com delay, verificando cancelamento
     for (let i = 0; i < sendsToProcess.length; i++) {
+      // Verificar se o run foi cancelado
+      const { data: currentRun } = await supabaseClient
+        .from('survey_send_runs')
+        .select('status')
+        .eq('id', runId)
+        .single();
+
+      if (currentRun?.status === 'cancelled') {
+        console.log(`Run ${runId} foi cancelado - abortando envios`);
+        
+        // Atualizar status final
+        await supabaseClient
+          .from('survey_send_runs')
+          .update({ status: 'cancelled' })
+          .eq('id', runId);
+
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            cancelled: true,
+            surveys_sent: results.sent,
+            new_surveys: results.new,
+            resent_surveys: results.resent,
+            failed_surveys: results.failed,
+            message: `Envio cancelado após ${results.sent} pesquisas enviadas`
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       const result = await sendSingleSurvey(sendsToProcess[i]);
       
       if (result.success) {
@@ -433,9 +481,16 @@ Responda apenas com o número da sua avaliação.`;
       }
     }
 
+    // Marcar run como completo
+    await supabaseClient
+      .from('survey_send_runs')
+      .update({ status: 'completed' })
+      .eq('id', runId);
+
     return new Response(
       JSON.stringify({ 
-        success: true, 
+        success: true,
+        runId: runId,
         surveys_sent: results.sent,
         new_surveys: results.new,
         resent_surveys: results.resent,
@@ -447,6 +502,7 @@ Responda apenas com o número da sua avaliação.`;
     );
   } catch (error) {
     console.error('Erro na função send-satisfaction-survey:', error);
+    
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

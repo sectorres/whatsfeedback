@@ -69,6 +69,7 @@ export function SatisfactionSurveys() {
   const plannedIdsRef = useRef<string[]>([]);
   const startTimeRef = useRef<string>("");
   const countdownIntervalRef = useRef<number | null>(null);
+  const currentRunIdRef = useRef<string | null>(null);
   
   const { toast } = useToast();
 
@@ -87,12 +88,34 @@ export function SatisfactionSurveys() {
     }
   }, [selectedCampaignId]);
 
-  const handleAbortSurveys = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+  const handleAbortSurveys = async () => {
+    if (!currentRunIdRef.current) {
       toast({
-        title: "Abortando envio",
-        description: "O processo de envio está sendo cancelado...",
+        title: "Nenhum envio em andamento",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.functions.invoke('abort-survey-send', {
+        body: { runId: currentRunIdRef.current }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Envio cancelado",
+        description: "O processo de envio foi cancelado com sucesso",
+      });
+
+      currentRunIdRef.current = null;
+    } catch (error: any) {
+      console.error('Erro ao abortar envio:', error);
+      toast({
+        title: "Erro ao cancelar",
+        description: error.message || 'Erro desconhecido',
+        variant: "destructive",
       });
     }
   };
@@ -404,6 +427,11 @@ export function SatisfactionSurveys() {
       });
       if (error) throw error;
 
+      // Salvar runId retornado para permitir cancelamento
+      if (data?.runId) {
+        currentRunIdRef.current = data.runId;
+      }
+
       await poll();
 
       if (data) {
@@ -460,6 +488,7 @@ export function SatisfactionSurveys() {
         countdownIntervalRef.current = null;
       }
       abortControllerRef.current = null;
+      currentRunIdRef.current = null;
       loadCampaigns();
       loadSurveys();
     }
