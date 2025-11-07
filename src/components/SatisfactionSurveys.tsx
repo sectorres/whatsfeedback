@@ -312,7 +312,9 @@ export function SatisfactionSurveys() {
       await poll();
       pollTimerRef.current = window.setInterval(() => { poll(); }, 1000);
 
-      const { data, error } = await supabase.functions.invoke('send-satisfaction-survey');
+      const { data, error } = await supabase.functions.invoke('send-satisfaction-survey', {
+        body: { campaignSendIds: plannedIds }
+      });
       if (error) throw error;
 
       await poll();
