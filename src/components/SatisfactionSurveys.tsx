@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Star, Loader2, Send, ChevronDown, ChevronUp, List } from "lucide-react";
+import { Star, Loader2, Send, ChevronDown, ChevronUp, List, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Progress } from "@/components/ui/progress";
 import { SurveyManagement } from "@/components/SurveyManagement";
 import { getProgressiveDelay } from "./SendDelayConfig";
+import { Input } from "@/components/ui/input";
 
 interface Campaign {
   id: string;
@@ -49,6 +50,7 @@ interface CampaignSend {
 export function SatisfactionSurveys() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
+  const [campaignSearch, setCampaignSearch] = useState<string>("");
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [allSurveys, setAllSurveys] = useState<Survey[]>([]);
   const [campaignSends, setCampaignSends] = useState<Record<string, CampaignSend>>({});
@@ -66,6 +68,10 @@ export function SatisfactionSurveys() {
   const countdownIntervalRef = useRef<number | null>(null);
   
   const { toast } = useToast();
+
+  const filteredCampaigns = campaigns.filter(campaign =>
+    campaign.name.toLowerCase().includes(campaignSearch.toLowerCase())
+  );
 
   useEffect(() => {
     loadCampaigns();
@@ -389,31 +395,42 @@ export function SatisfactionSurveys() {
         </div>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-col gap-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar campanha..."
+            value={campaignSearch}
+            onChange={(e) => setCampaignSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
         <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
-          <SelectTrigger className="w-[300px]">
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Selecione uma campanha" />
           </SelectTrigger>
-          <SelectContent>
-            {campaigns.map((campaign) => {
-              const hasSurveys = allSurveys.some(survey => {
-                const send = allCampaignSends[survey.campaign_send_id];
-                return send?.campaign_id === campaign.id;
-              });
-              
-              return (
-                <SelectItem key={campaign.id} value={campaign.id}>
-                  <div className="flex items-center gap-2">
-                    <span>{campaign.name}</span>
-                    {hasSurveys && (
-                      <Badge variant="default" className="ml-2 text-[10px] h-4 px-1">
-                        Enviada
-                      </Badge>
-                    )}
-                  </div>
-                </SelectItem>
-              );
-            })}
+          <SelectContent className="bg-background z-50">
+            <ScrollArea className="h-[300px]">
+              {filteredCampaigns.map((campaign) => {
+                const hasSurveys = allSurveys.some(survey => {
+                  const send = allCampaignSends[survey.campaign_send_id];
+                  return send?.campaign_id === campaign.id;
+                });
+                
+                return (
+                  <SelectItem key={campaign.id} value={campaign.id}>
+                    <div className="flex items-center gap-2">
+                      <span>{campaign.name}</span>
+                      {hasSurveys && (
+                        <Badge variant="default" className="ml-2 text-[10px] h-4 px-1">
+                          Enviada
+                        </Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                );
+              })}
+            </ScrollArea>
           </SelectContent>
         </Select>
       </div>

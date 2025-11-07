@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Send, RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle, Trash2 } from "lucide-react";
+import { Loader2, Send, RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle, Trash2, Search } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,6 +44,7 @@ export function SurveyManagement() {
   const [items, setItems] = useState<SurveyManagementItem[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
+  const [campaignSearch, setCampaignSearch] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -49,6 +52,10 @@ export function SurveyManagement() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
   const sendingRef = useRef(false); // Proteção adicional contra chamadas concorrentes
+
+  const filteredCampaigns = campaigns.filter(campaign =>
+    campaign.name.toLowerCase().includes(campaignSearch.toLowerCase())
+  );
 
   useEffect(() => {
     loadCampaigns();
@@ -392,19 +399,30 @@ export function SurveyManagement() {
               Visualize e gerencie o envio individual de pesquisas de satisfação
             </CardDescription>
           </div>
-          <div className="w-[250px]">
-            <select
-              value={selectedCampaignId}
-              onChange={(e) => setSelectedCampaignId(e.target.value)}
-              className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-            >
-              <option value="">Selecione uma campanha</option>
-              {campaigns.map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>
-                  {campaign.name}
-                </option>
-              ))}
-            </select>
+          <div className="flex flex-col gap-2 w-[280px]">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar campanha..."
+                value={campaignSearch}
+                onChange={(e) => setCampaignSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione uma campanha" />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                <ScrollArea className="h-[200px]">
+                  {filteredCampaigns.map((campaign) => (
+                    <SelectItem key={campaign.id} value={campaign.id}>
+                      {campaign.name}
+                    </SelectItem>
+                  ))}
+                </ScrollArea>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex gap-2">
             <Button
