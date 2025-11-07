@@ -97,12 +97,24 @@ export function SatisfactionSurveys() {
       return;
     }
 
-    try {
+  try {
       const { error } = await supabase.functions.invoke('abort-survey-send', {
         body: { runId: currentRunIdRef.current }
       });
 
       if (error) throw error;
+
+      // Parar timers e atualizar UI imediatamente
+      if (pollTimerRef.current) {
+        window.clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+      if (countdownIntervalRef.current) {
+        window.clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+      setSendingSurveys(false);
+      setSurveyCountdown(0);
 
       toast({
         title: "Envio cancelado",
@@ -408,26 +420,25 @@ export function SatisfactionSurveys() {
         setSurveyCountdown(prev => prev > 0 ? prev - 1 : 0);
       }, 1000);
 
+      // Iniciar polling de progresso
       await poll();
       pollTimerRef.current = window.setInterval(() => { poll(); }, 1000);
 
-      if (plannedIds.length === 0) {
-        if (pollTimerRef.current) { window.clearInterval(pollTimerRef.current); pollTimerRef.current = null; }
-        if (countdownIntervalRef.current) { window.clearInterval(countdownIntervalRef.current); countdownIntervalRef.current = null; }
-        toast({
-          title: "Nenhum envio elegível",
-          description: "Todos os pedidos desta campanha já foram processados.",
-        });
-        setSendingSurveys(false);
-        return;
-      }
+      // Criar run antes de invocar a função (para poder abortar)
+      const { data: run, error: runErr } = await supabase
+        .from('survey_send_runs')
+        .insert({ campaign_id: campaignId })
+        .select()
+        .single();
+      if (runErr) throw runErr;
+      currentRunIdRef.current = run.id;
 
       const { data, error } = await supabase.functions.invoke('send-satisfaction-survey', {
-        body: { campaignSendIds: plannedIds, campaignId }
+        body: { campaignSendIds: plannedIds, campaignId, runId: run.id }
       });
       if (error) throw error;
 
-      // Salvar runId retornado para permitir cancelamento
+      // Salvar runId retornado (backup)
       if (data?.runId) {
         currentRunIdRef.current = data.runId;
       }
@@ -540,7 +551,7 @@ export function SatisfactionSurveys() {
           <Button 
             onClick={handleAbortSurveys}
             variant="destructive"
-            disabled={!sendingSurveys && !pollTimerRef.current}
+            disabled={!sendingSurveys && !pollTimerRef.current && !currentRunIdRef.current}
             className="gap-2"
           >
             <X className="h-4 w-4" />

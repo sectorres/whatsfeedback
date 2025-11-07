@@ -13,6 +13,7 @@ const getProgressiveDelay = (messageIndex: number): number => {
 const surveySendSchema = z.object({
   campaignSendIds: z.array(z.string().uuid()).optional(),
   campaignId: z.string().uuid().optional(),
+  runId: z.string().uuid().optional(),
 });
 
 const corsHeaders = {
@@ -43,7 +44,7 @@ serve(async (req) => {
       );
     }
 
-    const { campaignSendIds, campaignId } = validationResult.data;
+    const { campaignSendIds, campaignId, runId: providedRunId } = validationResult.data;
 
     console.log('=== INÍCIO SEND-SATISFACTION-SURVEY ===');
     console.log('campaignSendIds recebidos:', JSON.stringify(campaignSendIds));
@@ -51,23 +52,26 @@ serve(async (req) => {
     console.log('Quantidade de IDs:', campaignSendIds?.length || 0);
     console.log('Buscando envios de campanha elegíveis para pesquisa de satisfação...');
 
-    // Criar run de envio para permitir cancelamento
-    const { data: runData, error: runError } = await supabaseClient
-      .from('survey_send_runs')
-      .insert({
-        campaign_id: campaignId || null,
-        status: 'running'
-      })
-      .select()
-      .single();
+    // Usar runId fornecido ou criar um novo
+    let runId = providedRunId as string | undefined;
+    if (!runId) {
+      const { data: runData, error: runError } = await supabaseClient
+        .from('survey_send_runs')
+        .insert({
+          campaign_id: campaignId || null,
+          status: 'running'
+        })
+        .select()
+        .single();
 
-    if (runError) {
-      console.error('Erro ao criar run:', runError);
-      throw runError;
+      if (runError) {
+        console.error('Erro ao criar run:', runError);
+        throw runError;
+      }
+
+      runId = runData.id;
     }
-
-    const runId = runData.id;
-    console.log(`Run criado: ${runId}`);
+    console.log(`Run em uso: ${runId}`);
 
     // Se o payload incluir campaignSendIds mas estiver vazio, NÃO deve enviar para todos
     if (Array.isArray(campaignSendIds) && campaignSendIds.length === 0) {
