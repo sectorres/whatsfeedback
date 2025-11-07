@@ -13,6 +13,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ImageModal } from "@/components/ImageModal";
+import { isValidPhoneNumber } from "@/lib/phone-utils";
 
 interface Conversation {
   id: string;
@@ -258,6 +259,12 @@ export function ConversationsPanel() {
     const file = event.target.files?.[0];
     if (!file || !selectedConversation) return;
 
+    // Validar número do cliente antes de fazer upload/envio
+    if (!isValidPhoneNumber(selectedConversation.customer_phone)) {
+      toast.error('Número inválido ou sem WhatsApp. Verifique o telefone do cliente.');
+      return;
+    }
+
     // Validar tamanho do arquivo (16MB máximo para WhatsApp)
     const maxSize = 16 * 1024 * 1024;
     if (file.size > maxSize) {
@@ -323,7 +330,7 @@ export function ConversationsPanel() {
       }
 
       // Chamar edge function para enviar mídia via WhatsApp
-      const { error: sendError } = await supabase.functions.invoke('whatsapp-send-media', {
+      const { data: sendData, error: sendError } = await supabase.functions.invoke('whatsapp-send-media', {
         body: {
           phone: selectedConversation.customer_phone,
           mediaUrl: publicUrl,
@@ -335,6 +342,8 @@ export function ConversationsPanel() {
 
       if (sendError) {
         console.error('Erro ao enviar mídia:', sendError);
+        const serverMsg = (sendData as any)?.message as string | undefined;
+        toast.error(serverMsg || 'Erro ao enviar arquivo. O número pode não ter WhatsApp ou está inválido.');
         throw sendError;
       }
 

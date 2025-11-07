@@ -57,7 +57,32 @@ serve(async (req) => {
     console.log('Evolution API response:', responseData);
 
     if (!response.ok) {
-      throw new Error(`Evolution API error: ${JSON.stringify(responseData)}`);
+      // Mapear erros comuns da Evolution API para mensagens mais claras
+      let code = 'evolution_api_error';
+      let message = 'Falha ao enviar mídia.';
+      try {
+        const m = (responseData as any)?.response?.message;
+        // Caso: [["instance requires property \"mediatype\""]]
+        if (Array.isArray(m) && Array.isArray(m[0]) && typeof m[0][0] === 'string') {
+          message = m[0][0];
+          if (message.includes('mediatype')) code = 'invalid_mediatype';
+        }
+        // Caso: [{ exists:false, number, jid }]
+        if (Array.isArray(m) && m[0] && typeof m[0] === 'object') {
+          const first = m[0];
+          if (first.exists === false) {
+            code = 'number_not_on_whatsapp';
+            message = 'O número informado não possui WhatsApp ou não existe.';
+          }
+        }
+      } catch (_) {}
+      return new Response(
+        JSON.stringify({ success: false, code, message, details: responseData }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
     }
 
     return new Response(
