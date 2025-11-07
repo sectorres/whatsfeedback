@@ -333,7 +333,7 @@ export function SatisfactionSurveys() {
     try {
       const { data: sends, error: sendsError } = await supabase
         .from('campaign_sends')
-        .select('id')
+        .select('id, customer_phone')
         .eq('campaign_id', campaignId)
         .in('status', ['success', 'sent']);
       if (sendsError) throw sendsError;
@@ -341,7 +341,7 @@ export function SatisfactionSurveys() {
 
       const { data: existingSurveys, error: surveysError } = await supabase
         .from('satisfaction_surveys')
-        .select('campaign_send_id, status')
+        .select('campaign_send_id, status, customer_phone, sent_at')
         .in('campaign_send_id', sendIds);
       if (surveysError) throw surveysError;
 
@@ -354,10 +354,38 @@ export function SatisfactionSurveys() {
       
       const plannedIds = sendIds.filter((id: string) => !alreadyProcessedSet.has(id));
 
+      // Verificar cooldown de 1 minuto para os telefones que serão enviados
+      if (plannedIds.length > 0) {
+        const plannedPhones = (sends || [])
+          .filter((s: any) => plannedIds.includes(s.id))
+          .map((s: any) => s.customer_phone);
+
+        const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000).toISOString();
+        
+        const { data: recentSurveys, error: recentError } = await supabase
+          .from('satisfaction_surveys')
+          .select('customer_phone')
+          .in('customer_phone', plannedPhones)
+          .in('status', ['sent', 'responded', 'expired'])
+          .gte('sent_at', oneMinuteAgo);
+        
+        if (recentError) throw recentError;
+
+        if (recentSurveys && recentSurveys.length > 0) {
+          toast({
+            title: "Aguarde para reenviar",
+            description: `${recentSurveys.length} cliente(s) receberam pesquisa há menos de 1 minuto. Aguarde antes de tentar novamente.`,
+            variant: "destructive",
+          });
+          setSendingSurveys(false);
+          return;
+        }
+      }
+
       if (plannedIds.length === 0) {
         toast({
-          title: "Aguarde para reenviar",
-          description: "Existe um período de espera de 1 minuto entre envios para o mesmo telefone. Aguarde e tente novamente.",
+          title: "Nenhuma pesquisa para enviar",
+          description: "Todas as pesquisas desta campanha já foram enviadas ou estão processadas.",
           variant: "destructive",
         });
         setSendingSurveys(false);
