@@ -12,6 +12,7 @@ const getProgressiveDelay = (messageIndex: number): number => {
 
 const surveySendSchema = z.object({
   campaignSendIds: z.array(z.string().uuid()).optional(),
+  campaignId: z.string().uuid().optional(),
 });
 
 const corsHeaders = {
@@ -42,12 +43,30 @@ serve(async (req) => {
       );
     }
 
-    const campaignSendIds = validationResult.data.campaignSendIds;
+    const { campaignSendIds, campaignId } = validationResult.data;
 
     console.log('=== INÍCIO SEND-SATISFACTION-SURVEY ===');
     console.log('campaignSendIds recebidos:', JSON.stringify(campaignSendIds));
+    console.log('campaignId recebido:', campaignId || null);
     console.log('Quantidade de IDs:', campaignSendIds?.length || 0);
     console.log('Buscando envios de campanha elegíveis para pesquisa de satisfação...');
+
+    // Se o payload incluir campaignSendIds mas estiver vazio, NÃO deve enviar para todos
+    if (Array.isArray(campaignSendIds) && campaignSendIds.length === 0) {
+      console.log('Nenhum envio elegível — recebidos 0 IDs; abortando.');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          surveys_sent: 0,
+          new_surveys: 0,
+          resent_surveys: 0,
+          failed_surveys: 0,
+          errors: [],
+          message: 'Nenhum envio elegível para a campanha selecionada'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     // Mensagem da pesquisa
     const getSurveyMessage = (customerName?: string) => `Olá${customerName ? ' ' + customerName : ''}!
@@ -345,6 +364,12 @@ Responda apenas com o número da sua avaliação.`;
 
       // Filtrar envios que não têm pesquisa enviada/respondida para mesma carga
       let filteredSends = (eligibleSends || []).filter((s) => !existingSurveyIds.includes(s.id));
+      // Se campaignId foi enviado, restringir à campanha selecionada
+      if (campaignId) {
+        const before = filteredSends.length;
+        filteredSends = filteredSends.filter((s) => s.campaign_id === campaignId);
+        console.log(`Aplicado filtro por campaignId=${campaignId}. Antes: ${before}, depois: ${filteredSends.length}`);
+      }
 
       // Janela de segurança: bloquear reenvio para o mesmo telefone nos últimos 5 minutos
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();

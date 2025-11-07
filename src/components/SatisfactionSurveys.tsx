@@ -312,8 +312,19 @@ export function SatisfactionSurveys() {
       await poll();
       pollTimerRef.current = window.setInterval(() => { poll(); }, 1000);
 
+      if (plannedIds.length === 0) {
+        if (pollTimerRef.current) { window.clearInterval(pollTimerRef.current); pollTimerRef.current = null; }
+        if (countdownIntervalRef.current) { window.clearInterval(countdownIntervalRef.current); countdownIntervalRef.current = null; }
+        toast({
+          title: "Nenhum envio elegível",
+          description: "Todos os pedidos desta campanha já foram processados.",
+        });
+        setSendingSurveys(false);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('send-satisfaction-survey', {
-        body: { campaignSendIds: plannedIds }
+        body: { campaignSendIds: plannedIds, campaignId }
       });
       if (error) throw error;
 
