@@ -59,6 +59,7 @@ interface Pedido {
   rota: string;
   cliente: Cliente;
   produtos: Produto[];
+  motorista?: string;
 }
 
 interface Carga {
@@ -113,7 +114,8 @@ export const CustomerOrdersDialog = ({
               customerOrders.push({
                 ...pedido,
                 // Adicionar status da carga ao pedido para exibir
-                rota: `${pedido.rota} - ${getStatusLabel(carga.status)}`
+                rota: `${pedido.rota} - ${getStatusLabel(carga.status)}`,
+                motorista: carga.nomeMotorista || 'Não atribuído'
               });
             }
           });
@@ -201,6 +203,7 @@ export const CustomerOrdersDialog = ({
                         <div className="text-sm text-muted-foreground space-y-1">
                           <p>Data: {formatDate(order.data)}</p>
                           <p>Valor Total: R$ {order.valor?.toFixed(2) || '0.00'}</p>
+                          {order.motorista && <p>Motorista: {order.motorista}</p>}
                           <p className="text-xs">{order.rota}</p>
                         </div>
                       </div>
