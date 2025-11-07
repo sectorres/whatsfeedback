@@ -211,6 +211,31 @@ export function SurveyManagement() {
     setSelectedIds(new Set());
     
     try {
+      // Filtrar itens selecionados para obter dados completos
+      const selectedItems = items.filter(item => idsToSend.includes(item.campaign_send_id));
+      
+      // Criar pesquisas 'pending' para as que ainda não têm registro
+      const itemsWithoutSurvey = selectedItems.filter(item => item.status === 'not_sent');
+      
+      if (itemsWithoutSurvey.length > 0) {
+        const surveysToCreate = itemsWithoutSurvey.map(item => ({
+          campaign_send_id: item.campaign_send_id,
+          customer_phone: item.customer_phone,
+          customer_name: item.customer_name,
+          status: 'pending',
+          sent_at: new Date().toISOString()
+        }));
+
+        const { error: createError } = await supabase
+          .from('satisfaction_surveys')
+          .insert(surveysToCreate);
+
+        if (createError) {
+          console.error('Erro ao criar pesquisas pendentes:', createError);
+          throw createError;
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke('send-satisfaction-survey', {
         body: {
           campaignSendIds: idsToSend
