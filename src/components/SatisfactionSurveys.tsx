@@ -112,7 +112,8 @@ export function SatisfactionSurveys() {
     try {
       const { data: sendsData, error: sendsError } = await supabase
         .from('campaign_sends')
-        .select('campaign_id');
+        .select('id, campaign_id')
+        .in('status', ['success', 'sent']);
 
       if (sendsError) {
         console.error('Erro ao buscar envios:', sendsError);
@@ -124,11 +125,32 @@ export function SatisfactionSurveys() {
         return;
       }
 
-      const campaignIds = [...new Set(sendsData?.map(s => s.campaign_id) || [])];
+      const sendIds = (sendsData || []).map(s => s.id);
+
+      const { data: existingSurveys, error: surveysError } = await supabase
+        .from('satisfaction_surveys')
+        .select('campaign_send_id')
+        .in('campaign_send_id', sendIds)
+        .in('status', ['sent', 'awaiting_feedback', 'responded', 'expired']);
+
+      if (surveysError) {
+        console.error('Erro ao buscar pesquisas:', surveysError);
+        toast({
+          title: "Erro ao carregar campanhas",
+          description: surveysError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const processedSendIds = new Set((existingSurveys || []).map(s => s.campaign_send_id));
+      const pendingSends = (sendsData || []).filter(send => !processedSendIds.has(send.id));
+      const campaignIds = [...new Set(pendingSends.map(s => s.campaign_id))];
 
       if (campaignIds.length === 0) {
-        console.log('Nenhuma campanha com envios encontrada');
+        console.log('Nenhuma campanha com envios pendentes encontrada');
         setCampaigns([]);
+        setSelectedCampaignId('');
         return;
       }
 
@@ -398,6 +420,7 @@ export function SatisfactionSurveys() {
         countdownIntervalRef.current = null;
       }
       abortControllerRef.current = null;
+      loadCampaigns();
       loadSurveys();
     }
   };
