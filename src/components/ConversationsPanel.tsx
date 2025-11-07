@@ -40,7 +40,7 @@ interface Message {
   media_description?: string | null;
 }
 
-export function ConversationsPanel() {
+export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab: boolean }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -98,8 +98,8 @@ export function ConversationsPanel() {
           table: 'messages'
         },
         (payload) => {
-          // Tocar notificação sonora se for mensagem de cliente
-          if (payload.new.sender_type === 'customer') {
+          // Tocar notificação sonora se for mensagem de cliente E não estiver na aba de atendimento
+          if (payload.new.sender_type === 'customer' && !isOnAtendimentoTab) {
             audioRef.current?.play().catch(err => console.log('Erro ao tocar notificação:', err));
           }
         }

@@ -24,6 +24,7 @@ import { DriverPerformance } from "@/components/DriverPerformance";
 
 const Index = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
+  const [activeTab, setActiveTab] = useState("dashboard");
   const unreadCount = useUnreadCount();
   const { isConnected } = useWhatsAppStatus();
 
@@ -32,7 +33,7 @@ const Index = () => {
       <DashboardHeader />
       
       <main className="container mx-auto px-6 py-4">
-        <Tabs defaultValue="dashboard" className="space-y-3">
+        <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dashboard" className="space-y-3">
           <TabsList className="grid w-full grid-cols-7 bg-primary text-primary-foreground">
             <TabsTrigger value="dashboard" className="flex items-center gap-1.5 text-xs sm:text-sm">
               <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
@@ -79,7 +80,7 @@ const Index = () => {
               <p className="text-muted-foreground mb-3 text-sm">
                 Gerencie conversas e responda mensagens dos clientes em tempo real
               </p>
-              <ConversationsPanel />
+              <ConversationsPanel isOnAtendimentoTab={activeTab === "atendimento"} />
             </div>
           </TabsContent>
 
