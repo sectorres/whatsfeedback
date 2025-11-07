@@ -399,7 +399,10 @@ export function SatisfactionSurveys() {
         <SelectTrigger className="w-full max-w-md">
           <SelectValue placeholder="Selecione uma campanha" />
         </SelectTrigger>
-        <SelectContent className="bg-background z-50" position="popper" sideOffset={5}>
+        <SelectContent 
+          className="bg-background z-50" 
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
           <div className="p-2 border-b bg-background" onMouseDown={(e) => e.preventDefault()}>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
