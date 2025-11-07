@@ -337,8 +337,8 @@ Responda apenas com o número da sua avaliação.`;
         );
       }
 
-      // Janela de segurança: bloquear reenvio para o mesmo telefone nos últimos 5 minutos
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      // Janela de segurança: bloquear reenvio para o mesmo telefone no último minuto
+      const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000).toISOString();
       const uniquePhones = Array.from(new Set(selectedSends.map(s => s.customer_phone)));
       let filteredByTimeWindow = selectedSends;
       
@@ -348,7 +348,7 @@ Responda apenas com o número da sua avaliação.`;
           .select('customer_phone')
           .in('customer_phone', uniquePhones)
           .in('status', ['sent', 'responded', 'expired'])
-          .gte('sent_at', fiveMinutesAgo);
+          .gte('sent_at', oneMinuteAgo);
         
         if (recentErr) throw recentErr;
 
@@ -357,7 +357,7 @@ Responda apenas com o número da sua avaliação.`;
         filteredByTimeWindow = filteredByTimeWindow.filter(s => !recentPhones.has(s.customer_phone));
         
         if (beforeCount > filteredByTimeWindow.length) {
-          console.log(`Bloqueados ${beforeCount - filteredByTimeWindow.length} envios por janela de 5 minutos (mesmo telefone)`);
+          console.log(`Bloqueados ${beforeCount - filteredByTimeWindow.length} envios por janela de 1 minuto (mesmo telefone)`);
         }
       }
 
@@ -393,8 +393,8 @@ Responda apenas com o número da sua avaliação.`;
         console.log(`Aplicado filtro por campaignId=${campaignId}. Antes: ${before}, depois: ${filteredSends.length}`);
       }
 
-      // Janela de segurança: bloquear reenvio para o mesmo telefone nos últimos 5 minutos
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      // Janela de segurança: bloquear reenvio para o mesmo telefone no último minuto
+      const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000).toISOString();
       const uniquePhones = Array.from(new Set(filteredSends.map(s => s.customer_phone)));
       
       if (uniquePhones.length > 0) {
@@ -403,7 +403,7 @@ Responda apenas com o número da sua avaliação.`;
           .select('customer_phone')
           .in('customer_phone', uniquePhones)
           .in('status', ['sent', 'responded', 'expired'])
-          .gte('sent_at', fiveMinutesAgo);
+          .gte('sent_at', oneMinuteAgo);
         
         if (recentErr) throw recentErr;
 
@@ -412,7 +412,7 @@ Responda apenas com o número da sua avaliação.`;
         filteredSends = filteredSends.filter(s => !recentPhones.has(s.customer_phone));
         
         if (beforeCount > filteredSends.length) {
-          console.log(`Bloqueados ${beforeCount - filteredSends.length} envios por janela de 5 minutos (mesmo telefone)`);
+          console.log(`Bloqueados ${beforeCount - filteredSends.length} envios por janela de 1 minuto (mesmo telefone)`);
         }
       }
 

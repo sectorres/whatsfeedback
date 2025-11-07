@@ -354,6 +354,16 @@ export function SatisfactionSurveys() {
       
       const plannedIds = sendIds.filter((id: string) => !alreadyProcessedSet.has(id));
 
+      if (plannedIds.length === 0) {
+        toast({
+          title: "Aguarde para reenviar",
+          description: "Existe um período de espera de 1 minuto entre envios para o mesmo telefone. Aguarde e tente novamente.",
+          variant: "destructive",
+        });
+        setSendingSurveys(false);
+        return;
+      }
+
       // REMOVIDO: não precriar pesquisas 'pending' no cliente para evitar que itens sumam da lista sem envio real
       // O backend criará/atualizará as pesquisas conforme cada envio for realmente processado
 
