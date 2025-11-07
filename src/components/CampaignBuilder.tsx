@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Send, Filter, Users, MessageSquare, CalendarIcon } from "lucide-react";
+import { Plus, Send, Filter, Users, MessageSquare, CalendarIcon, Search } from "lucide-react";
 import { format } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -8,6 +8,7 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { ScrollArea } from "./ui/scroll-area";
 import { Checkbox } from "./ui/checkbox";
 import { Badge } from "./ui/badge";
 import { toast } from "sonner";
@@ -92,6 +93,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   const [cargas, setCargas] = useState<Carga[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedCargaId, setSelectedCargaId] = useState<string>("");
+  const [cargaSearch, setCargaSearch] = useState<string>("");
   const [selectedPedidos, setSelectedPedidos] = useState<Set<number>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editedPhones, setEditedPhones] = useState<Record<number, string>>({});
@@ -644,17 +646,49 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                 <SelectTrigger>
                   <SelectValue placeholder="Escolha uma carga" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background z-50">
+                  <div className="p-2 border-b sticky top-0 bg-background">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar carga..."
+                        value={cargaSearch}
+                        onChange={(e) => setCargaSearch(e.target.value)}
+                        className="pl-9 h-9"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
                   {loading ? (
                     <div className="p-4 text-center">
                       <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                     </div>
                   ) : (
-                    filteredCargas.map((carga) => (
-                      <SelectItem key={carga.id} value={carga.id.toString()}>
-                        Carga #{carga.id} - {formatDate(carga.data)} - {statusMap[carga.status]} ({carga.pedidos?.length || 0} pedidos)
-                      </SelectItem>
-                    ))
+                    <ScrollArea className="h-[300px]">
+                      {filteredCargas.filter(carga => 
+                        cargaSearch === "" || 
+                        carga.id.toString().includes(cargaSearch) ||
+                        formatDate(carga.data).includes(cargaSearch) ||
+                        statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) ||
+                        carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase())
+                      ).length === 0 ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          Nenhuma carga encontrada
+                        </div>
+                      ) : (
+                        filteredCargas.filter(carga => 
+                          cargaSearch === "" || 
+                          carga.id.toString().includes(cargaSearch) ||
+                          formatDate(carga.data).includes(cargaSearch) ||
+                          statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) ||
+                          carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase())
+                        ).map((carga) => (
+                          <SelectItem key={carga.id} value={carga.id.toString()}>
+                            Carga #{carga.id} - {formatDate(carga.data)} - {statusMap[carga.status]} ({carga.pedidos?.length || 0} pedidos)
+                          </SelectItem>
+                        ))
+                      )}
+                    </ScrollArea>
                   )}
                 </SelectContent>
               </Select>
