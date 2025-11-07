@@ -44,6 +44,9 @@ serve(async (req) => {
 
     const campaignSendIds = validationResult.data.campaignSendIds;
 
+    console.log('=== INÍCIO SEND-SATISFACTION-SURVEY ===');
+    console.log('campaignSendIds recebidos:', JSON.stringify(campaignSendIds));
+    console.log('Quantidade de IDs:', campaignSendIds?.length || 0);
     console.log('Buscando envios de campanha elegíveis para pesquisa de satisfação...');
     
     // Mensagem da pesquisa
@@ -265,12 +268,18 @@ Responda apenas com o número da sua avaliação.`;
       }
 
       // Buscar dados dos envios permitidos
+      console.log('Buscando campaign_sends com IDs permitidos:', allowedIds);
       const { data: selectedSends, error: selectedError } = await supabaseClient
         .from('campaign_sends')
         .select('id, customer_phone, campaign_id, status, customer_name')
         .in('id', allowedIds)
         .in('status', ['success', 'sent']);
       if (selectedError) throw selectedError;
+      console.log('campaign_sends encontrados:', selectedSends?.length || 0);
+      if (selectedSends && selectedSends.length > 0) {
+        const uniqueCampaignIds = [...new Set(selectedSends.map(s => s.campaign_id))];
+        console.log('IDs de campanhas nos envios:', uniqueCampaignIds);
+      }
 
       if (!selectedSends || selectedSends.length === 0) {
         return new Response(
