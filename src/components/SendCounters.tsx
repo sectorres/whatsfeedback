@@ -4,8 +4,10 @@ import { Send, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export function SendCounters() {
-  const [campaignCount, setCampaignCount] = useState(0);
-  const [surveyCount, setSurveyCount] = useState(0);
+  const [campaignToday, setCampaignToday] = useState(0);
+  const [campaignTotal, setCampaignTotal] = useState(0);
+  const [surveyToday, setSurveyToday] = useState(0);
+  const [surveyTotal, setSurveyTotal] = useState(0);
 
   useEffect(() => {
     loadCounts();
@@ -51,39 +53,53 @@ export function SendCounters() {
   };
 
   const loadCampaignCount = async () => {
-    const { count } = await supabase
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const { count: totalCount } = await supabase
       .from('campaign_sends')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'sent');
 
-    setCampaignCount(count || 0);
+    const { count: todayCount } = await supabase
+      .from('campaign_sends')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'sent')
+      .gte('sent_at', today.toISOString());
+
+    setCampaignTotal(totalCount || 0);
+    setCampaignToday(todayCount || 0);
   };
 
   const loadSurveyCount = async () => {
-    const { count } = await supabase
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const { count: totalCount } = await supabase
       .from('satisfaction_surveys')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'sent');
 
-    setSurveyCount(count || 0);
+    const { count: todayCount } = await supabase
+      .from('satisfaction_surveys')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'sent')
+      .gte('sent_at', today.toISOString());
+
+    setSurveyTotal(totalCount || 0);
+    setSurveyToday(todayCount || 0);
   };
 
   return (
-    <div className="flex items-center gap-4">
-      <Badge variant="outline" className="flex items-center gap-2 px-3 py-1.5">
-        <Send className="h-4 w-4 text-primary" />
-        <div className="flex flex-col items-start">
-          <span className="text-xs text-muted-foreground">Campanhas</span>
-          <span className="text-sm font-semibold">{campaignCount.toLocaleString()}</span>
-        </div>
+    <div className="flex items-center gap-2">
+      <Badge variant="outline" className="flex items-center gap-1.5 px-2 py-0.5">
+        <Send className="h-3 w-3 text-primary" />
+        <span className="text-xs font-medium">{campaignToday}/{campaignTotal}</span>
       </Badge>
       
-      <Badge variant="outline" className="flex items-center gap-2 px-3 py-1.5">
-        <MessageSquare className="h-4 w-4 text-primary" />
-        <div className="flex flex-col items-start">
-          <span className="text-xs text-muted-foreground">Pesquisas</span>
-          <span className="text-sm font-semibold">{surveyCount.toLocaleString()}</span>
-        </div>
+      <Badge variant="outline" className="flex items-center gap-1.5 px-2 py-0.5">
+        <MessageSquare className="h-3 w-3 text-primary" />
+        <span className="text-xs font-medium">{surveyToday}/{surveyTotal}</span>
       </Badge>
     </div>
   );
