@@ -62,8 +62,26 @@ serve(async (req) => {
         if (msg.key?.fromMe) continue;
 
         // Extrair telefone (suporta diferentes estruturas)
-        const remoteJid = msg.key?.remoteJid || msg.remoteJid || msg.from || '';
-        const rawPhone = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+        // Primeiro tentar o remoteJid limpo
+        let remoteJid = msg.key?.remoteJid || msg.remoteJid || msg.from || '';
+        remoteJid = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+        
+        // Se o remoteJid não parece um número de telefone válido (muito curto/longo ou não numérico)
+        // tentar extrair do pushName, participant ou outros campos
+        let rawPhone = remoteJid;
+        
+        // Validar se parece um número de telefone brasileiro válido (10-13 dígitos após normalização)
+        const digitsOnly = rawPhone.replace(/\D/g, '');
+        
+        // Se não for um número válido, tentar extrair de outros campos
+        if (!digitsOnly || digitsOnly.length < 10 || digitsOnly.length > 15) {
+          // Tentar campo alternativo "from" ou "participant"
+          const altPhone = msg.participant || msg.key?.participant || '';
+          if (altPhone) {
+            rawPhone = altPhone.replace('@s.whatsapp.net', '').replace('@g.us', '');
+          }
+        }
+        
         const customerPhone = normalizePhone(rawPhone);
         
         console.log('Raw phone from webhook:', rawPhone, '-> Normalized:', customerPhone);
