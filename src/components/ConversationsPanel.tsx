@@ -100,7 +100,10 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
         (payload) => {
           // Tocar notificação sonora se for mensagem de cliente E não estiver na aba de atendimento
           if (payload.new.sender_type === 'customer' && !isOnAtendimentoTab) {
+            console.log('Tocando sino - não está na aba atendimento');
             audioRef.current?.play().catch(err => console.log('Erro ao tocar notificação:', err));
+          } else {
+            console.log('Não tocando sino - está na aba atendimento ou não é cliente');
           }
         }
       )
@@ -110,7 +113,7 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
       supabase.removeChannel(conversationsChannel);
       supabase.removeChannel(allMessagesChannel);
     };
-  }, []);
+  }, [isOnAtendimentoTab]); // Adicionar dependência para recriar o listener quando a aba mudar
 
   useEffect(() => {
     if (selectedConversation) {
