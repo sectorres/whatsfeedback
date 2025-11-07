@@ -125,13 +125,13 @@ export function SatisfactionSurveys() {
         return;
       }
 
+      console.log('Total de sends com sucesso:', sendsData?.length || 0);
       const sendIds = (sendsData || []).map(s => s.id);
 
       const { data: existingSurveys, error: surveysError } = await supabase
         .from('satisfaction_surveys')
-        .select('campaign_send_id')
-        .in('campaign_send_id', sendIds)
-        .in('status', ['sent', 'awaiting_feedback', 'responded', 'expired']);
+        .select('campaign_send_id, status')
+        .in('campaign_send_id', sendIds);
 
       if (surveysError) {
         console.error('Erro ao buscar pesquisas:', surveysError);
@@ -143,8 +143,20 @@ export function SatisfactionSurveys() {
         return;
       }
 
-      const processedSendIds = new Set((existingSurveys || []).map(s => s.campaign_send_id));
+      console.log('Total de pesquisas encontradas:', existingSurveys?.length || 0);
+      
+      // Status que indicam que a pesquisa foi processada (não está mais pendente)
+      const processedStatuses = ['sent', 'awaiting_feedback', 'responded', 'expired', 'cancelled', 'failed'];
+      const processedSendIds = new Set(
+        (existingSurveys || [])
+          .filter(s => processedStatuses.includes(s.status))
+          .map(s => s.campaign_send_id)
+      );
+      
+      console.log('Sends processados:', processedSendIds.size);
       const pendingSends = (sendsData || []).filter(send => !processedSendIds.has(send.id));
+      console.log('Sends pendentes:', pendingSends.length);
+      
       const campaignIds = [...new Set(pendingSends.map(s => s.campaign_id))];
 
       if (campaignIds.length === 0) {
@@ -170,10 +182,12 @@ export function SatisfactionSurveys() {
         return;
       }
 
-      console.log('Campanhas carregadas:', data?.length || 0);
+      console.log('Campanhas com envios pendentes:', data?.length || 0);
       setCampaigns(data || []);
       if (data && data.length > 0 && !selectedCampaignId) {
         setSelectedCampaignId(data[0].id);
+      } else if (data && data.length === 0) {
+        setSelectedCampaignId('');
       }
     } catch (error) {
       console.error('Erro ao carregar campanhas:', error);
