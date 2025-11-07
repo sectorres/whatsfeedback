@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, Send, X, Loader2, Archive } from "lucide-react";
+import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -50,7 +50,9 @@ export function ConversationsPanel() {
   const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState("");
+  const [uploadingFile, setUploadingFile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -250,6 +252,125 @@ export function ConversationsPanel() {
   const handleImageClick = (imageUrl: string) => {
     setSelectedImageUrl(imageUrl);
     setImageModalOpen(true);
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedConversation) return;
+
+    // Validar tamanho do arquivo (16MB máximo para WhatsApp)
+    const maxSize = 16 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error('Arquivo muito grande. O tamanho máximo é 16MB.');
+      return;
+    }
+
+    setUploadingFile(true);
+    try {
+      // Upload para o Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `attachments/${fileName}`;
+
+      const { error: uploadError, data } = await supabase.storage
+        .from('whatsapp-media')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Obter URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from('whatsapp-media')
+        .getPublicUrl(filePath);
+
+      // Determinar tipo de mídia
+      let mediaType = 'document';
+      if (file.type.startsWith('image/')) mediaType = 'image';
+      else if (file.type.startsWith('video/')) mediaType = 'video';
+      else if (file.type.startsWith('audio/')) mediaType = 'audio';
+
+      // Enviar via WhatsApp usando a Evolution API diretamente
+      const evolutionApiUrl = import.meta.env.VITE_SUPABASE_URL?.replace('supabase.co', 'supabase.co');
+      
+      // Preparar payload baseado no tipo de mídia
+      let mediaPayload: any = {
+        number: selectedConversation.customer_phone,
+      };
+
+      if (mediaType === 'image') {
+        mediaPayload.mediaMessage = {
+          mediatype: 'image',
+          media: publicUrl
+        };
+      } else if (mediaType === 'video') {
+        mediaPayload.mediaMessage = {
+          mediatype: 'video',
+          media: publicUrl
+        };
+      } else if (mediaType === 'audio') {
+        mediaPayload.audioMessage = {
+          audio: publicUrl
+        };
+      } else {
+        mediaPayload.mediaMessage = {
+          mediatype: 'document',
+          media: publicUrl,
+          fileName: file.name
+        };
+      }
+
+      // Chamar edge function para enviar mídia via WhatsApp
+      const { error: sendError } = await supabase.functions.invoke('whatsapp-send-media', {
+        body: {
+          phone: selectedConversation.customer_phone,
+          mediaUrl: publicUrl,
+          mediaType: mediaType,
+          fileName: file.name,
+          caption: ''
+        }
+      });
+
+      if (sendError) {
+        console.error('Erro ao enviar mídia:', sendError);
+        throw sendError;
+      }
+
+      // Salvar mensagem no banco
+      const { error: dbError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: selectedConversation.id,
+          sender_type: 'operator',
+          sender_name: 'Operador',
+          message_text: mediaType === 'image' ? '[Imagem]' : mediaType === 'audio' ? '[Áudio]' : `[${file.name}]`,
+          message_status: 'sent',
+          media_type: mediaType,
+          media_url: publicUrl
+        });
+
+      if (dbError) throw dbError;
+
+      // Atualizar última mensagem da conversa
+      await supabase
+        .from('conversations')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', selectedConversation.id);
+
+      toast.success('Arquivo enviado com sucesso!');
+      
+      // Limpar input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Erro ao enviar arquivo:', error);
+      toast.error('Erro ao enviar arquivo');
+    } finally {
+      setUploadingFile(false);
+    }
   };
 
   return (
@@ -480,13 +601,33 @@ export function ConversationsPanel() {
             </ScrollArea>
 
             <div className="flex gap-2 mt-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleFileSelect}
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingFile || sending}
+                title="Anexar arquivo"
+              >
+                {uploadingFile ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Paperclip className="h-4 w-4" />
+                )}
+              </Button>
               <Input
                 placeholder="Digite sua mensagem..."
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
               />
-              <Button onClick={sendMessage} disabled={sending || !messageText.trim()}>
+              <Button onClick={sendMessage} disabled={sending || uploadingFile || !messageText.trim()}>
                 {sending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
