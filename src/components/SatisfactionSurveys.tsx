@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { SurveyManagement } from "@/components/SurveyManagement";
 import { getProgressiveDelay } from "./SendDelayConfig";
 import { Input } from "@/components/ui/input";
+import { CargaSelectionDialog } from "@/components/CargaSelectionDialog";
 
 interface Campaign {
   id: string;
@@ -62,6 +63,7 @@ export function SatisfactionSurveys() {
   const [showManagementDialog, setShowManagementDialog] = useState(false);
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
   const [surveyCountdown, setSurveyCountdown] = useState<number>(0);
+  const [showCargaSelection, setShowCargaSelection] = useState(false);
   const pollTimerRef = useRef<number | null>(null);
   const plannedIdsRef = useRef<string[]>([]);
   const startTimeRef = useRef<string>("");
@@ -216,7 +218,7 @@ export function SatisfactionSurveys() {
     }
   };
 
-  const sendSurveys = async () => {
+  const handleSendSurveysClick = () => {
     if (!selectedCampaignId) {
       toast({
         title: "Nenhuma campanha selecionada",
@@ -225,6 +227,19 @@ export function SatisfactionSurveys() {
       });
       return;
     }
+    setShowCargaSelection(true);
+  };
+
+  const handleCargaSelected = async (cargaId: number) => {
+    toast({
+      title: "Processando carga",
+      description: `Iniciando envio de pesquisas para carga #${cargaId}`,
+    });
+    await sendSurveysForCarga(cargaId);
+  };
+
+  const sendSurveysForCarga = async (cargaId: number) => {
+    if (!selectedCampaignId) return;
 
     setSendingSurveys(true);
     setSendProgress({ current: 0, total: 0, success: 0, failed: 0 });
@@ -373,7 +388,7 @@ export function SatisfactionSurveys() {
         </div>
         <div className="flex flex-col gap-2">
           <Button 
-            onClick={sendSurveys} 
+            onClick={handleSendSurveysClick}
             disabled={sendingSurveys}
             className="gap-2"
           >
@@ -648,6 +663,13 @@ export function SatisfactionSurveys() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <CargaSelectionDialog
+        open={showCargaSelection}
+        onOpenChange={setShowCargaSelection}
+        onCargaSelected={handleCargaSelected}
+        campaignId={selectedCampaignId}
+      />
     </div>
   );
 }
