@@ -54,6 +54,11 @@ export function ConversationsPanel() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    audioRef.current = new Audio('/notification.mp3');
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -109,6 +114,9 @@ export function ConversationsPanel() {
             setMessages(prev => [...prev, payload.new as Message]);
             // Incrementar contador de não lidas se for mensagem do cliente
             if (payload.new.sender_type === 'customer') {
+              // Tocar notificação sonora
+              audioRef.current?.play().catch(err => console.log('Erro ao tocar notificação:', err));
+              
               supabase
                 .from('conversations')
                 .update({ 
