@@ -53,17 +53,17 @@ export function CargaSelectionDialog({
         body: {}
       });
 
-      if (error) throw error;
+    if (error) throw error;
 
-      if (data?.dados) {
-        setCargas(data.dados);
-      } else {
-        toast({
-          title: "Nenhuma carga encontrada",
-          description: "Não há cargas disponíveis nos últimos 30 dias",
-          variant: "destructive",
-        });
-      }
+    if (data?.retorno?.cargas) {
+      setCargas(data.retorno.cargas);
+    } else {
+      toast({
+        title: "Nenhuma carga encontrada",
+        description: "Não há cargas disponíveis nos últimos 30 dias",
+        variant: "destructive",
+      });
+    }
     } catch (error: any) {
       console.error('Erro ao carregar cargas:', error);
       toast({
