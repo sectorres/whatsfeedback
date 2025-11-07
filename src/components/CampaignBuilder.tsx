@@ -630,7 +630,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                   <SelectValue placeholder="Escolha uma carga" />
                 </SelectTrigger>
                 <SelectContent 
-                  className="bg-background z-50 max-h-[400px]" 
+                  className="bg-background z-50 max-h-[400px] max-w-[500px]" 
                   onCloseAutoFocus={(e) => e.preventDefault()}
                   position="popper"
                 >
@@ -671,7 +671,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                           statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) ||
                           carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase())
                         ).map((carga) => (
-                          <SelectItem key={carga.id} value={carga.id.toString()}>
+                          <SelectItem key={carga.id} value={carga.id.toString()} className="text-xs">
                             Carga #{carga.id} - {formatDate(carga.data)} - {statusMap[carga.status]} ({carga.pedidos?.length || 0} pedidos)
                           </SelectItem>
                         ))
