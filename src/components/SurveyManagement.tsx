@@ -214,27 +214,8 @@ export function SurveyManagement() {
       // Filtrar itens selecionados para obter dados completos
       const selectedItems = items.filter(item => idsToSend.includes(item.campaign_send_id));
       
-      // Criar pesquisas 'pending' para as que ainda não têm registro
-      const itemsWithoutSurvey = selectedItems.filter(item => item.status === 'not_sent');
-      
-      if (itemsWithoutSurvey.length > 0) {
-        const surveysToCreate = itemsWithoutSurvey.map(item => ({
-          campaign_send_id: item.campaign_send_id,
-          customer_phone: item.customer_phone,
-          customer_name: item.customer_name,
-          status: 'pending',
-          sent_at: new Date().toISOString()
-        }));
-
-        const { error: createError } = await supabase
-          .from('satisfaction_surveys')
-          .insert(surveysToCreate);
-
-        if (createError) {
-          console.error('Erro ao criar pesquisas pendentes:', createError);
-          throw createError;
-        }
-      }
+      // REMOVIDO: não criar registros 'pending' no cliente para evitar confusão de status
+      // O backend já cria/atualiza as pesquisas conforme necessário
 
       const { data, error } = await supabase.functions.invoke('send-satisfaction-survey', {
         body: {
@@ -382,11 +363,17 @@ export function SurveyManagement() {
           </Badge>
         );
       case 'sent':
-      case 'pending':
         return (
           <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
             <Clock className="h-3 w-3 mr-1" />
             Enviada
+          </Badge>
+        );
+      case 'pending':
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
+            <Clock className="h-3 w-3 mr-1" />
+            Pendente
           </Badge>
         );
       case 'failed':
@@ -537,10 +524,10 @@ export function SurveyManagement() {
                   <TableRow key={item.campaign_send_id}>
                     <TableCell>
                        <Checkbox
-                        checked={selectedIds.has(item.campaign_send_id)}
-                        onCheckedChange={() => toggleSelection(item.campaign_send_id)}
-                        disabled={item.status !== 'not_sent'}
-                      />
+                         checked={selectedIds.has(item.campaign_send_id)}
+                         onCheckedChange={() => toggleSelection(item.campaign_send_id)}
+                         disabled={!(item.status === 'not_sent' || item.status === 'pending' || item.status === 'failed')}
+                       />
                     </TableCell>
                     <TableCell className="font-medium">{item.customer_name}</TableCell>
                     <TableCell>{item.customer_phone}</TableCell>
