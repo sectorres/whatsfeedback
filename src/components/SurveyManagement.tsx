@@ -113,7 +113,7 @@ export function SurveyManagement() {
       // Buscar campaign_sends da campanha selecionada
       const { data: sends, error: sendsError } = await supabase
         .from('campaign_sends')
-        .select('*, campaigns(name)')
+        .select('id, customer_name, customer_phone, sent_at, pedido_numero, campaigns(name)')
         .eq('campaign_id', selectedCampaignId)
         .in('status', ['success', 'sent'])
         .order('sent_at', { ascending: false });
