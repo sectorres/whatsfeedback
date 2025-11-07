@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,8 +33,15 @@ interface SurveyManagementItem {
   campaign_name?: string;
 }
 
+interface Campaign {
+  id: string;
+  name: string;
+}
+
 export function SurveyManagement() {
   const [items, setItems] = useState<SurveyManagementItem[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -43,16 +51,62 @@ export function SurveyManagement() {
   const sendingRef = useRef(false); // Proteção adicional contra chamadas concorrentes
 
   useEffect(() => {
-    loadSurveyStatus();
+    loadCampaigns();
   }, []);
 
+  useEffect(() => {
+    if (selectedCampaignId) {
+      loadSurveyStatus();
+    }
+  }, [selectedCampaignId]);
+
+  const loadCampaigns = async () => {
+    try {
+      const { data: sendsData, error: sendsError } = await supabase
+        .from('campaign_sends')
+        .select('campaign_id');
+
+      if (sendsError) throw sendsError;
+
+      const campaignIds = [...new Set(sendsData?.map(s => s.campaign_id) || [])];
+
+      if (campaignIds.length === 0) {
+        setCampaigns([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('id, name')
+        .in('id', campaignIds)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setCampaigns(data || []);
+      if (data && data.length > 0 && !selectedCampaignId) {
+        setSelectedCampaignId(data[0].id);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar campanhas:', error);
+      toast({
+        title: "Erro ao carregar campanhas",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const loadSurveyStatus = async () => {
+    if (!selectedCampaignId) return;
+    
     setLoading(true);
     try {
-      // Buscar todos os campaign_sends elegíveis
+      // Buscar campaign_sends da campanha selecionada
       const { data: sends, error: sendsError } = await supabase
         .from('campaign_sends')
         .select('*, campaigns(name)')
+        .eq('campaign_id', selectedCampaignId)
         .in('status', ['success', 'sent'])
         .order('sent_at', { ascending: false });
 
@@ -337,6 +391,20 @@ export function SurveyManagement() {
             <CardDescription>
               Visualize e gerencie o envio individual de pesquisas de satisfação
             </CardDescription>
+          </div>
+          <div className="w-[250px]">
+            <select
+              value={selectedCampaignId}
+              onChange={(e) => setSelectedCampaignId(e.target.value)}
+              className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+            >
+              <option value="">Selecione uma campanha</option>
+              {campaigns.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex gap-2">
             <Button

@@ -211,6 +211,15 @@ export function SatisfactionSurveys() {
   };
 
   const sendSurveys = async () => {
+    if (!selectedCampaignId) {
+      toast({
+        title: "Nenhuma campanha selecionada",
+        description: "Selecione uma campanha antes de enviar pesquisas",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSendingSurveys(true);
     setSendProgress({ current: 0, total: 0, success: 0, failed: 0 });
     setSurveyCountdown(0);
@@ -219,6 +228,7 @@ export function SatisfactionSurveys() {
       const { data: sends, error: sendsError } = await supabase
         .from('campaign_sends')
         .select('id')
+        .eq('campaign_id', selectedCampaignId)
         .in('status', ['success', 'sent']);
       if (sendsError) throw sendsError;
       const sendIds = (sends || []).map((s: any) => s.id);
