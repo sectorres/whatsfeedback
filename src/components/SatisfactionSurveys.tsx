@@ -230,16 +230,16 @@ export function SatisfactionSurveys() {
     setShowCargaSelection(true);
   };
 
-  const handleCargaSelected = async (cargaId: number) => {
+  const handleCargaSelected = async (campaignId: string) => {
     toast({
-      title: "Processando carga",
-      description: `Iniciando envio de pesquisas para carga #${cargaId}`,
+      title: "Processando campanha",
+      description: `Iniciando envio de pesquisas`,
     });
-    await sendSurveysForCarga(cargaId);
+    await sendSurveysForCarga(campaignId);
   };
 
-  const sendSurveysForCarga = async (cargaId: number) => {
-    if (!selectedCampaignId) return;
+  const sendSurveysForCarga = async (campaignId: string) => {
+    if (!campaignId) return;
 
     setSendingSurveys(true);
     setSendProgress({ current: 0, total: 0, success: 0, failed: 0 });
@@ -249,7 +249,7 @@ export function SatisfactionSurveys() {
       const { data: sends, error: sendsError } = await supabase
         .from('campaign_sends')
         .select('id')
-        .eq('campaign_id', selectedCampaignId)
+        .eq('campaign_id', campaignId)
         .in('status', ['success', 'sent']);
       if (sendsError) throw sendsError;
       const sendIds = (sends || []).map((s: any) => s.id);
@@ -668,7 +668,6 @@ export function SatisfactionSurveys() {
         open={showCargaSelection}
         onOpenChange={setShowCargaSelection}
         onCargaSelected={handleCargaSelected}
-        campaignId={selectedCampaignId}
       />
     </div>
   );

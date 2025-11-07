@@ -10,33 +10,31 @@ import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-interface Carga {
-  id: number;
-  data: string;
-  motorista: number;
-  nomeMotorista: string;
-  transportadora: number;
-  nomeTransportadora: string;
+interface Campaign {
+  id: string;
+  name: string;
+  message: string;
   status: string;
-  pedidos: any[];
+  target_type: string;
+  sent_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface CargaSelectionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCargaSelected: (cargaId: number) => void;
-  campaignId: string;
+  onCargaSelected: (campaignId: string) => void;
 }
 
 export function CargaSelectionDialog({ 
   open, 
   onOpenChange, 
-  onCargaSelected,
-  campaignId 
+  onCargaSelected
 }: CargaSelectionDialogProps) {
-  const [cargas, setCargas] = useState<Carga[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedCargaId, setSelectedCargaId] = useState<number | null>(null);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -48,26 +46,29 @@ export function CargaSelectionDialog({
   const loadCargas = async () => {
     setLoading(true);
     try {
-      // Buscar cargas dos últimos 30 dias
-      const { data, error } = await supabase.functions.invoke('fetch-cargas', {
-        body: {}
-      });
+      // Buscar campanhas de aviso de entrega já enviadas
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('target_type', 'carga')
+        .in('status', ['completed', 'completed_with_errors'])
+        .order('created_at', { ascending: false });
 
-    if (error) throw error;
+      if (error) throw error;
 
-    if (data?.retorno?.cargas) {
-      setCargas(data.retorno.cargas);
-    } else {
-      toast({
-        title: "Nenhuma carga encontrada",
-        description: "Não há cargas disponíveis nos últimos 30 dias",
-        variant: "destructive",
-      });
-    }
+      if (data && data.length > 0) {
+        setCampaigns(data);
+      } else {
+        toast({
+          title: "Nenhuma campanha encontrada",
+          description: "Não há campanhas de aviso de entrega disponíveis",
+          variant: "destructive",
+        });
+      }
     } catch (error: any) {
-      console.error('Erro ao carregar cargas:', error);
+      console.error('Erro ao carregar campanhas:', error);
       toast({
-        title: "Erro ao carregar cargas",
+        title: "Erro ao carregar campanhas",
         description: error.message || "Erro desconhecido",
         variant: "destructive",
       });
@@ -77,27 +78,22 @@ export function CargaSelectionDialog({
   };
 
   const handleConfirm = () => {
-    if (selectedCargaId) {
-      onCargaSelected(selectedCargaId);
+    if (selectedCampaignId) {
+      onCargaSelected(selectedCampaignId);
       onOpenChange(false);
-      setSelectedCargaId(null);
+      setSelectedCampaignId(null);
     }
   };
 
   const formatDate = (dateString: string) => {
-    // dateString vem como "20250806" (YYYYMMDD)
-    const year = dateString.substring(0, 4);
-    const month = dateString.substring(4, 6);
-    const day = dateString.substring(6, 8);
-    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    return format(date, "dd/MM/yyyy", { locale: ptBR });
+    const date = new Date(dateString);
+    return format(date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
   };
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-      'FATU': { label: 'Faturado', variant: 'default' },
-      'PEND': { label: 'Pendente', variant: 'secondary' },
-      'ENTR': { label: 'Entregue', variant: 'outline' },
+      'completed': { label: 'Concluída', variant: 'default' },
+      'completed_with_errors': { label: 'Concluída com erros', variant: 'outline' },
     };
 
     const config = statusConfig[status] || { label: status, variant: 'secondary' };
@@ -110,10 +106,10 @@ export function CargaSelectionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            Selecionar Carga para Pesquisa
+            Selecionar Campanha de Aviso de Entrega
           </DialogTitle>
           <DialogDescription>
-            Escolha a carga que deseja enviar para pesquisa de satisfação
+            Escolha a campanha de aviso de entrega para enviar pesquisas de satisfação aos clientes
           </DialogDescription>
         </DialogHeader>
 
@@ -124,55 +120,39 @@ export function CargaSelectionDialog({
         ) : (
           <ScrollArea className="max-h-[50vh] pr-4">
             <div className="space-y-3">
-              {cargas.length === 0 ? (
+              {campaigns.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  Nenhuma carga disponível
+                  Nenhuma campanha de aviso de entrega disponível
                 </div>
               ) : (
-                cargas.map((carga) => (
+                campaigns.map((campaign) => (
                   <Card
-                    key={carga.id}
+                    key={campaign.id}
                     className={`cursor-pointer transition-all hover:border-primary ${
-                      selectedCargaId === carga.id ? 'border-primary bg-primary/5' : ''
+                      selectedCampaignId === campaign.id ? 'border-primary bg-primary/5' : ''
                     }`}
-                    onClick={() => setSelectedCargaId(carga.id)}
+                    onClick={() => setSelectedCampaignId(campaign.id)}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 space-y-2">
                           <div className="flex items-center gap-3">
                             <div className="font-semibold text-lg">
-                              Carga #{carga.id}
+                              {campaign.name}
                             </div>
-                            {getStatusBadge(carga.status)}
+                            {getStatusBadge(campaign.status)}
                           </div>
                           
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div className="flex items-center gap-2 text-muted-foreground">
                               <Calendar className="h-4 w-4" />
-                              <span>{formatDate(carga.data)}</span>
+                              <span>{formatDate(campaign.created_at)}</span>
                             </div>
                             
-                            {carga.nomeMotorista && (
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <User className="h-4 w-4" />
-                                <span>{carga.nomeMotorista}</span>
-                              </div>
-                            )}
-                            
-                            {carga.nomeTransportadora && (
-                              <div className="flex items-center gap-2 text-muted-foreground col-span-2">
-                                <Truck className="h-4 w-4" />
-                                <span>{carga.nomeTransportadora}</span>
-                              </div>
-                            )}
-                          </div>
-                          
-                          <div className="flex items-center gap-2 text-sm">
-                            <Package className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">
-                              {carga.pedidos?.length || 0} pedido(s)
-                            </span>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Package className="h-4 w-4" />
+                              <span>{campaign.sent_count} envio(s)</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -189,14 +169,14 @@ export function CargaSelectionDialog({
             variant="outline"
             onClick={() => {
               onOpenChange(false);
-              setSelectedCargaId(null);
+              setSelectedCampaignId(null);
             }}
           >
             Cancelar
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={!selectedCargaId || loading}
+            disabled={!selectedCampaignId || loading}
           >
             Confirmar Seleção
           </Button>
