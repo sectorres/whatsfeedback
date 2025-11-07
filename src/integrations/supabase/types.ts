@@ -125,6 +125,7 @@ export type Database = {
           id: string
           message_sent: string
           pedido_id: number | null
+          pedido_numero: string | null
           peso_total: number | null
           quantidade_entregas: number | null
           quantidade_itens: number | null
@@ -144,6 +145,7 @@ export type Database = {
           id?: string
           message_sent: string
           pedido_id?: number | null
+          pedido_numero?: string | null
           peso_total?: number | null
           quantidade_entregas?: number | null
           quantidade_itens?: number | null
@@ -163,6 +165,7 @@ export type Database = {
           id?: string
           message_sent?: string
           pedido_id?: number | null
+          pedido_numero?: string | null
           peso_total?: number | null
           quantidade_entregas?: number | null
           quantidade_itens?: number | null
