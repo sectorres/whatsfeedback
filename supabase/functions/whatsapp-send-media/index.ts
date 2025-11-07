@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { formatPhoneForWhatsApp } from "../_shared/phone-utils.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,39 +24,19 @@ serve(async (req) => {
       throw new Error('Evolution API credentials not configured');
     }
 
-    // Formatar telefone para WhatsApp (remover caracteres especiais)
-    const formattedPhone = phone.replace(/\D/g, '');
+    // Formatar telefone para WhatsApp
+    const cleanPhone = formatPhoneForWhatsApp(phone);
     
-    // Preparar payload baseado no tipo de mídia
-    let payload: any = {
-      number: formattedPhone,
+    // Montar payload no formato esperado pela Evolution API
+    const normalizedType = ['image','video','audio','document'].includes(mediaType) ? mediaType : 'document';
+    const payload: Record<string, unknown> = {
+      number: cleanPhone,
+      mediatype: normalizedType,
+      media: mediaUrl,
     };
 
-    if (mediaType === 'image') {
-      payload.mediaMessage = {
-        mediatype: 'image',
-        media: mediaUrl,
-        caption: caption || ''
-      };
-    } else if (mediaType === 'video') {
-      payload.mediaMessage = {
-        mediatype: 'video',
-        media: mediaUrl,
-        caption: caption || ''
-      };
-    } else if (mediaType === 'audio') {
-      payload.audioMessage = {
-        audio: mediaUrl
-      };
-    } else {
-      // Documento
-      payload.mediaMessage = {
-        mediatype: 'document',
-        media: mediaUrl,
-        fileName: fileName || 'documento',
-        caption: caption || ''
-      };
-    }
+    if (caption) payload.caption = caption;
+    if (normalizedType === 'document' && fileName) payload.fileName = fileName;
 
     console.log('Evolution API payload:', JSON.stringify(payload));
 
