@@ -354,31 +354,9 @@ export function SatisfactionSurveys() {
       
       const plannedIds = sendIds.filter((id: string) => !alreadyProcessedSet.has(id));
 
-      // Pre-criar pesquisas 'pending' para ids ainda sem qualquer registro,
-      // garantindo que a campanha saia imediatamente da lista de pendências
-      const existingIdsSet = new Set((existingSurveys || []).map((s: any) => s.campaign_send_id));
-      const toPrecreate = plannedIds.filter((id: string) => !existingIdsSet.has(id));
+      // REMOVIDO: não precriar pesquisas 'pending' no cliente para evitar que itens sumam da lista sem envio real
+      // O backend criará/atualizará as pesquisas conforme cada envio for realmente processado
 
-      if (toPrecreate.length > 0) {
-        const { data: sendDetails, error: sendDetailsError } = await supabase
-          .from('campaign_sends')
-          .select('id, customer_phone, customer_name')
-          .in('id', toPrecreate);
-
-        if (!sendDetailsError && sendDetails && sendDetails.length > 0) {
-          const rows = sendDetails
-            .filter((s: any) => s.customer_phone)
-            .map((s: any) => ({
-              campaign_send_id: s.id,
-              customer_phone: s.customer_phone,
-              customer_name: s.customer_name,
-              status: 'pending',
-            }));
-          if (rows.length > 0) {
-            await supabase.from('satisfaction_surveys').insert(rows);
-          }
-        }
-      }
       
       plannedIdsRef.current = plannedIds;
       startTimeRef.current = new Date().toISOString();
