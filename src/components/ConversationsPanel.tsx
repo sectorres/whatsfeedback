@@ -7,13 +7,20 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File } from "lucide-react";
+import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ImageModal } from "@/components/ImageModal";
 import { isValidPhoneNumber } from "@/lib/phone-utils";
+import { CustomerOrdersDialog } from "@/components/CustomerOrdersDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Conversation {
   id: string;
@@ -52,6 +59,7 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [ordersDialogOpen, setOrdersDialogOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -533,10 +541,24 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                   {selectedConversation.customer_phone}
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={closeConversation}>
-                <X className="h-4 w-4 mr-2" />
-                Encerrar
-              </Button>
+              <div className="flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setOrdersDialogOpen(true)}>
+                      Ver Pedidos
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="outline" size="sm" onClick={closeConversation}>
+                  <X className="h-4 w-4 mr-2" />
+                  Encerrar
+                </Button>
+              </div>
             </div>
             <Separator className="mb-4" />
             
@@ -684,6 +706,13 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
         isOpen={imageModalOpen}
         onClose={() => setImageModalOpen(false)}
         imageUrl={selectedImageUrl}
+      />
+
+      <CustomerOrdersDialog
+        open={ordersDialogOpen}
+        onOpenChange={setOrdersDialogOpen}
+        customerPhone={selectedConversation?.customer_phone || ""}
+        customerName={selectedConversation?.customer_name || undefined}
       />
     </div>
   );
