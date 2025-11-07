@@ -10,79 +10,92 @@ export function SendCounters() {
   const [surveyTotal, setSurveyTotal] = useState(0);
   const [activeCampaignRunId, setActiveCampaignRunId] = useState<string | null>(null);
   const [activeSurveyRunId, setActiveSurveyRunId] = useState<string | null>(null);
+  const [activeSurveyCampaignId, setActiveSurveyCampaignId] = useState<string | null>(null);
 
   useEffect(() => {
     loadCounts();
 
-    // Escutar mudanças nas runs ativas
+    // Escutar mudanças nas runs ativas (pesquisa)
     const runsChannel = supabase
       .channel('survey-runs-changes')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'survey_send_runs'
-        },
-        () => {
-          loadCounts();
-        }
+        { event: '*', schema: 'public', table: 'survey_send_runs' },
+        () => { loadCounts(); }
       )
       .subscribe();
 
-    // Escutar mudanças nos envios de campanha
+    // Escutar mudanças nos envios de campanha (progresso X)
     const campaignChannel = supabase
       .channel('campaign-sends-progress')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'campaign_sends'
-        },
-        () => {
-          if (activeCampaignRunId) {
-            loadCampaignProgress();
-          }
-        }
+        { event: '*', schema: 'public', table: 'campaign_sends' },
+        () => { if (activeCampaignRunId) { loadCampaignProgress(); } }
       )
       .subscribe();
 
-    // Escutar mudanças nas pesquisas
+    // Escutar mudanças no status das campanhas (para reset ao finalizar)
+    const campaignsStatusChannel = supabase
+      .channel('campaigns-status-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'campaigns' },
+        () => { loadCounts(); }
+      )
+      .subscribe();
+
+    // Escutar mudanças nas pesquisas (progresso X)
     const surveyChannel = supabase
       .channel('satisfaction-surveys-progress')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'satisfaction_surveys'
-        },
-        () => {
-          if (activeSurveyRunId) {
-            loadSurveyProgress();
-          }
-        }
+        { event: '*', schema: 'public', table: 'satisfaction_surveys' },
+        () => { if (activeSurveyCampaignId) { loadSurveyProgress(); } }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(runsChannel);
       supabase.removeChannel(campaignChannel);
+      supabase.removeChannel(campaignsStatusChannel);
       supabase.removeChannel(surveyChannel);
     };
-  }, [activeCampaignRunId, activeSurveyRunId]);
+  }, [activeCampaignRunId, activeSurveyCampaignId]);
 
   const loadCounts = async () => {
     // Verificar se há runs ativos de campanha
     const { data: activeCampaignRun } = await supabase
       .from('campaigns')
-      .select('id, status')
+      .select('id, status, name')
       .eq('status', 'sending')
       .maybeSingle();
 
     if (activeCampaignRun) {
       setActiveCampaignRunId(activeCampaignRun.id);
+
+      // Determinar total planejado a partir do nome da campanha ("Carga #<id>")
+      try {
+        const match = activeCampaignRun.name?.match(/Carga\s#(\d+)/i);
+        if (match) {
+          const cargaId = parseInt(match[1], 10);
+          const end = new Date();
+          const start = new Date();
+          start.setDate(start.getDate() - 30);
+          const fmt = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, '');
+          const { data } = await supabase.functions.invoke('fetch-cargas', {
+            body: { dataInicial: fmt(start), dataFinal: fmt(end) }
+          });
+          const cargas = (data as any)?.retorno?.cargas || [];
+          const carga = cargas.find((c: any) => c.id === cargaId);
+          if (carga) {
+            setCampaignTotal(Array.isArray(carga.pedidos) ? carga.pedidos.length : 0);
+          }
+        }
+      } catch (e) {
+        // ignora falhas e mantém total 0
+      }
+
       await loadCampaignProgress(activeCampaignRun.id);
     } else {
       setActiveCampaignRunId(null);
@@ -99,9 +112,11 @@ export function SendCounters() {
 
     if (activeSurveyRun) {
       setActiveSurveyRunId(activeSurveyRun.id);
+      setActiveSurveyCampaignId(activeSurveyRun.campaign_id);
       await loadSurveyProgress(activeSurveyRun.campaign_id);
     } else {
       setActiveSurveyRunId(null);
+      setActiveSurveyCampaignId(null);
       setSurveySent(0);
       setSurveyTotal(0);
     }
@@ -111,34 +126,26 @@ export function SendCounters() {
     const targetCampaignId = campaignId || activeCampaignRunId;
     if (!targetCampaignId) return;
 
-    // Contar total de envios planejados
-    const { data: campaign } = await supabase
-      .from('campaigns')
-      .select('sent_count')
-      .eq('id', targetCampaignId)
-      .single();
-
-    // Contar quantos já foram enviados
+    // Contar quantos disparos já foram registrados (X)
     const { count: sentCount } = await supabase
       .from('campaign_sends')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', targetCampaignId);
 
-    setCampaignTotal(campaign?.sent_count || 0);
     setCampaignSent(sentCount || 0);
   };
 
   const loadSurveyProgress = async (campaignId?: string) => {
-    const targetCampaignId = campaignId || activeSurveyRunId;
+    const targetCampaignId = campaignId || activeSurveyCampaignId;
     if (!targetCampaignId) return;
 
-    // Contar total de pesquisas a enviar (baseado em campaign_sends)
+    // Total de pesquisas a enviar = total de disparos da campanha (Y)
     const { count: totalCount } = await supabase
       .from('campaign_sends')
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', targetCampaignId);
 
-    // Contar quantas pesquisas já foram enviadas
+    // Pesquisas já processadas (status != 'pending') (X)
     const { count: sentCount } = await supabase
       .from('satisfaction_surveys')
       .select('*, campaign_sends!inner(campaign_id)', { count: 'exact', head: true })
