@@ -511,7 +511,7 @@ export function SatisfactionSurveys() {
           <Button 
             onClick={handleAbortSurveys}
             variant="destructive"
-            disabled={!sendingSurveys}
+            disabled={!sendingSurveys && !pollTimerRef.current}
             className="gap-2"
           >
             <X className="h-4 w-4" />
