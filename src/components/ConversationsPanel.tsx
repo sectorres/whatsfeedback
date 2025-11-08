@@ -599,7 +599,13 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                     <DropdownMenuItem onClick={() => setOrdersDialogOpen(true)}>
                       Ver Pedidos
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleEditPhone}>
+                    <DropdownMenuItem 
+                      onClick={handleEditPhone}
+                      disabled={(() => {
+                        const normalized = normalizePhone(selectedConversation.customer_phone);
+                        return normalized.length >= 10 && normalized.length <= 15;
+                      })()}
+                    >
                       <Edit className="h-4 w-4 mr-2" />
                       Editar Telefone
                     </DropdownMenuItem>
