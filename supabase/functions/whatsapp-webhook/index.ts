@@ -24,7 +24,15 @@ serve(async (req) => {
     const url = new URL(req.url);
     const pathEvent = url.pathname.split('/').pop()?.toLowerCase();
     const rawEvent = (payload?.event || pathEvent || '').toLowerCase();
-    const isMessageEvent = rawEvent.includes('message') && rawEvent.includes('upsert');
+    
+    // Aceitar tanto messages.upsert quanto send.message (para compatibilidade)
+    const isMessageEvent = (
+      (rawEvent.includes('message') && rawEvent.includes('upsert')) ||
+      rawEvent === 'messages.upsert' ||
+      rawEvent === 'message.upsert'
+    );
+
+    console.log('Event detected:', rawEvent, 'isMessageEvent:', isMessageEvent);
 
     // Normalizar estrutura de mensagens
     let incoming: any[] = [];
@@ -32,24 +40,29 @@ serve(async (req) => {
     // Caso 1: payload.data.messages (array)
     if (Array.isArray(payload?.data?.messages)) {
       incoming = payload.data.messages;
+      console.log('Case 1: payload.data.messages array -', incoming.length, 'messages');
     }
     // Caso 2: payload.data é a mensagem direta (Evolution com webhook by events)
     else if (payload?.data?.key && payload?.data?.message) {
       incoming = [payload.data];
+      console.log('Case 2: payload.data direct message');
     }
     // Caso 3: payload.messages (array)
     else if (Array.isArray(payload?.messages)) {
       incoming = payload.messages;
+      console.log('Case 3: payload.messages array -', incoming.length, 'messages');
     }
     // Caso 4: payload.data.message (objeto único)
     else if (payload?.data?.message) {
       incoming = [payload.data];
+      console.log('Case 4: payload.data.message object');
     }
 
     console.log('Parsed event:', rawEvent, 'messages count:', incoming.length);
 
     if (!isMessageEvent && incoming.length === 0) {
       // Ignorar eventos não relacionados a mensagens
+      console.log('Ignoring non-message event:', rawEvent);
       return new Response(
         JSON.stringify({ success: true, ignored: rawEvent || 'no-event' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -58,8 +71,13 @@ serve(async (req) => {
 
     for (const msg of incoming) {
       try {
+        console.log('Processing message:', JSON.stringify(msg.key || {}, null, 2));
+        
         // Ignorar mensagens enviadas pelo próprio bot
-        if (msg.key?.fromMe) continue;
+        if (msg.key?.fromMe) {
+          console.log('Skipping message from me');
+          continue;
+        }
 
         // Extrair telefone (suporta diferentes estruturas)
         // Primeiro tentar o remoteJid limpo
