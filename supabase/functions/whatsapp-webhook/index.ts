@@ -73,16 +73,19 @@ serve(async (req) => {
         // Validar se parece um número de telefone brasileiro válido (10-13 dígitos após normalização)
         const digitsOnly = rawPhone.replace(/\D/g, '');
         
-        // Se não for um número válido, tentar extrair de outros campos
+        // Se não for um número válido (muito curto, muito longo, ou parece CPF/CNPJ), pular mensagem
         if (!digitsOnly || digitsOnly.length < 10 || digitsOnly.length > 15) {
-          // Tentar campo alternativo "from" ou "participant"
-          const altPhone = msg.participant || msg.key?.participant || '';
-          if (altPhone) {
-            rawPhone = altPhone.replace('@s.whatsapp.net', '').replace('@g.us', '');
-          }
+          console.log(`Skipping message with invalid phone: ${rawPhone} (${digitsOnly?.length || 0} digits)`);
+          continue;
         }
         
         const customerPhone = normalizePhone(rawPhone);
+        
+        // Validação final: se o telefone normalizado estiver vazio ou for inválido, pular mensagem
+        if (!customerPhone || customerPhone.length < 10 || customerPhone.length > 13) {
+          console.log(`Skipping message with invalid normalized phone: ${customerPhone} from raw: ${rawPhone}`);
+          continue;
+        }
         
         console.log('Raw phone from webhook:', rawPhone, '-> Normalized:', customerPhone);
 
