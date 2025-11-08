@@ -166,10 +166,10 @@ export const CustomerOrdersDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[85vh] bg-gradient-to-br from-blue-50 to-background border-blue-100">
         <DialogHeader className="pb-4 border-b border-blue-100">
-          <DialogTitle className="text-2xl font-bold bg-gradient-blue bg-clip-text text-transparent">
+          <DialogTitle className="text-xl font-bold bg-gradient-blue bg-clip-text text-transparent">
             Pedidos do Cliente
           </DialogTitle>
-          <DialogDescription className="text-base mt-2">
+          <DialogDescription className="text-sm mt-2">
             {customerName && <span className="font-semibold text-blue-700">{customerName}</span>}
             {customerName && <span className="mx-2 text-blue-500">•</span>}
             <span className="text-blue-600">{customerPhone}</span>
@@ -198,18 +198,18 @@ export const CustomerOrdersDialog = ({
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-3">
-                            <div className="p-2 bg-gradient-blue rounded-lg">
-                              <Package className="h-4 w-4 text-white" />
+                            <div className="p-1.5 bg-gradient-blue rounded-lg">
+                              <Package className="h-3.5 w-3.5 text-white" />
                             </div>
                             <div>
-                              <h4 className="font-bold text-base text-blue-700">{order.pedido}</h4>
-                              <Badge variant="outline" className="text-xs mt-1 border-blue-300 text-blue-600">
+                              <h4 className="font-bold text-sm text-blue-700">{order.pedido}</h4>
+                              <Badge variant="outline" className="text-[10px] mt-1 border-blue-300 text-blue-600">
                                 NF: {order.notaFiscal}
                               </Badge>
                             </div>
                           </div>
-                          <div className="ml-12 space-y-2">
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                          <div className="ml-11 space-y-2">
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
                               <div className="flex items-center gap-2">
                                 <span className="text-blue-600 font-medium">Data:</span>
                                 <span className="text-foreground">{formatDate(order.data)}</span>
@@ -225,17 +225,17 @@ export const CustomerOrdersDialog = ({
                                 </div>
                               )}
                             </div>
-                            <div className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-100/10 px-3 py-2 rounded-md border border-blue-100 dark:border-blue-500/20">
+                            <div className="text-[10px] text-blue-600 bg-blue-50 dark:bg-blue-100/10 px-2.5 py-1.5 rounded-md border border-blue-100 dark:border-blue-500/20">
                               {order.rota}
                             </div>
                           </div>
                         </div>
                         <CollapsibleTrigger asChild>
-                          <button className="p-2.5 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded-lg transition-colors ml-4 border border-blue-200 dark:border-blue-500/30">
+                          <button className="p-2 hover:bg-blue-100 dark:hover:bg-blue-500/20 rounded-lg transition-colors ml-4 border border-blue-200 dark:border-blue-500/30">
                             {expandedOrders.has(order.id) ? (
-                              <ChevronUp className="h-5 w-5 text-blue-600" />
+                              <ChevronUp className="h-4 w-4 text-blue-600" />
                             ) : (
-                              <ChevronDown className="h-5 w-5 text-blue-600" />
+                              <ChevronDown className="h-4 w-4 text-blue-600" />
                             )}
                           </button>
                         </CollapsibleTrigger>
@@ -243,27 +243,27 @@ export const CustomerOrdersDialog = ({
 
                       <CollapsibleContent className="mt-4">
                         <div className="border-t border-blue-100 pt-4">
-                          <h5 className="font-bold text-sm mb-3 text-blue-700 flex items-center gap-2">
+                          <h5 className="font-bold text-xs mb-3 text-blue-700 flex items-center gap-2">
                             <div className="h-1 w-1 bg-blue-500 rounded-full"></div>
                             Produtos do Pedido
                           </h5>
-                          <div className="space-y-3">
+                          <div className="space-y-2.5">
                             {order.produtos?.map((produto) => (
                               <div
                                 key={produto.id}
-                                className="bg-gradient-to-r from-blue-50/80 to-blue-100/50 dark:from-blue-100/10 dark:to-blue-500/5 rounded-lg p-4 border border-blue-100 dark:border-blue-500/20 hover:border-blue-300 dark:hover:border-blue-500/40 transition-colors"
+                                className="bg-gradient-to-r from-blue-50/80 to-blue-100/50 dark:from-blue-100/10 dark:to-blue-500/5 rounded-lg p-3 border border-blue-100 dark:border-blue-500/20 hover:border-blue-300 dark:hover:border-blue-500/40 transition-colors"
                               >
-                                <p className="font-semibold mb-2 text-blue-900 dark:text-blue-100">{produto.descricao}</p>
-                                <div className="grid grid-cols-3 gap-3 text-sm">
-                                  <div className="bg-white/60 dark:bg-card/60 px-3 py-1.5 rounded border border-blue-200/50 dark:border-blue-500/20">
+                                <p className="font-semibold mb-2 text-xs text-blue-900 dark:text-blue-100">{produto.descricao}</p>
+                                <div className="grid grid-cols-3 gap-2 text-[11px]">
+                                  <div className="bg-white/60 dark:bg-card/60 px-2.5 py-1 rounded border border-blue-200/50 dark:border-blue-500/20">
                                     <span className="text-blue-600 font-medium">Qtd:</span>{' '}
                                     <span className="text-foreground">{produto.quantidade}</span>
                                   </div>
-                                  <div className="bg-white/60 dark:bg-card/60 px-3 py-1.5 rounded border border-blue-200/50 dark:border-blue-500/20">
+                                  <div className="bg-white/60 dark:bg-card/60 px-2.5 py-1 rounded border border-blue-200/50 dark:border-blue-500/20">
                                     <span className="text-blue-600 font-medium">Peso:</span>{' '}
                                     <span className="text-foreground">{produto.pesoBruto} kg</span>
                                   </div>
-                                  <div className="bg-white/60 dark:bg-card/60 px-3 py-1.5 rounded border border-blue-200/50 dark:border-blue-500/20">
+                                  <div className="bg-white/60 dark:bg-card/60 px-2.5 py-1 rounded border border-blue-200/50 dark:border-blue-500/20">
                                     <span className="text-blue-600 font-medium">{produto.periodoEntrega}</span>
                                   </div>
                                 </div>
