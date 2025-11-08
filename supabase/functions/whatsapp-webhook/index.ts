@@ -61,33 +61,51 @@ serve(async (req) => {
         // Ignorar mensagens enviadas pelo próprio bot
         if (msg.key?.fromMe) continue;
 
-        // Extrair telefone (suporta diferentes estruturas)
-        // Primeiro tentar o remoteJid limpo
-        let remoteJid = msg.key?.remoteJid || msg.remoteJid || msg.from || '';
-        remoteJid = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+        // ID único da mensagem para logs
+        const msgId = msg.key?.id || crypto.randomUUID();
+
+        // Extrair telefone: priorizar payload.sender (número real), depois remoteJid
+        let rawPhone = '';
+        let remoteJid = msg.key?.remoteJid || msg.remoteJid || '';
         
-        // Se o remoteJid não parece um número de telefone válido (muito curto/longo ou não numérico)
-        // tentar extrair do pushName, participant ou outros campos
-        let rawPhone = remoteJid;
+        console.log(`[${msgId}] 📥 Extracting phone - remoteJid: ${remoteJid}, payload.sender: ${payload?.sender || 'N/A'}`);
         
-        // Validar se parece um número de telefone brasileiro válido (10-13 dígitos após normalização)
+        // Se remoteJid termina com @lid, é um ID interno - SEMPRE usar payload.sender
+        if (remoteJid.endsWith('@lid')) {
+          console.log(`[${msgId}] 🆔 Detected LID remoteJid, using payload.sender as phone source`);
+          rawPhone = payload?.sender || '';
+        } 
+        // Senão, tentar remoteJid primeiro
+        else {
+          rawPhone = remoteJid || payload?.sender || msg.from || msg.key?.participant || '';
+        }
+        
+        if (!rawPhone) {
+          console.log(`[${msgId}] ❌ No phone source found, skipping message`);
+          continue;
+        }
+        
+        // Limpar sufixos do WhatsApp
+        rawPhone = rawPhone.replace('@s.whatsapp.net', '').replace('@g.us', '').replace('@c.us', '').replace('@lid', '');
+        
+        console.log(`[${msgId}] 🧹 Cleaned phone: ${rawPhone}`);
+        
+        // Validar dígitos
         const digitsOnly = rawPhone.replace(/\D/g, '');
         
-        // Se não for um número válido (muito curto, muito longo, ou parece CPF/CNPJ), pular mensagem
         if (!digitsOnly || digitsOnly.length < 10 || digitsOnly.length > 15) {
-          console.log(`Skipping message with invalid phone: ${rawPhone} (${digitsOnly?.length || 0} digits)`);
+          console.log(`[${msgId}] ❌ Invalid digit count: ${digitsOnly?.length || 0} (expected 10-15), skipping`);
           continue;
         }
         
         const customerPhone = normalizePhone(rawPhone);
         
-        // Validação final: se o telefone normalizado estiver vazio ou for inválido, pular mensagem
-        if (!customerPhone || customerPhone.length < 10 || customerPhone.length > 13) {
-          console.log(`Skipping message with invalid normalized phone: ${customerPhone} from raw: ${rawPhone}`);
+        if (!customerPhone || customerPhone.length < 10) {
+          console.log(`[${msgId}] ❌ Invalid normalized phone: ${customerPhone}, skipping`);
           continue;
         }
         
-        console.log('Raw phone from webhook:', rawPhone, '-> Normalized:', customerPhone);
+        console.log(`[${msgId}] ✅ Valid phone extracted - Raw: ${rawPhone} -> Normalized: ${customerPhone}`);
 
         // Detectar tipo de mídia e URL
         let mediaType = 'text';
