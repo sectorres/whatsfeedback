@@ -71,11 +71,17 @@ serve(async (req) => {
 
     for (const msg of incoming) {
       try {
-        console.log('Processing message:', JSON.stringify(msg.key || {}, null, 2));
+        const msgId = msg.key?.id || crypto.randomUUID();
+        console.log(`[${msgId}] Processing message:`, {
+          fromMe: msg.key?.fromMe,
+          remoteJid: msg.key?.remoteJid,
+          messageType: msg.messageType,
+          hasMessage: !!msg.message
+        });
         
         // Ignorar mensagens enviadas pelo próprio bot
         if (msg.key?.fromMe) {
-          console.log('Skipping message from me');
+          console.log(`[${msgId}] Skipping message from me`);
           continue;
         }
 
@@ -84,6 +90,8 @@ serve(async (req) => {
         let remoteJid = msg.key?.remoteJid || msg.remoteJid || msg.from || '';
         remoteJid = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
         
+        console.log(`[${msgId}] Raw remoteJid:`, remoteJid);
+        
         // Se o remoteJid não parece um número de telefone válido (muito curto/longo ou não numérico)
         // tentar extrair do pushName, participant ou outros campos
         let rawPhone = remoteJid;
@@ -91,21 +99,25 @@ serve(async (req) => {
         // Validar se parece um número de telefone brasileiro válido (10-13 dígitos após normalização)
         const digitsOnly = rawPhone.replace(/\D/g, '');
         
+        console.log(`[${msgId}] Digits only:`, digitsOnly, `(length: ${digitsOnly?.length || 0})`);
+        
         // Se não for um número válido (muito curto, muito longo, ou parece CPF/CNPJ), pular mensagem
         if (!digitsOnly || digitsOnly.length < 10 || digitsOnly.length > 15) {
-          console.log(`Skipping message with invalid phone: ${rawPhone} (${digitsOnly?.length || 0} digits)`);
+          console.log(`[${msgId}] ❌ Skipping message with invalid phone: ${rawPhone} (${digitsOnly?.length || 0} digits)`);
           continue;
         }
         
         const customerPhone = normalizePhone(rawPhone);
         
+        console.log(`[${msgId}] Normalized phone:`, customerPhone);
+        
         // Validação final: se o telefone normalizado estiver vazio ou for inválido, pular mensagem
         if (!customerPhone || customerPhone.length < 10 || customerPhone.length > 13) {
-          console.log(`Skipping message with invalid normalized phone: ${customerPhone} from raw: ${rawPhone}`);
+          console.log(`[${msgId}] ❌ Skipping message with invalid normalized phone: ${customerPhone} from raw: ${rawPhone}`);
           continue;
         }
         
-        console.log('Raw phone from webhook:', rawPhone, '-> Normalized:', customerPhone);
+        console.log(`[${msgId}] ✅ Valid phone - Raw: ${rawPhone} -> Normalized: ${customerPhone}`);
 
         // Detectar tipo de mídia e URL
         let mediaType = 'text';
@@ -154,7 +166,7 @@ serve(async (req) => {
         // Extrair nome do remetente
         const customerName = msg.pushName || msg.senderName || customerPhone;
 
-        console.log(`Processing message from ${customerPhone}: ${messageText}`);
+        console.log(`[${msgId}] 📨 Message from ${customerPhone} (${customerName}): ${messageText.substring(0, 50)}...`);
 
         // Verificar se há pesquisa pendente para este cliente
         const { data: surveys, error: surveyError } = await supabase
@@ -164,12 +176,18 @@ serve(async (req) => {
           .is('rating', null)
           .order('sent_at', { ascending: false });
 
-        console.log(`Found ${surveys?.length || 0} pending surveys`);
+        if (surveyError) {
+          console.log(`[${msgId}] ⚠️ Error fetching surveys:`, surveyError);
+        }
+
+        console.log(`[${msgId}] Found ${surveys?.length || 0} pending surveys`);
 
         // Encontrar a pesquisa que corresponde ao telefone usando comparação normalizada
         const pendingSurvey = surveys?.find(s => {
           const match = comparePhones(s.customer_phone || '', customerPhone);
-          console.log(`Comparing DB phone: ${s.customer_phone} with remote: ${customerPhone} -> ${match ? 'MATCH' : 'NO MATCH'}`);
+          if (match) {
+            console.log(`[${msgId}] 🎯 Survey match found! DB: ${s.customer_phone} <-> Remote: ${customerPhone}`);
+          }
           return match;
         });
 
@@ -177,13 +195,13 @@ serve(async (req) => {
         let isSurveyRatingOnly = false;
         
         if (pendingSurvey) {
+          console.log(`[${msgId}] 📊 Has pending survey - checking if message is a rating...`);
           const ratingMatch = messageText.trim().match(/^[1-5]$/);
           
           if (ratingMatch) {
             const rating = parseInt(ratingMatch[0]);
             
-            console.log(`Detected rating ${rating} from ${customerPhone} (remoteJid: ${remoteJid})`);
-            console.log(`Updating survey ${pendingSurvey.id} with rating ${rating}`);
+            console.log(`[${msgId}] ⭐ Rating detected: ${rating} - updating survey ${pendingSurvey.id}`);
             
             // Marcar que é apenas nota de pesquisa (não deve criar conversa)
             isSurveyRatingOnly = true;
@@ -199,9 +217,9 @@ serve(async (req) => {
               .eq('id', pendingSurvey.id);
 
             if (updateError) {
-              console.error('Error updating survey:', updateError);
+              console.error(`[${msgId}] ❌ Error updating survey:`, updateError);
             } else {
-              console.log(`Survey rating recorded: ${customerPhone} rated ${rating}`);
+              console.log(`[${msgId}] ✅ Survey rating recorded successfully`);
               
               // Pedir feedback opcional
               try {
@@ -212,15 +230,16 @@ serve(async (req) => {
                   }
                 });
               } catch (feedbackError) {
-                console.error('Error sending feedback request:', feedbackError);
+                console.error(`[${msgId}] Error sending feedback request:`, feedbackError);
               }
             }
             
             // Pular criação de conversa/mensagem quando for apenas nota
+            console.log(`[${msgId}] ⏭️ Skipping conversation creation (survey rating only)`);
             continue;
           } else {
             // Mensagem não é uma nota válida, informar o cliente
-            console.log(`Invalid rating received from ${customerPhone}: "${messageText}"`);
+            console.log(`[${msgId}] ⚠️ Invalid rating received: "${messageText}" - expecting 1-5`);
             try {
               await supabase.functions.invoke('whatsapp-send', {
                 body: {
@@ -229,12 +248,15 @@ serve(async (req) => {
                 }
               });
             } catch (sendError) {
-              console.error('Error sending invalid rating message:', sendError);
+              console.error(`[${msgId}] Error sending invalid rating message:`, sendError);
             }
             
             // Pular criação de conversa quando for resposta inválida à pesquisa
+            console.log(`[${msgId}] ⏭️ Skipping conversation creation (invalid survey response)`);
             continue;
           }
+        } else {
+          console.log(`[${msgId}] ℹ️ No pending survey for this customer`);
         }
 
         // Verificar se é um feedback para pesquisa que já tem nota
@@ -289,6 +311,7 @@ serve(async (req) => {
         
         // Apenas criar conversa se NÃO for nota de pesquisa
         if (!isSurveyRatingOnly) {
+          console.log(`[${msgId}] 💬 Creating/updating conversation for ${customerPhone}`);
 
           // Buscar ou criar conversa
           let { data: conversation } = await supabase
@@ -298,6 +321,7 @@ serve(async (req) => {
             .maybeSingle();
 
           if (!conversation) {
+            console.log(`[${msgId}] 🆕 Creating new conversation`);
             const { data: newConv, error: convError } = await supabase
               .from('conversations')
               .insert({
@@ -311,11 +335,13 @@ serve(async (req) => {
               .single();
 
             if (convError) {
-              console.error('Error creating conversation:', convError);
+              console.error(`[${msgId}] ❌ Error creating conversation:`, convError);
               continue;
             }
             conversation = newConv;
+            console.log(`[${msgId}] ✅ Conversation created with ID: ${conversation.id}`);
           } else {
+            console.log(`[${msgId}] 📝 Updating existing conversation ID: ${conversation.id}`);
             // Atualizar última mensagem e incrementar contador de não lidas
             const { data: currentConv } = await supabase
               .from('conversations')
@@ -323,7 +349,7 @@ serve(async (req) => {
               .eq('id', conversation.id)
               .single();
 
-            await supabase
+            const { error: updateError } = await supabase
               .from('conversations')
               .update({
                 last_message_at: new Date().toISOString(),
@@ -331,6 +357,12 @@ serve(async (req) => {
                 unread_count: (currentConv?.unread_count || 0) + 1
               })
               .eq('id', conversation.id);
+
+            if (updateError) {
+              console.error(`[${msgId}] ⚠️ Error updating conversation:`, updateError);
+            } else {
+              console.log(`[${msgId}] ✅ Conversation updated - unread count: ${(currentConv?.unread_count || 0) + 1}`);
+            }
           }
 
           // Tentar baixar e armazenar mídia (quando houver)
@@ -415,6 +447,7 @@ serve(async (req) => {
           }
 
           // Inserir mensagem com dados de mídia
+          console.log(`[${msgId}] 💾 Inserting message into database...`);
           const { error: msgError } = await supabase
             .from('messages')
             .insert({
@@ -428,13 +461,15 @@ serve(async (req) => {
             });
 
           if (msgError) {
-            console.error('Error inserting message:', msgError);
+            console.error(`[${msgId}] ❌ Error inserting message:`, msgError);
           } else {
-            console.log('Message inserted successfully with media:', { mediaType, mediaUrl });
+            console.log(`[${msgId}] ✅ Message inserted successfully! Type: ${mediaType}, Has media: ${!!finalMediaUrl}`);
           }
         }
       } catch (err) {
-        console.error('Error processing single message:', err);
+        const msgId = msg?.key?.id || 'unknown';
+        console.error(`[${msgId}] ❌❌❌ CRITICAL ERROR processing message:`, err);
+        console.error(`[${msgId}] Message data:`, JSON.stringify(msg, null, 2));
       }
     }
 
