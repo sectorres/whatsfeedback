@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File, MoreVertical, Edit } from "lucide-react";
+import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File, MoreVertical, Edit, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -71,6 +71,10 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
   const [ordersDialogOpen, setOrdersDialogOpen] = useState(false);
   const [editPhoneDialogOpen, setEditPhoneDialogOpen] = useState(false);
   const [editingPhone, setEditingPhone] = useState("");
+  const [newConversationDialogOpen, setNewConversationDialogOpen] = useState(false);
+  const [newConversationPhone, setNewConversationPhone] = useState("");
+  const [newConversationName, setNewConversationName] = useState("");
+  const [creatingConversation, setCreatingConversation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -480,10 +484,86 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
     }
   };
 
+  const createNewConversation = async () => {
+    if (!newConversationPhone.trim()) {
+      toast.error('Digite um número de telefone');
+      return;
+    }
+
+    const normalized = normalizePhone(newConversationPhone);
+    
+    if (!normalized || normalized.length < 10) {
+      toast.error('Número de telefone inválido');
+      return;
+    }
+
+    if (!isValidPhoneNumber(normalized)) {
+      toast.error('Formato de número inválido. Use DDD + número (ex: 11987654321)');
+      return;
+    }
+
+    setCreatingConversation(true);
+    try {
+      // Verificar se já existe conversa com este número
+      const { data: existingConv } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('customer_phone', normalized)
+        .maybeSingle();
+
+      if (existingConv) {
+        toast.info('Conversa já existe com este número');
+        setSelectedConversation(existingConv);
+        setNewConversationDialogOpen(false);
+        setNewConversationPhone("");
+        setNewConversationName("");
+        setCreatingConversation(false);
+        return;
+      }
+
+      // Criar nova conversa
+      const { data: newConv, error } = await supabase
+        .from('conversations')
+        .insert({
+          customer_phone: normalized,
+          customer_name: newConversationName.trim() || null,
+          status: 'active',
+          last_message_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success('Conversa criada! Você já pode enviar mensagens.');
+      setNewConversationDialogOpen(false);
+      setNewConversationPhone("");
+      setNewConversationName("");
+      loadConversations();
+      setSelectedConversation(newConv);
+    } catch (error) {
+      console.error('Error creating conversation:', error);
+      toast.error('Erro ao criar conversa');
+    } finally {
+      setCreatingConversation(false);
+    }
+  };
+
   return (
     <div className="grid md:grid-cols-3 gap-4 h-[calc(100vh-200px)] min-h-0">
       {/* Lista de conversas */}
       <Card className="p-4 flex flex-col h-full min-h-0 overflow-hidden">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold">Conversas</h3>
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={() => setNewConversationDialogOpen(true)}
+            title="Iniciar nova conversa"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "active" | "archived")} className="flex flex-col h-full min-h-0">
           <TabsList className="grid w-full grid-cols-2 mb-2">
             <TabsTrigger value="active" className="gap-2">
@@ -813,6 +893,65 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
             </Button>
             <Button onClick={saveEditedPhone}>
               Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={newConversationDialogOpen} onOpenChange={setNewConversationDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Iniciar Nova Conversa</DialogTitle>
+            <DialogDescription>
+              Digite o número de telefone do cliente para iniciar uma conversa.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="new-phone">Número de Telefone *</Label>
+              <Input
+                id="new-phone"
+                placeholder="(11) 98765-4321"
+                value={newConversationPhone}
+                onChange={(e) => setNewConversationPhone(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && !creatingConversation && createNewConversation()}
+              />
+              <p className="text-xs text-muted-foreground">
+                Formatos aceitos: (11) 98765-4321, 11987654321, 5511987654321, +55 11 98765-4321
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="new-name">Nome do Cliente (opcional)</Label>
+              <Input
+                id="new-name"
+                placeholder="João Silva"
+                value={newConversationName}
+                onChange={(e) => setNewConversationName(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && !creatingConversation && createNewConversation()}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setNewConversationDialogOpen(false);
+                setNewConversationPhone("");
+                setNewConversationName("");
+              }}
+              disabled={creatingConversation}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={createNewConversation} disabled={creatingConversation}>
+              {creatingConversation ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Criando...
+                </>
+              ) : (
+                'Criar Conversa'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
