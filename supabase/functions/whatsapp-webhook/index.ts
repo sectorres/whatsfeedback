@@ -64,20 +64,28 @@ serve(async (req) => {
         // ID único da mensagem para logs
         const msgId = msg.key?.id || crypto.randomUUID();
 
-        // Extrair telefone: priorizar payload.sender (número real), depois remoteJid
+        // Extrair telefone: usar remoteJidAlt quando addressingMode=LID; evitar payload.sender (número da instância)
         let rawPhone = '';
-        let remoteJid = msg.key?.remoteJid || msg.remoteJid || '';
+        const remoteJid = msg.key?.remoteJid || msg.remoteJid || '';
+        const remoteJidAlt = msg.key?.remoteJidAlt || msg.remoteJidAlt || '';
+        const addressingMode = msg.key?.addressingMode || msg.addressingMode || '';
         
-        console.log(`[${msgId}] 📥 Extracting phone - remoteJid: ${remoteJid}, payload.sender: ${payload?.sender || 'N/A'}`);
+        console.log(`[${msgId}] 📥 Extracting phone - remoteJid: ${remoteJid}, remoteJidAlt: ${remoteJidAlt || 'N/A'}, addressingMode: ${addressingMode || 'N/A'}`);
         
-        // Se remoteJid termina com @lid, é um ID interno - SEMPRE usar payload.sender
         if (remoteJid.endsWith('@lid')) {
-          console.log(`[${msgId}] 🆔 Detected LID remoteJid, using payload.sender as phone source`);
-          rawPhone = payload?.sender || '';
-        } 
-        // Senão, tentar remoteJid primeiro
-        else {
-          rawPhone = remoteJid || payload?.sender || msg.from || msg.key?.participant || '';
+          if (remoteJidAlt) {
+            console.log(`[${msgId}] 🆔 LID detected, using remoteJidAlt as phone source`);
+            rawPhone = remoteJidAlt;
+          } else if (msg.key?.participantAlt || msg.participantAlt) {
+            rawPhone = msg.key?.participantAlt || msg.participantAlt;
+            console.log(`[${msgId}] 🧭 Using participantAlt as fallback for LID`);
+          } else {
+            console.log(`[${msgId}] ⚠️ LID without alt JID; skipping to avoid using instance sender`);
+            continue;
+          }
+        } else {
+          // Caso comum: usar remoteJid (s.whatsapp.net) ou outros campos
+          rawPhone = remoteJid || msg.from || msg.key?.participant || payload?.sender || '';
         }
         
         if (!rawPhone) {
