@@ -7,13 +7,13 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File, MoreVertical } from "lucide-react";
+import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File, MoreVertical, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ImageModal } from "@/components/ImageModal";
-import { isValidPhoneNumber } from "@/lib/phone-utils";
+import { isValidPhoneNumber, normalizePhone } from "@/lib/phone-utils";
 import { CustomerOrdersDialog } from "@/components/CustomerOrdersDialog";
 import {
   DropdownMenu,
@@ -21,6 +21,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface Conversation {
   id: string;
@@ -60,6 +69,8 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
   const [selectedImageUrl, setSelectedImageUrl] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
   const [ordersDialogOpen, setOrdersDialogOpen] = useState(false);
+  const [editPhoneDialogOpen, setEditPhoneDialogOpen] = useState(false);
+  const [editingPhone, setEditingPhone] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -418,6 +429,42 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
     }
   };
 
+  const handleEditPhone = () => {
+    if (!selectedConversation) return;
+    setEditingPhone(selectedConversation.customer_phone);
+    setEditPhoneDialogOpen(true);
+  };
+
+  const saveEditedPhone = async () => {
+    if (!selectedConversation || !editingPhone.trim()) return;
+
+    const normalized = normalizePhone(editingPhone);
+    
+    if (!normalized || normalized.length < 10) {
+      toast.error('Número de telefone inválido');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ customer_phone: normalized })
+        .eq('id', selectedConversation.id);
+
+      if (error) throw error;
+
+      toast.success('Telefone atualizado com sucesso!');
+      setEditPhoneDialogOpen(false);
+      loadConversations();
+      
+      // Atualizar conversa selecionada
+      setSelectedConversation({ ...selectedConversation, customer_phone: normalized });
+    } catch (error) {
+      console.error('Error updating phone:', error);
+      toast.error('Erro ao atualizar telefone');
+    }
+  };
+
   return (
     <div className="grid md:grid-cols-3 gap-4 h-[calc(100vh-200px)] min-h-0">
       {/* Lista de conversas */}
@@ -551,6 +598,10 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => setOrdersDialogOpen(true)}>
                       Ver Pedidos
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleEditPhone}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar Telefone
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -714,6 +765,40 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
         customerPhone={selectedConversation?.customer_phone || ""}
         customerName={selectedConversation?.customer_name || undefined}
       />
+
+      <Dialog open={editPhoneDialogOpen} onOpenChange={setEditPhoneDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Telefone do Cliente</DialogTitle>
+            <DialogDescription>
+              Atualize o número de telefone do cliente. O número será normalizado automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Número de Telefone</Label>
+              <Input
+                id="phone"
+                placeholder="(11) 98765-4321"
+                value={editingPhone}
+                onChange={(e) => setEditingPhone(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && saveEditedPhone()}
+              />
+              <p className="text-xs text-muted-foreground">
+                Formatos aceitos: (11) 98765-4321, 11987654321, 5511987654321, +55 11 98765-4321
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPhoneDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveEditedPhone}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
