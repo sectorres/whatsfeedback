@@ -77,6 +77,9 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
 
   useEffect(() => {
     audioRef.current = new Audio('/notification.mp3');
+    audioRef.current.volume = 0.5;
+    // Preparar o áudio para evitar bloqueio do navegador
+    audioRef.current.load();
   }, []);
 
   const scrollToBottom = () => {
@@ -117,12 +120,24 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
           table: 'messages'
         },
         (payload) => {
+          console.log('Nova mensagem recebida:', {
+            sender_type: payload.new.sender_type,
+            isOnAtendimentoTab,
+            shouldPlaySound: payload.new.sender_type === 'customer' && !isOnAtendimentoTab
+          });
+          
           // Tocar notificação sonora se for mensagem de cliente E não estiver na aba de atendimento
           if (payload.new.sender_type === 'customer' && !isOnAtendimentoTab) {
-            console.log('Tocando sino - não está na aba atendimento');
-            audioRef.current?.play().catch(err => console.log('Erro ao tocar notificação:', err));
-          } else {
-            console.log('Não tocando sino - está na aba atendimento ou não é cliente');
+            console.log('Tentando tocar notificação...');
+            if (audioRef.current) {
+              audioRef.current.play()
+                .then(() => console.log('Notificação tocada com sucesso'))
+                .catch(err => {
+                  console.error('Erro ao tocar notificação:', err);
+                  // Tentar novamente com interação do usuário
+                  toast.error('Nova mensagem recebida! (Som bloqueado pelo navegador)');
+                });
+            }
           }
         }
       )
