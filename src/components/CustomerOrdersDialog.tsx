@@ -245,33 +245,88 @@ export const CustomerOrdersDialog = ({
                       </div>
 
                       <CollapsibleContent className="mt-4">
-                        <div className="border-t border-blue-100 pt-4">
-                          <h5 className="font-bold text-xs mb-3 text-blue-700 flex items-center gap-2">
-                            <div className="h-1 w-1 bg-blue-500 rounded-full"></div>
-                            Produtos do Pedido
-                          </h5>
-                          <div className="space-y-2.5">
-                            {order.produtos?.map((produto) => (
-                              <div
-                                key={produto.id}
-                                className="bg-gradient-to-r from-blue-50/80 to-blue-100/50 dark:from-blue-100/10 dark:to-blue-500/5 rounded-lg p-3 border border-blue-100 dark:border-blue-500/20 hover:border-blue-300 dark:hover:border-blue-500/40 transition-colors"
-                              >
-                                <p className="font-semibold mb-2 text-xs text-blue-900 dark:text-blue-100">{produto.descricao}</p>
-                                <div className="grid grid-cols-3 gap-2 text-[11px]">
-                                  <div className="bg-white/60 dark:bg-card/60 px-2.5 py-1 rounded border border-blue-200/50 dark:border-blue-500/20">
-                                    <span className="text-blue-600 font-medium">Qtd:</span>{' '}
-                                    <span className="text-foreground">{produto.quantidade}</span>
+                        <div className="border-t border-blue-100 pt-4 space-y-4">
+                          {/* Endereço de Entrega */}
+                          {order.cliente && (
+                            <div>
+                              <h5 className="font-bold text-xs mb-3 text-blue-700 flex items-center gap-2">
+                                <div className="h-1 w-1 bg-blue-500 rounded-full"></div>
+                                Endereço de Entrega
+                              </h5>
+                              <div className="bg-gradient-to-r from-blue-50/80 to-blue-100/50 dark:from-blue-100/10 dark:to-blue-500/5 rounded-lg p-3 border border-blue-100 dark:border-blue-500/20">
+                                <div className="space-y-2 text-xs">
+                                  {order.cliente.endereco && (
+                                    <div>
+                                      <span className="text-blue-600 font-medium">Rua:</span>{' '}
+                                      <span className="text-foreground">{order.cliente.endereco}</span>
+                                    </div>
+                                  )}
+                                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                                    {order.cliente.bairro && (
+                                      <div>
+                                        <span className="text-blue-600 font-medium">Bairro:</span>{' '}
+                                        <span className="text-foreground">{order.cliente.bairro}</span>
+                                      </div>
+                                    )}
+                                    {order.cliente.cep && (
+                                      <div>
+                                        <span className="text-blue-600 font-medium">CEP:</span>{' '}
+                                        <span className="text-foreground">{order.cliente.cep}</span>
+                                      </div>
+                                    )}
+                                    {order.cliente.cidade && (
+                                      <div>
+                                        <span className="text-blue-600 font-medium">Cidade:</span>{' '}
+                                        <span className="text-foreground">{order.cliente.cidade}</span>
+                                      </div>
+                                    )}
+                                    {order.cliente.estado && (
+                                      <div>
+                                        <span className="text-blue-600 font-medium">Estado:</span>{' '}
+                                        <span className="text-foreground">{order.cliente.estado}</span>
+                                      </div>
+                                    )}
                                   </div>
-                                  <div className="bg-white/60 dark:bg-card/60 px-2.5 py-1 rounded border border-blue-200/50 dark:border-blue-500/20">
-                                    <span className="text-blue-600 font-medium">Peso:</span>{' '}
-                                    <span className="text-foreground">{produto.pesoBruto} kg</span>
-                                  </div>
-                                  <div className="bg-white/60 dark:bg-card/60 px-2.5 py-1 rounded border border-blue-200/50 dark:border-blue-500/20">
-                                    <span className="text-blue-600 font-medium">{produto.periodoEntrega}</span>
-                                  </div>
+                                  {order.cliente.referencia && (
+                                    <div className="pt-2 border-t border-blue-200/50 dark:border-blue-500/20">
+                                      <span className="text-blue-600 font-medium">Referência:</span>{' '}
+                                      <span className="text-foreground">{order.cliente.referencia}</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                            ))}
+                            </div>
+                          )}
+                          
+                          {/* Produtos */}
+                          <div>
+                            <h5 className="font-bold text-xs mb-3 text-blue-700 flex items-center gap-2">
+                              <div className="h-1 w-1 bg-blue-500 rounded-full"></div>
+                              Produtos do Pedido
+                            </h5>
+                            <div className="space-y-2.5">
+                              {order.produtos?.map((produto) => (
+                                <div
+                                  key={produto.id}
+                                  className="bg-gradient-to-r from-blue-50/80 to-blue-100/50 dark:from-blue-100/10 dark:to-blue-500/5 rounded-lg p-3 border border-blue-100 dark:border-blue-500/20 hover:border-blue-300 dark:hover:border-blue-500/40 transition-colors"
+                                >
+                                  <p className="font-semibold mb-2 text-xs text-blue-900 dark:text-blue-100">{produto.descricao}</p>
+                                  <div className="grid grid-cols-3 gap-2 text-[11px]">
+                                    <div className="bg-white/60 dark:bg-card/60 px-2.5 py-1 rounded border border-blue-200/50 dark:border-blue-500/20">
+                                      <span className="text-blue-600 font-medium">Qtd:</span>{' '}
+                                      <span className="text-foreground">{produto.quantidade}</span>
+                                    </div>
+                                    <div className="bg-white/60 dark:bg-card/60 px-2.5 py-1 rounded border border-blue-200/50 dark:border-blue-500/20">
+                                      <span className="text-blue-600 font-medium">Peso:</span>{' '}
+                                      <span className="text-foreground">{produto.pesoBruto} kg</span>
+                                    </div>
+                                    <div className="bg-white/60 dark:bg-card/60 px-2.5 py-1 rounded border border-blue-200/50 dark:border-blue-500/20">
+                                      <span className="text-blue-600 font-medium">{produto.periodoEntrega}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </CollapsibleContent>
