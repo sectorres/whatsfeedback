@@ -601,10 +601,7 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       onClick={handleEditPhone}
-                      disabled={(() => {
-                        const normalized = normalizePhone(selectedConversation.customer_phone);
-                        return normalized.length >= 10 && normalized.length <= 15;
-                      })()}
+                      disabled={isValidPhoneNumber(selectedConversation.customer_phone)}
                     >
                       <Edit className="h-4 w-4 mr-2" />
                       Editar Telefone
