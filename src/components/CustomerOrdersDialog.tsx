@@ -81,6 +81,7 @@ export const CustomerOrdersDialog = ({
 }: CustomerOrdersDialogProps) => {
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState<Pedido[]>([]);
+  const [apiCustomerName, setApiCustomerName] = useState<string>('');
   const [expandedOrders, setExpandedOrders] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -117,6 +118,11 @@ export const CustomerOrdersDialog = ({
                 rota: `${pedido.rota} - ${getStatusLabel(carga.status)}`,
                 motorista: carga.nomeMotorista || 'Não atribuído'
               });
+              
+              // Capturar o nome do cliente da API no primeiro pedido encontrado
+              if (!apiCustomerName && pedido.cliente?.nome) {
+                setApiCustomerName(pedido.cliente.nome);
+              }
             }
           });
         });
@@ -170,8 +176,8 @@ export const CustomerOrdersDialog = ({
             Pedidos do Cliente
           </DialogTitle>
           <DialogDescription className="text-sm mt-2">
-            {customerName && <span className="font-semibold text-blue-700">{customerName}</span>}
-            {customerName && <span className="mx-2 text-blue-500">•</span>}
+            {apiCustomerName && <span className="font-semibold text-blue-700">{apiCustomerName}</span>}
+            {apiCustomerName && <span className="mx-2 text-blue-500">•</span>}
             <span className="text-blue-600">{customerPhone}</span>
           </DialogDescription>
         </DialogHeader>
