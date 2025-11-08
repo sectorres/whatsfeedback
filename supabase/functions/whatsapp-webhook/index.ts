@@ -87,6 +87,42 @@ serve(async (req) => {
 
         // Extrair telefone de múltiplas fontes possíveis
         let rawPhone = '';
+        let remoteJid = '';
+        
+        // IMPORTANTE: Primeiro tentar o sender do payload (número real do remetente)
+        if (payload?.sender) {
+          rawPhone = payload.sender;
+          console.log(`[${msgId}] 📞 Phone from payload.sender:`, rawPhone);
+        }
+        // Depois tentar dos campos da mensagem
+        else if (msg.key?.remoteJid) {
+          rawPhone = msg.key.remoteJid;
+          remoteJid = msg.key.remoteJid;
+          console.log(`[${msgId}] 📞 Phone from msg.key.remoteJid:`, rawPhone);
+        } else if (msg.remoteJid) {
+          rawPhone = msg.remoteJid;
+          remoteJid = msg.remoteJid;
+          console.log(`[${msgId}] 📞 Phone from msg.remoteJid:`, rawPhone);
+        } else if (msg.from) {
+          rawPhone = msg.from;
+          console.log(`[${msgId}] 📞 Phone from msg.from:`, rawPhone);
+        } else if (msg.key?.participant) {
+          rawPhone = msg.key.participant;
+          console.log(`[${msgId}] 📞 Phone from msg.key.participant:`, rawPhone);
+        } else {
+          console.log(`[${msgId}] ❌ No phone field found in message, skipping`);
+          continue;
+        }
+        
+        // Guardar o remoteJid original se for diferente do rawPhone
+        if (!remoteJid && msg.key?.remoteJid) {
+          remoteJid = msg.key.remoteJid;
+        }
+        
+        // Limpar sufixos do WhatsApp
+        rawPhone = rawPhone.replace('@s.whatsapp.net', '').replace('@g.us', '').replace('@c.us', '').replace('@lid', '');
+        
+        console.log(`[${msgId}] 🧹 Cleaned phone:`, rawPhone, '| remoteJid:', remoteJid);
         
         // Tentar extrair de diferentes campos (ordem de prioridade)
         if (msg.key?.remoteJid) {
