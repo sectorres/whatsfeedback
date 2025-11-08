@@ -7,14 +7,28 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File, MoreVertical, Edit } from "lucide-react";
+import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File, MoreVertical, Edit, Search, MessageSquareOff } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ImageModal } from "@/components/ImageModal";
 import { isValidPhoneNumber, normalizePhone } from "@/lib/phone-utils";
 import { CustomerOrdersDialog } from "@/components/CustomerOrdersDialog";
+import { PedidoSearchDialog } from "@/components/PedidoSearchDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -71,6 +85,12 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
   const [ordersDialogOpen, setOrdersDialogOpen] = useState(false);
   const [editPhoneDialogOpen, setEditPhoneDialogOpen] = useState(false);
   const [editingPhone, setEditingPhone] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [selectedPedido, setSelectedPedido] = useState<any | null>(null);
+  const [showPedidoDialog, setShowPedidoDialog] = useState(false);
+  const [showEndConversationDialog, setShowEndConversationDialog] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -81,6 +101,31 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
     // Preparar o áudio para evitar bloqueio do navegador
     audioRef.current.load();
   }, []);
+
+  // Buscar pedidos conforme digita
+  useEffect(() => {
+    const searchPedidos = async () => {
+      if (searchQuery.length < 3) {
+        setSearchResults([]);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.functions.invoke('search-pedido', {
+          body: { pedidoNumero: searchQuery }
+        });
+
+        if (error) throw error;
+        setSearchResults(data?.pedidos || []);
+      } catch (error) {
+        console.error('Erro ao buscar pedidos:', error);
+        setSearchResults([]);
+      }
+    };
+
+    const debounceTimer = setTimeout(searchPedidos, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -620,11 +665,66 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                     >
                       <Edit className="h-4 w-4 mr-2" />
                       Editar Telefone
-                    </DropdownMenuItem>
+                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="outline" size="sm" onClick={closeConversation}>
-                  <X className="h-4 w-4 mr-2" />
+                
+                <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Search className="h-4 w-4 mr-2" />
+                      Buscar Pedido
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="end">
+                    <Command shouldFilter={false}>
+                      <CommandInput 
+                        placeholder="Digite o número do pedido (ex: 002/123456-P)" 
+                        value={searchQuery}
+                        onValueChange={setSearchQuery}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          {searchQuery.length < 3 ? "Digite pelo menos 3 caracteres" : "Nenhum pedido encontrado"}
+                        </CommandEmpty>
+                        {searchResults.length > 0 && (
+                          <CommandGroup heading="Pedidos Encontrados">
+                            {searchResults.map((pedido) => (
+                              <CommandItem
+                                key={pedido.id}
+                                onSelect={() => {
+                                  setSelectedPedido(pedido);
+                                  setShowPedidoDialog(true);
+                                  setSearchOpen(false);
+                                  setSearchQuery("");
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <div className="flex flex-col gap-1 w-full">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-semibold">{pedido.pedido}</span>
+                                    <Badge variant="outline" className="text-xs">
+                                      {pedido.notaFiscal}
+                                    </Badge>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {pedido.cliente.nome} - {pedido.rota}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    R$ {pedido.valor.toFixed(2)} | {pedido.pesoBruto} kg
+                                  </div>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                
+                <Button variant="outline" size="sm" onClick={() => setShowEndConversationDialog(true)}>
+                  <MessageSquareOff className="h-4 w-4 mr-2" />
                   Encerrar
                 </Button>
               </div>
@@ -783,6 +883,35 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
         customerPhone={selectedConversation?.customer_phone || ""}
         customerName={selectedConversation?.customer_name || undefined}
       />
+
+      <PedidoSearchDialog
+        open={showPedidoDialog}
+        onOpenChange={setShowPedidoDialog}
+        pedido={selectedPedido}
+      />
+
+      {/* Dialog de confirmação de encerramento */}
+      <Dialog open={showEndConversationDialog} onOpenChange={setShowEndConversationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Encerrar Conversa</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja encerrar esta conversa? A conversa será arquivada.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEndConversationDialog(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={() => {
+              closeConversation();
+              setShowEndConversationDialog(false);
+            }}>
+              Encerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={editPhoneDialogOpen} onOpenChange={setEditPhoneDialogOpen}>
         <DialogContent>
