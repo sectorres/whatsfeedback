@@ -18,6 +18,12 @@ export function normalizePhone(phone: string): string {
   // Remove todos os caracteres não numéricos (parênteses, hífens, espaços, +)
   let cleanPhone = phone.replace(/\D/g, '');
 
+  // Rejeitar números que claramente não são telefones (muito longos - provavelmente CPF/CNPJ)
+  // Telefone brasileiro: máximo 13 dígitos com código do país (5511987654321)
+  if (cleanPhone.length > 15) {
+    return '';
+  }
+
   // Remove prefixo internacional 00, se presente
   if (cleanPhone.startsWith('00')) {
     cleanPhone = cleanPhone.substring(2);
