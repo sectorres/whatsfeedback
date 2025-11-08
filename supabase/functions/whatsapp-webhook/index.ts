@@ -24,15 +24,7 @@ serve(async (req) => {
     const url = new URL(req.url);
     const pathEvent = url.pathname.split('/').pop()?.toLowerCase();
     const rawEvent = (payload?.event || pathEvent || '').toLowerCase();
-    
-    // Aceitar tanto messages.upsert quanto send.message (para compatibilidade)
-    const isMessageEvent = (
-      (rawEvent.includes('message') && rawEvent.includes('upsert')) ||
-      rawEvent === 'messages.upsert' ||
-      rawEvent === 'message.upsert'
-    );
-
-    console.log('Event detected:', rawEvent, 'isMessageEvent:', isMessageEvent);
+    const isMessageEvent = rawEvent.includes('message') && rawEvent.includes('upsert');
 
     // Normalizar estrutura de mensagens
     let incoming: any[] = [];
@@ -40,29 +32,24 @@ serve(async (req) => {
     // Caso 1: payload.data.messages (array)
     if (Array.isArray(payload?.data?.messages)) {
       incoming = payload.data.messages;
-      console.log('Case 1: payload.data.messages array -', incoming.length, 'messages');
     }
     // Caso 2: payload.data é a mensagem direta (Evolution com webhook by events)
     else if (payload?.data?.key && payload?.data?.message) {
       incoming = [payload.data];
-      console.log('Case 2: payload.data direct message');
     }
     // Caso 3: payload.messages (array)
     else if (Array.isArray(payload?.messages)) {
       incoming = payload.messages;
-      console.log('Case 3: payload.messages array -', incoming.length, 'messages');
     }
     // Caso 4: payload.data.message (objeto único)
     else if (payload?.data?.message) {
       incoming = [payload.data];
-      console.log('Case 4: payload.data.message object');
     }
 
     console.log('Parsed event:', rawEvent, 'messages count:', incoming.length);
 
     if (!isMessageEvent && incoming.length === 0) {
       // Ignorar eventos não relacionados a mensagens
-      console.log('Ignoring non-message event:', rawEvent);
       return new Response(
         JSON.stringify({ success: true, ignored: rawEvent || 'no-event' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -71,105 +58,36 @@ serve(async (req) => {
 
     for (const msg of incoming) {
       try {
-        const msgId = msg.key?.id || crypto.randomUUID();
-        console.log(`[${msgId}] Processing message:`, {
-          fromMe: msg.key?.fromMe,
-          remoteJid: msg.key?.remoteJid,
-          messageType: msg.messageType,
-          hasMessage: !!msg.message
-        });
-        
         // Ignorar mensagens enviadas pelo próprio bot
-        if (msg.key?.fromMe) {
-          console.log(`[${msgId}] Skipping message from me`);
-          continue;
-        }
+        if (msg.key?.fromMe) continue;
 
-        // Extrair telefone de múltiplas fontes possíveis
-        let rawPhone = '';
-        let remoteJid = '';
+        // Extrair telefone (suporta diferentes estruturas)
+        // Primeiro tentar o remoteJid limpo
+        let remoteJid = msg.key?.remoteJid || msg.remoteJid || msg.from || '';
+        remoteJid = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
         
-        // IMPORTANTE: Primeiro tentar o sender do payload (número real do remetente)
-        if (payload?.sender) {
-          rawPhone = payload.sender;
-          console.log(`[${msgId}] 📞 Phone from payload.sender:`, rawPhone);
-        }
-        // Depois tentar dos campos da mensagem
-        else if (msg.key?.remoteJid) {
-          rawPhone = msg.key.remoteJid;
-          remoteJid = msg.key.remoteJid;
-          console.log(`[${msgId}] 📞 Phone from msg.key.remoteJid:`, rawPhone);
-        } else if (msg.remoteJid) {
-          rawPhone = msg.remoteJid;
-          remoteJid = msg.remoteJid;
-          console.log(`[${msgId}] 📞 Phone from msg.remoteJid:`, rawPhone);
-        } else if (msg.from) {
-          rawPhone = msg.from;
-          console.log(`[${msgId}] 📞 Phone from msg.from:`, rawPhone);
-        } else if (msg.key?.participant) {
-          rawPhone = msg.key.participant;
-          console.log(`[${msgId}] 📞 Phone from msg.key.participant:`, rawPhone);
-        } else {
-          console.log(`[${msgId}] ❌ No phone field found in message, skipping`);
-          continue;
-        }
+        // Se o remoteJid não parece um número de telefone válido (muito curto/longo ou não numérico)
+        // tentar extrair do pushName, participant ou outros campos
+        let rawPhone = remoteJid;
         
-        // Guardar o remoteJid original se for diferente do rawPhone
-        if (!remoteJid && msg.key?.remoteJid) {
-          remoteJid = msg.key.remoteJid;
-        }
-        
-        // Limpar sufixos do WhatsApp
-        rawPhone = rawPhone.replace('@s.whatsapp.net', '').replace('@g.us', '').replace('@c.us', '').replace('@lid', '');
-        
-        console.log(`[${msgId}] 🧹 Cleaned phone:`, rawPhone, '| remoteJid:', remoteJid);
-        
-        // Tentar extrair de diferentes campos (ordem de prioridade)
-        if (msg.key?.remoteJid) {
-          rawPhone = msg.key.remoteJid;
-          console.log(`[${msgId}] 📞 Phone from msg.key.remoteJid:`, rawPhone);
-        } else if (msg.remoteJid) {
-          rawPhone = msg.remoteJid;
-          console.log(`[${msgId}] 📞 Phone from msg.remoteJid:`, rawPhone);
-        } else if (msg.from) {
-          rawPhone = msg.from;
-          console.log(`[${msgId}] 📞 Phone from msg.from:`, rawPhone);
-        } else if (msg.key?.participant) {
-          rawPhone = msg.key.participant;
-          console.log(`[${msgId}] 📞 Phone from msg.key.participant:`, rawPhone);
-        } else {
-          console.log(`[${msgId}] ❌ No phone field found in message, skipping`);
-          continue;
-        }
-        
-        // Limpar sufixos do WhatsApp
-        rawPhone = rawPhone.replace('@s.whatsapp.net', '').replace('@g.us', '').replace('@c.us', '');
-        
-        console.log(`[${msgId}] 🧹 Cleaned phone:`, rawPhone);
-        
-        // Extrair apenas dígitos para validação
+        // Validar se parece um número de telefone brasileiro válido (10-13 dígitos após normalização)
         const digitsOnly = rawPhone.replace(/\D/g, '');
         
-        console.log(`[${msgId}] 🔢 Digits only:`, digitsOnly, `(length: ${digitsOnly?.length || 0})`);
-        
-        // Validação mais flexível: aceitar números brasileiros (10-13 dígitos) e internacionais (até 15)
+        // Se não for um número válido (muito curto, muito longo, ou parece CPF/CNPJ), pular mensagem
         if (!digitsOnly || digitsOnly.length < 10 || digitsOnly.length > 15) {
-          console.log(`[${msgId}] ❌ Skipping - invalid digit count: ${digitsOnly?.length || 0} (expected 10-15)`);
+          console.log(`Skipping message with invalid phone: ${rawPhone} (${digitsOnly?.length || 0} digits)`);
           continue;
         }
         
-        // Normalizar telefone
         const customerPhone = normalizePhone(rawPhone);
         
-        console.log(`[${msgId}] ✅ Normalized phone:`, customerPhone);
-        
-        // Validação final
-        if (!customerPhone || customerPhone.length < 10) {
-          console.log(`[${msgId}] ❌ Skipping - normalized phone too short: ${customerPhone}`);
+        // Validação final: se o telefone normalizado estiver vazio ou for inválido, pular mensagem
+        if (!customerPhone || customerPhone.length < 10 || customerPhone.length > 13) {
+          console.log(`Skipping message with invalid normalized phone: ${customerPhone} from raw: ${rawPhone}`);
           continue;
         }
         
-        console.log(`[${msgId}] ✅ Valid phone confirmed - Using: ${customerPhone}`);
+        console.log('Raw phone from webhook:', rawPhone, '-> Normalized:', customerPhone);
 
         // Detectar tipo de mídia e URL
         let mediaType = 'text';
@@ -218,7 +136,7 @@ serve(async (req) => {
         // Extrair nome do remetente
         const customerName = msg.pushName || msg.senderName || customerPhone;
 
-        console.log(`[${msgId}] 📨 Message from ${customerPhone} (${customerName}): ${messageText.substring(0, 50)}...`);
+        console.log(`Processing message from ${customerPhone}: ${messageText}`);
 
         // Verificar se há pesquisa pendente para este cliente
         const { data: surveys, error: surveyError } = await supabase
@@ -228,18 +146,12 @@ serve(async (req) => {
           .is('rating', null)
           .order('sent_at', { ascending: false });
 
-        if (surveyError) {
-          console.log(`[${msgId}] ⚠️ Error fetching surveys:`, surveyError);
-        }
-
-        console.log(`[${msgId}] Found ${surveys?.length || 0} pending surveys`);
+        console.log(`Found ${surveys?.length || 0} pending surveys`);
 
         // Encontrar a pesquisa que corresponde ao telefone usando comparação normalizada
         const pendingSurvey = surveys?.find(s => {
           const match = comparePhones(s.customer_phone || '', customerPhone);
-          if (match) {
-            console.log(`[${msgId}] 🎯 Survey match found! DB: ${s.customer_phone} <-> Remote: ${customerPhone}`);
-          }
+          console.log(`Comparing DB phone: ${s.customer_phone} with remote: ${customerPhone} -> ${match ? 'MATCH' : 'NO MATCH'}`);
           return match;
         });
 
@@ -247,13 +159,13 @@ serve(async (req) => {
         let isSurveyRatingOnly = false;
         
         if (pendingSurvey) {
-          console.log(`[${msgId}] 📊 Has pending survey - checking if message is a rating...`);
           const ratingMatch = messageText.trim().match(/^[1-5]$/);
           
           if (ratingMatch) {
             const rating = parseInt(ratingMatch[0]);
             
-            console.log(`[${msgId}] ⭐ Rating detected: ${rating} - updating survey ${pendingSurvey.id}`);
+            console.log(`Detected rating ${rating} from ${customerPhone} (remoteJid: ${remoteJid})`);
+            console.log(`Updating survey ${pendingSurvey.id} with rating ${rating}`);
             
             // Marcar que é apenas nota de pesquisa (não deve criar conversa)
             isSurveyRatingOnly = true;
@@ -269,9 +181,9 @@ serve(async (req) => {
               .eq('id', pendingSurvey.id);
 
             if (updateError) {
-              console.error(`[${msgId}] ❌ Error updating survey:`, updateError);
+              console.error('Error updating survey:', updateError);
             } else {
-              console.log(`[${msgId}] ✅ Survey rating recorded successfully`);
+              console.log(`Survey rating recorded: ${customerPhone} rated ${rating}`);
               
               // Pedir feedback opcional
               try {
@@ -282,16 +194,15 @@ serve(async (req) => {
                   }
                 });
               } catch (feedbackError) {
-                console.error(`[${msgId}] Error sending feedback request:`, feedbackError);
+                console.error('Error sending feedback request:', feedbackError);
               }
             }
             
             // Pular criação de conversa/mensagem quando for apenas nota
-            console.log(`[${msgId}] ⏭️ Skipping conversation creation (survey rating only)`);
             continue;
           } else {
             // Mensagem não é uma nota válida, informar o cliente
-            console.log(`[${msgId}] ⚠️ Invalid rating received: "${messageText}" - expecting 1-5`);
+            console.log(`Invalid rating received from ${customerPhone}: "${messageText}"`);
             try {
               await supabase.functions.invoke('whatsapp-send', {
                 body: {
@@ -300,15 +211,12 @@ serve(async (req) => {
                 }
               });
             } catch (sendError) {
-              console.error(`[${msgId}] Error sending invalid rating message:`, sendError);
+              console.error('Error sending invalid rating message:', sendError);
             }
             
             // Pular criação de conversa quando for resposta inválida à pesquisa
-            console.log(`[${msgId}] ⏭️ Skipping conversation creation (invalid survey response)`);
             continue;
           }
-        } else {
-          console.log(`[${msgId}] ℹ️ No pending survey for this customer`);
         }
 
         // Verificar se é um feedback para pesquisa que já tem nota
@@ -363,7 +271,6 @@ serve(async (req) => {
         
         // Apenas criar conversa se NÃO for nota de pesquisa
         if (!isSurveyRatingOnly) {
-          console.log(`[${msgId}] 💬 Creating/updating conversation for ${customerPhone}`);
 
           // Buscar ou criar conversa
           let { data: conversation } = await supabase
@@ -373,7 +280,6 @@ serve(async (req) => {
             .maybeSingle();
 
           if (!conversation) {
-            console.log(`[${msgId}] 🆕 Creating new conversation`);
             const { data: newConv, error: convError } = await supabase
               .from('conversations')
               .insert({
@@ -387,13 +293,11 @@ serve(async (req) => {
               .single();
 
             if (convError) {
-              console.error(`[${msgId}] ❌ Error creating conversation:`, convError);
+              console.error('Error creating conversation:', convError);
               continue;
             }
             conversation = newConv;
-            console.log(`[${msgId}] ✅ Conversation created with ID: ${conversation.id}`);
           } else {
-            console.log(`[${msgId}] 📝 Updating existing conversation ID: ${conversation.id}`);
             // Atualizar última mensagem e incrementar contador de não lidas
             const { data: currentConv } = await supabase
               .from('conversations')
@@ -401,7 +305,7 @@ serve(async (req) => {
               .eq('id', conversation.id)
               .single();
 
-            const { error: updateError } = await supabase
+            await supabase
               .from('conversations')
               .update({
                 last_message_at: new Date().toISOString(),
@@ -409,12 +313,6 @@ serve(async (req) => {
                 unread_count: (currentConv?.unread_count || 0) + 1
               })
               .eq('id', conversation.id);
-
-            if (updateError) {
-              console.error(`[${msgId}] ⚠️ Error updating conversation:`, updateError);
-            } else {
-              console.log(`[${msgId}] ✅ Conversation updated - unread count: ${(currentConv?.unread_count || 0) + 1}`);
-            }
           }
 
           // Tentar baixar e armazenar mídia (quando houver)
@@ -499,7 +397,6 @@ serve(async (req) => {
           }
 
           // Inserir mensagem com dados de mídia
-          console.log(`[${msgId}] 💾 Inserting message into database...`);
           const { error: msgError } = await supabase
             .from('messages')
             .insert({
@@ -513,15 +410,13 @@ serve(async (req) => {
             });
 
           if (msgError) {
-            console.error(`[${msgId}] ❌ Error inserting message:`, msgError);
+            console.error('Error inserting message:', msgError);
           } else {
-            console.log(`[${msgId}] ✅ Message inserted successfully! Type: ${mediaType}, Has media: ${!!finalMediaUrl}`);
+            console.log('Message inserted successfully with media:', { mediaType, mediaUrl });
           }
         }
       } catch (err) {
-        const msgId = msg?.key?.id || 'unknown';
-        console.error(`[${msgId}] ❌❌❌ CRITICAL ERROR processing message:`, err);
-        console.error(`[${msgId}] Message data:`, JSON.stringify(msg, null, 2));
+        console.error('Error processing single message:', err);
       }
     }
 
