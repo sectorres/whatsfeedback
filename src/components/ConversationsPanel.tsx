@@ -15,7 +15,7 @@ import { AudioPlayer } from "@/components/AudioPlayer";
 import { ImageModal } from "@/components/ImageModal";
 import { isValidPhoneNumber, normalizePhone } from "@/lib/phone-utils";
 import { CustomerOrdersDialog } from "@/components/CustomerOrdersDialog";
-import { OrderSearch } from "@/components/OrderSearch";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -685,7 +685,7 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                     {selectedConversation.customer_phone}
                   </p>
                 </div>
-                <OrderSearch customerPhone={selectedConversation.customer_phone} />
+                
               </div>
               <div className="flex items-center gap-2">
                 <DropdownMenu>
