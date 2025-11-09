@@ -12,6 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { OrderDetailsDialog } from "@/components/OrderDetailsDialog";
 
 interface Produto {
   descricao: string;
@@ -26,6 +27,9 @@ interface Cliente {
   endereco: string;
   bairro: string;
   cidade: string;
+  estado: string;
+  cep: string;
+  referencia?: string;
 }
 
 interface Pedido {
@@ -56,6 +60,8 @@ export function OrderSearch({ customerPhone }: OrderSearchProps) {
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<Pedido[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedPedido, setSelectedPedido] = useState<Pedido | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Debounced search
@@ -87,42 +93,73 @@ export function OrderSearch({ customerPhone }: OrderSearchProps) {
 
     setIsSearching(true);
     try {
+      console.log('🔍 Buscando pedidos com query:', query);
+      
       const { data, error } = await supabase.functions.invoke('fetch-cargas', {
         body: {}
       });
 
-      if (error) throw error;
+      console.log('📦 Resposta fetch-cargas:', { hasData: !!data, error, dataType: typeof data, isArray: Array.isArray(data) });
+
+      if (error) {
+        console.error('❌ Erro ao buscar cargas:', error);
+        throw error;
+      }
 
       if (!data || !Array.isArray(data)) {
+        console.warn('⚠️ Data inválido ou não é array:', data);
         setResults([]);
         return;
       }
 
+      console.log(`📊 Total de cargas: ${data.length}`);
+
       // Search across all orders
       const foundOrders: Pedido[] = [];
+      let totalPedidos = 0;
       
       data.forEach((carga: Carga) => {
         if (carga.pedidos && Array.isArray(carga.pedidos)) {
+          totalPedidos += carga.pedidos.length;
+          
           carga.pedidos.forEach((pedido: Pedido) => {
             // Search by order number, invoice, customer name, or document
-            const searchLower = query.toLowerCase();
+            const searchLower = query.toLowerCase().trim();
+            const searchNormalized = query.replace(/[^\w\s]/g, '').toLowerCase(); // Remove special chars
+            
+            // Normalize fields for comparison
+            const pedidoNum = (pedido.pedido || '').toLowerCase();
+            const notaFiscal = (pedido.notaFiscal || '').toLowerCase();
+            const clienteNome = (pedido.cliente?.nome || '').toLowerCase();
+            const clienteDoc = (pedido.cliente?.documento || '').toLowerCase();
+            const clienteTel = (pedido.cliente?.telefone || '').replace(/\D/g, '');
+            
             const matches = 
-              pedido.pedido?.toLowerCase().includes(searchLower) ||
-              pedido.notaFiscal?.toLowerCase().includes(searchLower) ||
-              pedido.cliente?.nome?.toLowerCase().includes(searchLower) ||
-              pedido.cliente?.documento?.toLowerCase().includes(searchLower) ||
-              pedido.cliente?.telefone?.includes(query);
+              pedidoNum.includes(searchLower) ||
+              pedidoNum.replace(/[^\w]/g, '').includes(searchNormalized) ||
+              notaFiscal.includes(searchLower) ||
+              notaFiscal.replace(/[^\w]/g, '').includes(searchNormalized) ||
+              clienteNome.includes(searchLower) ||
+              clienteDoc.includes(searchLower) ||
+              clienteDoc.replace(/\D/g, '').includes(query.replace(/\D/g, '')) ||
+              clienteTel.includes(query.replace(/\D/g, ''));
 
             if (matches) {
               foundOrders.push(pedido);
+              console.log('✅ Match encontrado:', {
+                pedido: pedido.pedido,
+                nota: pedido.notaFiscal,
+                cliente: pedido.cliente?.nome
+              });
             }
           });
         }
       });
 
+      console.log(`🎯 Busca concluída: ${foundOrders.length} pedidos encontrados de ${totalPedidos} totais`);
       setResults(foundOrders.slice(0, 20)); // Limit to 20 results for performance
     } catch (error) {
-      console.error('Error searching orders:', error);
+      console.error('❌ Error searching orders:', error);
       toast.error('Erro ao buscar pedidos');
       setResults([]);
     } finally {
@@ -147,7 +184,14 @@ export function OrderSearch({ customerPhone }: OrderSearchProps) {
     setResults([]);
   };
 
+  const handlePedidoClick = (pedido: Pedido) => {
+    setSelectedPedido(pedido);
+    setDetailsOpen(true);
+    setIsOpen(false);
+  };
+
   return (
+    <>
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <Button
@@ -200,7 +244,11 @@ export function OrderSearch({ customerPhone }: OrderSearchProps) {
           {results.length > 0 && (
             <div className="p-2 space-y-2">
               {results.map((pedido, index) => (
-                <Card key={`${pedido.id}-${index}`} className="hover:bg-accent/50 transition-colors">
+                <Card 
+                  key={`${pedido.id}-${index}`} 
+                  className="hover:bg-accent/50 transition-colors cursor-pointer"
+                  onClick={() => handlePedidoClick(pedido)}
+                >
                   <CardContent className="p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-1 flex-1">
@@ -250,5 +298,12 @@ export function OrderSearch({ customerPhone }: OrderSearchProps) {
         </ScrollArea>
       </PopoverContent>
     </Popover>
+
+    <OrderDetailsDialog 
+      open={detailsOpen}
+      onOpenChange={setDetailsOpen}
+      pedido={selectedPedido}
+    />
+  </>
   );
 }
