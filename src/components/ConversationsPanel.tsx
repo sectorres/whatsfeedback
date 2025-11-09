@@ -15,6 +15,7 @@ import { AudioPlayer } from "@/components/AudioPlayer";
 import { ImageModal } from "@/components/ImageModal";
 import { isValidPhoneNumber, normalizePhone } from "@/lib/phone-utils";
 import { CustomerOrdersDialog } from "@/components/CustomerOrdersDialog";
+import { OrderSearch } from "@/components/OrderSearch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -675,13 +676,16 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
         {selectedConversation ? (
           <>
             <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-semibold">
-                  {selectedConversation.customer_name || selectedConversation.customer_phone}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {selectedConversation.customer_phone}
-                </p>
+              <div className="flex items-center gap-3 flex-1">
+                <div>
+                  <h3 className="font-semibold">
+                    {selectedConversation.customer_name || selectedConversation.customer_phone}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedConversation.customer_phone}
+                  </p>
+                </div>
+                <OrderSearch customerPhone={selectedConversation.customer_phone} />
               </div>
               <div className="flex items-center gap-2">
                 <DropdownMenu>
