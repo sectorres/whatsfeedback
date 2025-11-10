@@ -746,6 +746,22 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                           />
                         </div>
                       )}
+
+                      {/* Sticker */}
+                      {msg.media_type === 'sticker' && msg.media_url && (
+                        <div className="mb-2">
+                          <img 
+                            src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`}
+                            alt="Sticker" 
+                            className="rounded max-w-[200px] max-h-[200px] object-contain cursor-pointer hover:opacity-90 transition-opacity bg-transparent"
+                            onClick={() => handleImageClick(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`)}
+                            onError={(e) => {
+                              console.error('Erro ao carregar sticker:', msg.media_url);
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
                       
                       {/* Áudio */}
                       {msg.media_type === 'audio' && msg.media_url && (

@@ -40,6 +40,7 @@ interface Stats {
   totalCargas: number;
   cargasPendentes: number;
   totalRespostas: number;
+  totalPesquisasEnviadas: number;
   taxaResposta: number;
   mediaAvaliacao: number;
   mensagensFalhadas: number;
@@ -60,6 +61,7 @@ export function DashboardStats() {
     totalCargas: 0,
     cargasPendentes: 0,
     totalRespostas: 0,
+    totalPesquisasEnviadas: 0,
     taxaResposta: 0,
     mediaAvaliacao: 0,
     mensagensFalhadas: 0,
@@ -135,6 +137,7 @@ export function DashboardStats() {
       // Processar dados de pesquisas de satisfação
       const surveys = surveysResult.data || [];
       const totalSurveys = surveys.length;
+      const totalPesquisasEnviadas = totalSurveys;
       const responsesWithRating = surveys.filter((s: any) => s.rating !== null);
       const totalRespostas = responsesWithRating.length;
       const taxaResposta = totalSurveys > 0 ? (totalRespostas / totalSurveys) * 100 : 0;
@@ -224,6 +227,7 @@ export function DashboardStats() {
         totalCargas,
         cargasPendentes,
         totalRespostas,
+        totalPesquisasEnviadas,
         taxaResposta,
         mediaAvaliacao,
         mensagensFalhadas,
@@ -322,7 +326,7 @@ export function DashboardStats() {
             value={stats.totalRespostas}
             icon={Star}
             color="text-yellow-600"
-            subtitle="pesquisas respondidas"
+            subtitle={`${stats.totalPesquisasEnviadas} pesquisas enviadas`}
           />
           <StatCard
             title="Taxa de Resposta"
