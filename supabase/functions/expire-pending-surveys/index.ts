@@ -17,17 +17,17 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log('Buscando pesquisas pendentes há mais de 4 horas...');
+    console.log('Buscando pesquisas pendentes há mais de 48 horas...');
     
-    // Calcular 4 horas atrás
-    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+    // Calcular 48 horas atrás
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
-    // Buscar pesquisas enviadas há mais de 4 horas que ainda não foram respondidas
+    // Buscar pesquisas enviadas há mais de 48 horas que ainda não foram respondidas
     const { data: expiredSurveys, error: fetchError } = await supabaseClient
       .from('satisfaction_surveys')
       .select('*')
       .in('status', ['sent', 'pending'])
-      .lte('sent_at', fourHoursAgo);
+      .lte('sent_at', fortyEightHoursAgo);
 
     if (fetchError) throw fetchError;
 
