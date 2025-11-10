@@ -349,7 +349,7 @@ serve(async (req) => {
 
           // Tentar baixar e armazenar mídia (quando houver)
           let finalMediaUrl = mediaUrl;
-          if (mediaType !== 'text' && mediaUrl) {
+          if (mediaType !== 'text') {
             try {
               const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
               const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
