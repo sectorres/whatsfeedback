@@ -136,6 +136,10 @@ serve(async (req) => {
           mediaType = 'document';
           mediaUrl = msg.message.documentMessage.url;
           console.log('Document detected:', mediaUrl);
+        } else if (msg.message?.stickerMessage) {
+          mediaType = 'sticker';
+          mediaUrl = msg.message.stickerMessage.url;
+          console.log('Sticker detected:', mediaUrl);
         }
 
         // Extrair texto da mensagem
@@ -150,6 +154,8 @@ serve(async (req) => {
         } else if (mediaType === 'document') {
           const fileName = msg.message?.documentMessage?.fileName || 'documento';
           messageText = msg.message?.documentMessage?.caption || fileName;
+        } else if (mediaType === 'sticker') {
+          messageText = '[Sticker]';
         } else {
           messageText =
             msg.message?.conversation ||
