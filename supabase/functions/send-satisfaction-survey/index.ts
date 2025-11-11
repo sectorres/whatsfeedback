@@ -262,55 +262,6 @@ Responda apenas com o número da sua avaliação.`;
           .update({ status: 'sent' })
           .eq('id', survey.id);
 
-        // Registrar no chat de atendimento
-        try {
-          // Buscar ou criar conversa
-          const { data: existingConv } = await supabaseClient
-            .from('conversations')
-            .select('*')
-            .eq('customer_phone', updatedSend.customer_phone)
-            .maybeSingle();
-
-          let conversationId = existingConv?.id;
-
-          if (!existingConv) {
-            const { data: newConv } = await supabaseClient
-              .from('conversations')
-              .insert({
-                customer_phone: updatedSend.customer_phone,
-                customer_name: updatedSend.customer_name ?? 'Cliente',
-                status: 'active',
-                last_message_at: new Date().toISOString()
-              })
-              .select()
-              .single();
-            
-            conversationId = newConv?.id;
-          } else {
-            // Atualizar última mensagem
-            await supabaseClient
-              .from('conversations')
-              .update({ last_message_at: new Date().toISOString() })
-              .eq('id', existingConv.id);
-          }
-
-          // Criar mensagem no chat
-          if (conversationId) {
-            await supabaseClient
-              .from('messages')
-              .insert({
-                conversation_id: conversationId,
-                sender_type: 'operator',
-                sender_name: 'Sistema - Pesquisa',
-                message_text: surveyMessage,
-                message_status: 'sent'
-              });
-          }
-        } catch (chatError) {
-          console.error('Erro ao registrar pesquisa no chat:', chatError);
-          // Não bloqueia o envio se falhar o registro no chat
-        }
-
         console.log(`Pesquisa enviada para ${updatedSend.customer_phone}`);
         return { success: true, isNew, survey };
       } catch (error) {
