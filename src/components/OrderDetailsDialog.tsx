@@ -27,6 +27,16 @@ interface Cliente {
   referencia?: string;
 }
 
+interface Carga {
+  id: number;
+  data: string;
+  motorista: number;
+  nomeMotorista: string;
+  transportadora: number;
+  nomeTransportadora: string;
+  status: string;
+}
+
 interface Pedido {
   id: number;
   pedido: string;
@@ -36,6 +46,7 @@ interface Pedido {
   rota: string;
   cliente: Cliente;
   produtos: Produto[];
+  carga?: Carga;
 }
 
 interface OrderDetailsDialogProps {
@@ -116,6 +127,49 @@ export function OrderDetailsDialog({ open, onOpenChange, pedido }: OrderDetailsD
             )}
 
             <Separator />
+
+            {/* Informações da Carga */}
+            {pedido.carga && (
+              <>
+                <div>
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Truck className="h-4 w-4" />
+                    Carga
+                  </h3>
+                  <div className="space-y-2 bg-muted/50 p-4 rounded-lg">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">ID: </span>
+                        <span className="font-medium">{pedido.carga.id}</span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Data: </span>
+                        <span className="font-medium">{formatDate(pedido.carga.data)}</span>
+                      </div>
+                      {pedido.carga.nomeMotorista && (
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Motorista: </span>
+                          <span className="font-medium">{pedido.carga.nomeMotorista}</span>
+                        </div>
+                      )}
+                      {pedido.carga.nomeTransportadora && (
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Transportadora: </span>
+                          <span className="font-medium">{pedido.carga.nomeTransportadora}</span>
+                        </div>
+                      )}
+                      <div className="text-sm col-span-2">
+                        <span className="text-muted-foreground">Status: </span>
+                        <Badge variant="outline" className="ml-1">
+                          {pedido.carga.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <Separator />
+              </>
+            )}
 
             {/* Informações do Cliente */}
             <div>
