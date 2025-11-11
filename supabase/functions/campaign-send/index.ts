@@ -158,7 +158,7 @@ serve(async (req) => {
           .insert({
             customer_phone: normalizedPhone,
             customer_name: customerName ?? 'Cliente',
-            status: 'active',
+            status: 'archived',
             last_message_at: new Date().toISOString()
           })
           .select()
@@ -166,10 +166,13 @@ serve(async (req) => {
         
         conversationId = newConv?.id;
       } else {
-        // Atualizar última mensagem
+        // Atualizar última mensagem e marcar como arquivada
         await supabase
           .from('conversations')
-          .update({ last_message_at: new Date().toISOString() })
+          .update({ 
+            last_message_at: new Date().toISOString(),
+            status: 'archived'
+          })
           .eq('id', existingConv.id);
       }
 
