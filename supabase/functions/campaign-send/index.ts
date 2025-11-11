@@ -141,6 +141,55 @@ serve(async (req) => {
       .update({ status: 'success', error_message: null, sent_at: new Date().toISOString() })
       .eq('id', sendRow.id);
 
+    // 4) Registrar no chat de atendimento
+    try {
+      // Buscar ou criar conversa
+      const { data: existingConv } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('customer_phone', normalizedPhone)
+        .maybeSingle();
+
+      let conversationId = existingConv?.id;
+
+      if (!existingConv) {
+        const { data: newConv } = await supabase
+          .from('conversations')
+          .insert({
+            customer_phone: normalizedPhone,
+            customer_name: customerName ?? 'Cliente',
+            status: 'active',
+            last_message_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+        
+        conversationId = newConv?.id;
+      } else {
+        // Atualizar última mensagem
+        await supabase
+          .from('conversations')
+          .update({ last_message_at: new Date().toISOString() })
+          .eq('id', existingConv.id);
+      }
+
+      // Criar mensagem no chat
+      if (conversationId) {
+        await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_type: 'operator',
+            sender_name: 'Sistema - Campanha',
+            message_text: message,
+            message_status: 'sent'
+          });
+      }
+    } catch (chatError) {
+      console.error('Erro ao registrar no chat:', chatError);
+      // Não bloqueia o envio se falhar o registro no chat
+    }
+
     return new Response(
       JSON.stringify({ success: true, send_id: sendRow.id, status: 'success' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
