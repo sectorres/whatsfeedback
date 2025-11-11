@@ -60,6 +60,7 @@ interface Pedido {
   cliente: Cliente;
   produtos: Produto[];
   motorista?: string;
+  cargaId?: number;
 }
 
 interface Carga {
@@ -115,7 +116,8 @@ export const CustomerOrdersDialog = ({
                 ...pedido,
                 // Adicionar status da carga ao pedido para exibir
                 rota: `${pedido.rota} - ${getStatusLabel(carga.status)}`,
-                motorista: carga.nomeMotorista || 'Não atribuído'
+                motorista: carga.nomeMotorista || 'Não atribuído',
+                cargaId: carga.id
               });
             }
           });
@@ -221,6 +223,12 @@ export const CustomerOrdersDialog = ({
                                 <span className="text-blue-600 font-medium">Valor:</span>
                                 <span className="text-foreground font-semibold">R$ {order.valor?.toFixed(2) || '0.00'}</span>
                               </div>
+                              {order.cargaId && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-blue-600 font-medium">Carga:</span>
+                                  <span className="text-foreground">#{order.cargaId}</span>
+                                </div>
+                              )}
                               {order.motorista && (
                                 <div className="flex items-center gap-2 col-span-2">
                                   <span className="text-blue-600 font-medium">Motorista:</span>
