@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File, MoreVertical, Edit, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ImageModal } from "@/components/ImageModal";
@@ -94,6 +94,11 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const formatMessageTimestamp = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return isToday(d) ? format(d, 'HH:mm') : format(d, 'dd/MM HH:mm');
+  };
 
   useEffect(() => {
     loadConversations();
@@ -737,6 +742,7 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                           <img 
                             src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`}
                             alt="Imagem enviada" 
+                            loading="lazy"
                             className="rounded max-w-full max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity"
                             onClick={() => handleImageClick(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`)}
                             onError={(e) => {
@@ -753,6 +759,7 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                           <img 
                             src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`}
                             alt="Sticker" 
+                            loading="lazy"
                             className="rounded max-w-[200px] max-h-[200px] object-contain cursor-pointer hover:opacity-90 transition-opacity bg-transparent"
                             onClick={() => handleImageClick(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`)}
                             onError={(e) => {
@@ -816,10 +823,7 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                         <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>
                       )}
                       <p className="text-xs opacity-70 mt-1">
-                        {new Date(msg.created_at).toLocaleTimeString('pt-BR', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                        {formatMessageTimestamp(msg.created_at)}
                       </p>
                     </div>
                   </div>
