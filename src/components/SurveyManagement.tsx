@@ -34,6 +34,7 @@ interface SurveyManagementItem {
   rating: number | null;
   campaign_name?: string;
   pedido_numero?: string;
+  driver_name?: string;
 }
 
 interface Campaign {
@@ -113,7 +114,7 @@ export function SurveyManagement() {
       // Buscar campaign_sends da campanha selecionada
       const { data: sends, error: sendsError } = await supabase
         .from('campaign_sends')
-        .select('id, customer_name, customer_phone, sent_at, pedido_numero, campaigns(name)')
+        .select('id, customer_name, customer_phone, sent_at, pedido_numero, driver_name, campaigns(name)')
         .eq('campaign_id', selectedCampaignId)
         .in('status', ['success', 'sent'])
         .order('sent_at', { ascending: false });
@@ -154,7 +155,8 @@ export function SurveyManagement() {
             responded_at: survey?.responded_at || null,
             rating: survey?.rating || null,
             campaign_name: (send.campaigns as any)?.name || 'N/A',
-            pedido_numero: send.pedido_numero || 'N/A'
+            pedido_numero: send.pedido_numero || 'N/A',
+            driver_name: send.driver_name || 'N/A'
           };
         })
         .filter(item => item.status !== 'cancelled'); // Não mostrar canceladas
@@ -514,6 +516,7 @@ export function SurveyManagement() {
                   <TableHead>Cliente</TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>Pedido</TableHead>
+                  <TableHead>Motorista</TableHead>
                   <TableHead>Campanha</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Data de Envio</TableHead>
@@ -532,6 +535,7 @@ export function SurveyManagement() {
                     <TableCell className="font-medium">{item.customer_name}</TableCell>
                     <TableCell>{item.customer_phone}</TableCell>
                     <TableCell className="font-mono text-sm">{item.pedido_numero || 'N/A'}</TableCell>
+                    <TableCell className="text-sm">{item.driver_name || 'N/A'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {item.campaign_name}
                     </TableCell>

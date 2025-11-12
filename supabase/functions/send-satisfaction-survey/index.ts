@@ -313,7 +313,7 @@ Responda apenas com o número da sua avaliação.`;
       console.log('Buscando campaign_sends com IDs permitidos:', allowedIds);
       const { data: selectedSends, error: selectedError } = await supabaseClient
         .from('campaign_sends')
-        .select('id, customer_phone, campaign_id, status, customer_name')
+        .select('id, customer_phone, campaign_id, status, customer_name, pedido_id, driver_name')
         .in('id', allowedIds)
         .in('status', ['success', 'sent']);
       if (selectedError) throw selectedError;
