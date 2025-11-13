@@ -41,7 +41,6 @@ interface Conversation {
   assigned_to: string | null;
   unread_count: number;
   last_read_at: string | null;
-  tags?: string[];
 }
 
 interface Message {
@@ -683,24 +682,10 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
           <>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3 flex-1">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">
-                      {selectedConversation.customer_name || selectedConversation.customer_phone}
-                    </h3>
-                    {selectedConversation.tags && selectedConversation.tags.length > 0 && (
-                      <div className="flex gap-1">
-                        {selectedConversation.tags.map((tag: string) => (
-                          <span 
-                            key={tag}
-                            className="px-2 py-1 text-xs font-medium rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30"
-                          >
-                            {tag === 'reagendar' ? '🔄 Reagendar' : tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                <div>
+                  <h3 className="font-semibold">
+                    {selectedConversation.customer_name || selectedConversation.customer_phone}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
                     {selectedConversation.customer_phone}
                   </p>
