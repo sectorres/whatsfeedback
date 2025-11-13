@@ -84,7 +84,25 @@ serve(async (req) => {
     let response;
     
     if (buttons && buttons.length > 0) {
+      console.log('Sending message with buttons:', { phone: cleanPhone, buttonsCount: buttons.length, buttons });
+      
       // Enviar mensagem com botões interativos
+      const buttonPayload = {
+        number: cleanPhone,
+        buttonMessage: {
+          text: message,
+          buttons: buttons.map(btn => ({
+            buttonId: btn.id,
+            buttonText: { displayText: btn.displayText },
+            type: 1
+          })),
+          footerText: '',
+          headerType: 1
+        }
+      };
+      
+      console.log('Button payload:', JSON.stringify(buttonPayload, null, 2));
+      
       response = await fetch(
         `${EVOLUTION_API_URL}/message/sendButtons/${EVOLUTION_INSTANCE_NAME}`,
         {
@@ -93,18 +111,7 @@ serve(async (req) => {
             'Content-Type': 'application/json',
             'apikey': EVOLUTION_API_KEY,
           },
-          body: JSON.stringify({
-            number: cleanPhone,
-            buttonMessage: {
-              text: message,
-              buttons: buttons.map(btn => ({
-                buttonId: btn.id,
-                buttonText: { displayText: btn.displayText },
-                type: 1
-              })),
-              headerType: 1
-            }
-          })
+          body: JSON.stringify(buttonPayload)
         }
       );
     } else {
@@ -126,7 +133,8 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('Send message response:', data);
+    console.log('Send message response:', JSON.stringify(data, null, 2));
+    console.log('Response status:', response.status);
 
     if (!response.ok) {
       // Verificar se é erro de número não existente
