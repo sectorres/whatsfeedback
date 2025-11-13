@@ -389,10 +389,6 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               customerName: pedido.cliente?.nome || 'Cliente',
               customerPhone: phone,
               message: formattedMessage,
-              buttons: [
-                { id: 'confirmar_entrega', displayText: 'Confirmar' },
-                { id: 'reagendar_entrega', displayText: 'Reagendar' }
-              ],
               driverName: selectedCarga?.nomeMotorista || null,
               peso_total: pedido.pesoBruto || 0,
               valor_total: pedido.valor || 0,

@@ -7,10 +7,6 @@ const campaignSendSchema = z.object({
   campaignId: z.string().uuid(),
   customerPhone: z.string().min(10).max(20),
   message: z.string().min(1).max(4096),
-  buttons: z.array(z.object({
-    id: z.string(),
-    displayText: z.string(),
-  })).optional(),
   customerName: z.string().max(255).nullish(),
   driverName: z.string().max(255).nullish(),
   quantidade_entregas: z.number().min(0).max(10000).transform(val => Math.round(val)).nullish(),
@@ -59,7 +55,6 @@ serve(async (req) => {
       customerName,
       customerPhone,
       message,
-      buttons,
       driverName,
       peso_total,
       valor_total,
@@ -124,7 +119,6 @@ serve(async (req) => {
       body: {
         phone: normalizedPhone,
         message,
-        buttons,
       },
     });
 
