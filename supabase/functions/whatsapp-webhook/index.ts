@@ -142,6 +142,92 @@ serve(async (req) => {
           console.log('Sticker detected:', mediaUrl);
         }
 
+        // Verificar se é resposta de botão
+        const buttonResponse = msg.message?.buttonsResponseMessage;
+        if (buttonResponse) {
+          const buttonId = buttonResponse.selectedButtonId;
+          console.log(`Button clicked: ${buttonId} from ${customerPhone}`);
+          
+          // Processar ações dos botões
+          if (buttonId === 'confirmar_entrega') {
+            // Enviar mensagem de confirmação
+            try {
+              await supabase.functions.invoke('whatsapp-send', {
+                body: {
+                  phone: customerPhone,
+                  message: '✅ Obrigado por sua confirmação! Sua entrega está programada.'
+                }
+              });
+            } catch (sendError) {
+              console.error('Error sending confirmation message:', sendError);
+            }
+            
+            // Não criar conversa para confirmações automáticas
+            continue;
+          } else if (buttonId === 'reagendar_entrega') {
+            // Marcar conversa com tag "reagendar"
+            let { data: conversation } = await supabase
+              .from('conversations')
+              .select('*')
+              .eq('customer_phone', customerPhone)
+              .maybeSingle();
+
+            if (!conversation) {
+              const { data: newConv } = await supabase
+                .from('conversations')
+                .insert({
+                  customer_phone: customerPhone,
+                  customer_name: msg.pushName || msg.senderName || customerPhone,
+                  status: 'active',
+                  last_message_at: new Date().toISOString(),
+                  unread_count: 1,
+                  tags: ['reagendar']
+                })
+                .select()
+                .single();
+              conversation = newConv;
+            } else {
+              // Adicionar tag "reagendar" se não existir
+              const currentTags = conversation.tags || [];
+              if (!currentTags.includes('reagendar')) {
+                await supabase
+                  .from('conversations')
+                  .update({
+                    tags: [...currentTags, 'reagendar'],
+                    last_message_at: new Date().toISOString(),
+                    unread_count: (conversation.unread_count || 0) + 1
+                  })
+                  .eq('id', conversation.id);
+              }
+            }
+            
+            // Inserir mensagem indicando reagendamento
+            if (conversation) {
+              await supabase.from('messages').insert({
+                conversation_id: conversation.id,
+                sender_type: 'customer',
+                sender_name: msg.pushName || msg.senderName || customerPhone,
+                message_text: '🔄 Solicitação de reagendamento',
+                message_status: 'received'
+              });
+            }
+            
+            // Enviar mensagem informando que entraremos em contato
+            try {
+              await supabase.functions.invoke('whatsapp-send', {
+                body: {
+                  phone: customerPhone,
+                  message: '🔄 Entendido! Entraremos em contato em breve para reagendar sua entrega.'
+                }
+              });
+            } catch (sendError) {
+              console.error('Error sending reschedule message:', sendError);
+            }
+            
+            continue;
+          }
+        }
+
         // Extrair texto da mensagem
         let messageText = '';
         if (mediaType === 'image') {
