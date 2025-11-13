@@ -5,6 +5,10 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 const whatsappSendSchema = z.object({
   phone: z.string().min(10).max(20),
   message: z.string().min(1).max(4096),
+  buttons: z.array(z.object({
+    displayText: z.string(),
+    id: z.string(),
+  })).optional(),
 });
 
 const corsHeaders = {
@@ -29,7 +33,7 @@ serve(async (req) => {
       );
     }
 
-    const { phone, message } = validationResult.data;
+    const { phone, message, buttons } = validationResult.data;
     const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
     const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
     const EVOLUTION_INSTANCE_NAME = Deno.env.get('EVOLUTION_INSTANCE_NAME');
@@ -77,23 +81,64 @@ serve(async (req) => {
     }
     
     // Send message via Evolution API
-    const response = await fetch(
-      `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE_NAME}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': EVOLUTION_API_KEY,
+    let response;
+    
+    if (buttons && buttons.length > 0) {
+      console.log('Sending message with buttons:', { phone: cleanPhone, buttonsCount: buttons.length, buttons });
+      
+      // Enviar mensagem com botões interativos (formato Evolution API v2)
+      const buttonPayload = {
+        number: cleanPhone,
+        options: {
+          delay: 1200,
+          presence: 'composing'
         },
-        body: JSON.stringify({
-          number: cleanPhone,
-          text: message,
-        })
-      }
-    );
+        buttonMessage: {
+          title: message,
+          description: '',
+          footer: '',
+          buttons: buttons.map(btn => ({
+            type: 'replyButton',
+            displayText: btn.displayText,
+            id: btn.id
+          }))
+        }
+      };
+      
+      console.log('Button payload:', JSON.stringify(buttonPayload, null, 2));
+      
+      response = await fetch(
+        `${EVOLUTION_API_URL}/message/sendButtons/${EVOLUTION_INSTANCE_NAME}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': EVOLUTION_API_KEY,
+          },
+          body: JSON.stringify(buttonPayload)
+        }
+      );
+    } else {
+      // Enviar mensagem de texto simples
+      response = await fetch(
+        `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE_NAME}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': EVOLUTION_API_KEY,
+          },
+          body: JSON.stringify({
+            number: cleanPhone,
+            text: message,
+          })
+        }
+      );
+    }
 
     const data = await response.json();
-    console.log('Send message response:', data);
+    console.log('Send message response:', JSON.stringify(data, null, 2));
+    console.log('Response status:', response.status);
 
     if (!response.ok) {
       // Verificar se é erro de número não existente
