@@ -86,18 +86,22 @@ serve(async (req) => {
     if (buttons && buttons.length > 0) {
       console.log('Sending message with buttons:', { phone: cleanPhone, buttonsCount: buttons.length, buttons });
       
-      // Enviar mensagem com botões interativos
+      // Enviar mensagem com botões interativos (formato Evolution API v2)
       const buttonPayload = {
         number: cleanPhone,
+        options: {
+          delay: 1200,
+          presence: 'composing'
+        },
         buttonMessage: {
-          text: message,
+          title: message,
+          description: '',
+          footer: '',
           buttons: buttons.map(btn => ({
-            buttonId: btn.id,
-            buttonText: { displayText: btn.displayText },
-            type: 1
-          })),
-          footerText: '',
-          headerType: 1
+            type: 'replyButton',
+            displayText: btn.displayText,
+            id: btn.id
+          }))
         }
       };
       
