@@ -84,24 +84,21 @@ serve(async (req) => {
     
     // Send message via Evolution API
     let response;
+    let data;
     
     if (buttons && buttons.length > 0) {
       // Enviar com botões interativos usando o formato Evolution API 2.3.6
       const buttonPayload = {
         number: cleanPhone,
-        options: {
-          delay: 1200,
-          presence: "composing",
-        },
         buttonMessage: {
           text: message,
           buttons: buttons.map(btn => ({
-            type: "replyButton",
-            displayText: btn.displayText,
-            id: btn.id,
+            buttonId: btn.id,
+            buttonText: { displayText: btn.displayText },
+            type: 1
           })),
-          footerText: "",
-        },
+          footer: ""
+        }
       };
       
       console.log('Sending button message:', JSON.stringify(buttonPayload, null, 2));
@@ -117,6 +114,30 @@ serve(async (req) => {
           body: JSON.stringify(buttonPayload)
         }
       );
+      
+      data = await response.json();
+      console.log('Button send response:', JSON.stringify(data, null, 2));
+      
+      // Se falhar com botões, tentar enviar como texto simples
+      if (!response.ok) {
+        console.log('Button send failed, falling back to text message');
+        response = await fetch(
+          `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE_NAME}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': EVOLUTION_API_KEY,
+            },
+            body: JSON.stringify({
+              number: cleanPhone,
+              text: message,
+            })
+          }
+        );
+        data = await response.json();
+        console.log('Fallback text send response:', data);
+      }
     } else {
       // Enviar mensagem de texto simples
       response = await fetch(
@@ -133,14 +154,13 @@ serve(async (req) => {
           })
         }
       );
+      data = await response.json();
+      console.log('Send message response:', data);
     }
-
-    const data = await response.json();
-    console.log('Send message response:', data);
 
     if (!response.ok) {
       // Verificar se é erro de número não existente
-      if (data.response?.message && Array.isArray(data.response.message)) {
+      if (data?.response?.message && Array.isArray(data.response.message)) {
         const notFound = data.response.message.find((m: any) => m.exists === false);
         if (notFound) {
           throw new Error(`Número ${notFound.number} não possui WhatsApp ativo`);
@@ -148,11 +168,11 @@ serve(async (req) => {
       }
       
       // Verificar se é timeout
-      if (data.response?.message === 'Timed Out') {
+      if (data?.response?.message === 'Timed Out') {
         throw new Error('Timeout ao enviar mensagem. Tente novamente em alguns segundos.');
       }
       
-      throw new Error(data.response?.message || data.message || 'Failed to send message');
+      throw new Error(data?.response?.message || data?.message || 'Failed to send message');
     }
 
     return new Response(
