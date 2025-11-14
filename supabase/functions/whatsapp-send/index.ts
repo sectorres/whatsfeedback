@@ -90,15 +90,14 @@ serve(async (req) => {
       // Enviar com botões interativos usando o formato Evolution API 2.3.6
       const buttonPayload = {
         number: cleanPhone,
-        buttonMessage: {
-          text: message,
-          buttons: buttons.map(btn => ({
-            buttonId: btn.id,
-            buttonText: { displayText: btn.displayText },
-            type: 1
-          })),
-          footer: ""
-        }
+        title: "",
+        description: message,
+        footer: "",
+        buttons: buttons.map(btn => ({
+          type: "reply",
+          displayText: btn.displayText,
+          id: btn.id
+        }))
       };
       
       console.log('Sending button message:', JSON.stringify(buttonPayload, null, 2));
