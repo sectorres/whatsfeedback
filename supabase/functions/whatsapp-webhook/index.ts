@@ -142,9 +142,16 @@ serve(async (req) => {
           console.log('Sticker detected:', mediaUrl);
         }
 
-        // Extrair texto da mensagem
+        // Extrair texto da mensagem ou resposta de botão
         let messageText = '';
-        if (mediaType === 'image') {
+        let buttonResponse = null;
+        
+        // Verificar se é resposta de botão interativo
+        if (msg.message?.buttonsResponseMessage) {
+          buttonResponse = msg.message.buttonsResponseMessage.selectedButtonId;
+          messageText = msg.message.buttonsResponseMessage.selectedDisplayText || buttonResponse;
+          console.log(`[${msgId}] 🔘 Button response detected: ${buttonResponse}`);
+        } else if (mediaType === 'image') {
           const caption = msg.message?.imageMessage?.caption || '';
           messageText = caption || '[Imagem]';
         } else if (mediaType === 'audio') {
@@ -300,6 +307,59 @@ serve(async (req) => {
           continue;
         }
         
+        
+        // Processar respostas de botões interativos
+        if (buttonResponse) {
+          console.log(`[${msgId}] Processing button response: ${buttonResponse}`);
+          
+          if (buttonResponse === 'btn_confirmar') {
+            // Enviar confirmação
+            try {
+              await supabase.functions.invoke('whatsapp-send', {
+                body: {
+                  phone: customerPhone,
+                  message: 'Obrigado por sua confirmação.'
+                }
+              });
+            } catch (sendError) {
+              console.error('Error sending confirmation message:', sendError);
+            }
+          } else if (buttonResponse === 'btn_reagendar') {
+            // Adicionar tag 'reagendar' à conversa
+            const { data: existingConv } = await supabase
+              .from('conversations')
+              .select('tags')
+              .eq('customer_phone', customerPhone)
+              .maybeSingle();
+            
+            if (existingConv) {
+              const currentTags = existingConv.tags || [];
+              if (!currentTags.includes('reagendar')) {
+                await supabase
+                  .from('conversations')
+                  .update({ 
+                    tags: [...currentTags, 'reagendar'],
+                    last_message_at: new Date().toISOString()
+                  })
+                  .eq('customer_phone', customerPhone);
+              }
+            }
+          } else if (buttonResponse === 'btn_nao_sou_eu') {
+            // Adicionar à blacklist
+            const { error: blacklistError } = await supabase
+              .from('blacklist')
+              .insert({
+                phone: customerPhone,
+                reason: 'Cliente indicou não ser o destinatário correto'
+              });
+            
+            if (blacklistError) {
+              console.error('Error adding to blacklist:', blacklistError);
+            } else {
+              console.log(`Phone ${customerPhone} added to blacklist`);
+            }
+          }
+        }
         
         // Apenas criar conversa se NÃO for nota de pesquisa
         if (!isSurveyRatingOnly) {

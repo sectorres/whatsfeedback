@@ -382,6 +382,13 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         }
 
         try {
+          // Criar botões interativos
+          const buttons = [
+            { id: 'btn_confirmar', displayText: 'Confirmar' },
+            { id: 'btn_reagendar', displayText: 'Reagendar' },
+            { id: 'btn_nao_sou_eu', displayText: 'Não sou eu' }
+          ];
+
           // Enviar e registrar de forma atômica no backend
           const { data, error } = await supabase.functions.invoke('campaign-send', {
             body: {
@@ -398,6 +405,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               pedido_id: pedido.id,
               pedido_numero: pedido.pedido,
               carga_id: selectedCarga.id,
+              buttons,
             }
           });
 
