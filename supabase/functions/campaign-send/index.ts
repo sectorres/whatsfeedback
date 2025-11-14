@@ -3,11 +3,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizePhone } from "../_shared/phone-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-const buttonSchema = z.object({
-  id: z.string(),
-  displayText: z.string(),
-});
-
 const campaignSendSchema = z.object({
   campaignId: z.string().uuid(),
   customerPhone: z.string().min(10).max(20),
@@ -22,7 +17,6 @@ const campaignSendSchema = z.object({
   pedido_id: z.number().int().positive().nullish(),
   pedido_numero: z.string().max(50).nullish(),
   carga_id: z.number().int().positive().nullish(),
-  buttons: z.array(buttonSchema).optional(),
 });
 
 const corsHeaders = {
@@ -70,7 +64,6 @@ serve(async (req) => {
       pedido_id,
       pedido_numero,
       carga_id,
-      buttons,
     } = validationResult.data;
 
 
@@ -126,7 +119,6 @@ serve(async (req) => {
       body: {
         phone: normalizedPhone,
         message,
-        buttons,
       },
     });
 
