@@ -41,6 +41,7 @@ interface Conversation {
   assigned_to: string | null;
   unread_count: number;
   last_read_at: string | null;
+  tags: string[] | null;
 }
 
 interface Message {
@@ -607,11 +608,16 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <div className="font-medium">{conv.customer_name || conv.customer_phone}</div>
                           {conv.unread_count > 0 && (
                             <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center px-1">
                               {conv.unread_count}
+                            </Badge>
+                          )}
+                          {conv.tags?.includes('reagendar') && (
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs h-5">
+                              Reagendar
                             </Badge>
                           )}
                         </div>
@@ -683,9 +689,16 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3 flex-1">
                 <div>
-                  <h3 className="font-semibold">
-                    {selectedConversation.customer_name || selectedConversation.customer_phone}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold">
+                      {selectedConversation.customer_name || selectedConversation.customer_phone}
+                    </h3>
+                    {selectedConversation.tags?.includes('reagendar') && (
+                      <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs">
+                        Reagendar
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     {selectedConversation.customer_phone}
                   </p>
