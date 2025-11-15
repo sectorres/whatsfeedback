@@ -251,6 +251,60 @@ serve(async (req) => {
           }
         }
 
+        // Verificar se é resposta de confirmação de campanha (1, 2 ou 3)
+        const confirmationMatch = messageText.trim().match(/^[123]$/);
+        if (confirmationMatch) {
+          const choice = confirmationMatch[0];
+          console.log(`[${msgId}] 📋 Campaign confirmation response: ${choice}`);
+
+          // Buscar conversa existente
+          const { data: existingConv } = await supabase
+            .from('conversations')
+            .select('*')
+            .eq('customer_phone', customerPhone)
+            .maybeSingle();
+
+          if (choice === '1') {
+            // Confirmado
+            await supabase.functions.invoke('whatsapp-send', {
+              body: {
+                phone: customerPhone,
+                message: 'Obrigado pela confirmação!'
+              }
+            });
+            console.log(`[${msgId}] ✅ Delivery confirmed`);
+            continue;
+          } else if (choice === '2') {
+            // Reagendar - adicionar tag "reagendar"
+            if (existingConv) {
+              const currentTags = existingConv.tags || [];
+              if (!currentTags.includes('reagendar')) {
+                await supabase
+                  .from('conversations')
+                  .update({ tags: [...currentTags, 'reagendar'] })
+                  .eq('id', existingConv.id);
+              }
+              console.log(`[${msgId}] 📅 Tagged for rescheduling`);
+            }
+            continue;
+          } else if (choice === '3') {
+            // Não é meu número - adicionar à blacklist
+            const { error: blacklistError } = await supabase
+              .from('blacklist')
+              .insert({
+                phone: customerPhone,
+                reason: 'Cliente informou que não é o número dele (resposta campanha)'
+              });
+            
+            if (blacklistError && !blacklistError.message?.includes('duplicate')) {
+              console.error(`[${msgId}] ❌ Error adding to blacklist:`, blacklistError);
+            } else {
+              console.log(`[${msgId}] 🚫 Added to blacklist`);
+            }
+            continue;
+          }
+        }
+
         // Verificar se é um feedback para pesquisa que já tem nota
         let isSurveyFeedback = false;
         const { data: surveyAwaitingFeedback } = await supabase
