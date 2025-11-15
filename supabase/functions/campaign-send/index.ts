@@ -141,6 +141,20 @@ serve(async (req) => {
       .update({ status: 'success', error_message: null, sent_at: new Date().toISOString() })
       .eq('id', sendRow.id);
 
+    // 3c) Enviar mensagem de confirmação
+    try {
+      await supabase.functions.invoke('whatsapp-send', {
+        body: {
+          phone: normalizedPhone,
+          message: `Por favor, confirme o recebimento:\n\n1️⃣ - Confirmado\n2️⃣ - Reagendar\n3️⃣ - Não é meu número`,
+        },
+      });
+      console.log('Confirmation message sent successfully');
+    } catch (confirmError) {
+      console.error('Error sending confirmation message:', confirmError);
+      // Não bloqueia o fluxo se falhar
+    }
+
     // 4) Registrar no chat de atendimento
     try {
       // Buscar ou criar conversa
