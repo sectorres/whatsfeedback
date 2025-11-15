@@ -70,7 +70,7 @@ interface CampaignBuilderProps {
 
 export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => {
   const [messageTemplate, setMessageTemplate] = useState(
-    "TORRES CABRAL - LOGÍSTICA\n\n 🚛 *ATENÇÃO* 📦\n\nOlá {cliente},\n\n*Seu pedido {pedido} será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega",
+    " *TORRES CABRAL* 🚛📦 \n\nOlá {cliente},\n\n*Seu pedido {pedido} será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega",
   );
 
   const defaultTemplates = [
@@ -78,7 +78,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       id: "default",
       name: "Padrão - Notificação de Entrega",
       template:
-        "TORRES CABRAL - LOGÍSTICA\n\n 🚛 *ATENÇÃO* 📦\n\nOlá {cliente},\n\n*Seu pedido {pedido} será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega",
+        " *TORRES CABRAL* 🚛📦 \n\nOlá {cliente},\n\n*Seu pedido {pedido} será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega",
     },
   ];
 
