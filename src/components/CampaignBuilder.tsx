@@ -29,13 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "./ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Progress } from "./ui/progress";
 
 interface Carga {
@@ -76,18 +70,20 @@ interface CampaignBuilderProps {
 
 export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => {
   const [messageTemplate, setMessageTemplate] = useState(
-    "TORRES CABRAL - LOGÍSTICA\n\n🚨🚨🚨 *ATENÇÃO* 🚨🚨🚨\n\nOlá {cliente},\n\n*Seu pedido será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega\n✅ Em caso de dúvida, entre em contato conosco ou responda esta mensagem.\n\nPEDIDO: {pedido}\n\n⚠️ Caso esta mensagem tenha sido enviada para o número errado, responda \"NÃO\"\n\n\n📞 114206-5500"
+    "TORRES CABRAL - LOGÍSTICA\n\n🚨🚨🚨 *ATENÇÃO* 🚨🚨🚨\n\nOlá {cliente},\n\n*Seu pedido será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega\n✅ Em caso de dúvida, entre em contato conosco ou responda esta mensagem.\n\nPEDIDO: {pedido}\n\n",
   );
-  
+
   const defaultTemplates = [
     {
       id: "default",
       name: "Padrão - Notificação de Entrega",
-      template: "TORRES CABRAL - LOGÍSTICA\n\n🚨🚨🚨 *ATENÇÃO* 🚨🚨🚨\n\nOlá {cliente},\n\n*Seu pedido será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega\n✅ Em caso de dúvida, entre em contato conosco ou responda esta mensagem.\n\nPEDIDO: {pedido}\n\n⚠️ Caso esta mensagem tenha sido enviada para o número errado, responda \"NÃO\"\n\n\n📞 114206-5500"
-    }
+      template:
+        "TORRES CABRAL - LOGÍSTICA\n\n🚨🚨🚨 *ATENÇÃO* 🚨🚨🚨\n\nOlá {cliente},\n\n*Seu pedido será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega\n✅ Em caso de dúvida, entre em contato conosco ou responda esta mensagem.\n\nPEDIDO: {pedido}\n\n",
+    },
   ];
 
-  const [savedTemplates, setSavedTemplates] = useState<Array<{id: string, name: string, template: string}>>(defaultTemplates);
+  const [savedTemplates, setSavedTemplates] =
+    useState<Array<{ id: string; name: string; template: string }>>(defaultTemplates);
   const [selectedTemplateId, setSelectedTemplateId] = useState("default");
   const [newTemplateName, setNewTemplateName] = useState("");
   const [cargas, setCargas] = useState<Carga[]>([]);
@@ -102,7 +98,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, success: 0, failed: 0, blocked: 0 });
   const [countdown, setCountdown] = useState<number>(0);
-  
+
   // Datas padrão: primeiro dia do mês corrente até o último dia do mês
   const [startDate, setStartDate] = useState<Date>(() => {
     const date = new Date();
@@ -117,20 +113,20 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
 
   // Load templates from localStorage on mount
   useEffect(() => {
-    const savedData = localStorage.getItem('whatsapp-templates');
+    const savedData = localStorage.getItem("whatsapp-templates");
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
         setSavedTemplates(parsed);
       } catch (error) {
-        console.error('Error loading templates:', error);
+        console.error("Error loading templates:", error);
       }
     }
   }, []);
 
   // Save templates to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('whatsapp-templates', JSON.stringify(savedTemplates));
+    localStorage.setItem("whatsapp-templates", JSON.stringify(savedTemplates));
   }, [savedTemplates]);
 
   useEffect(() => {
@@ -138,7 +134,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   }, [startDate, endDate]);
 
   const formatDateForAPI = (date: Date) => {
-    return format(date, 'yyyyMMdd');
+    return format(date, "yyyyMMdd");
   };
 
   const fetchCargas = async () => {
@@ -147,8 +143,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       const { data, error } = await supabase.functions.invoke("fetch-cargas", {
         body: {
           dataInicial: formatDateForAPI(startDate),
-          dataFinal: formatDateForAPI(endDate)
-        }
+          dataFinal: formatDateForAPI(endDate),
+        },
       });
 
       if (error) throw error;
@@ -164,16 +160,14 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     }
   };
 
-  const filteredCargas = statusFilter === "all" 
-    ? cargas 
-    : cargas.filter(c => c.status === statusFilter);
+  const filteredCargas = statusFilter === "all" ? cargas : cargas.filter((c) => c.status === statusFilter);
 
-  const selectedCarga = cargas.find(c => c.id.toString() === selectedCargaId);
+  const selectedCarga = cargas.find((c) => c.id.toString() === selectedCargaId);
 
   // Selecionar automaticamente todos os pedidos quando uma carga é escolhida
   useEffect(() => {
     if (selectedCarga && selectedCarga.pedidos) {
-      const allIds = new Set(selectedCarga.pedidos.map(p => p.id));
+      const allIds = new Set(selectedCarga.pedidos.map((p) => p.id));
       setSelectedPedidos(allIds);
     }
   }, [selectedCargaId, selectedCarga]);
@@ -190,7 +184,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
 
   const selectAllPedidos = () => {
     if (!selectedCarga) return;
-    const allIds = new Set(selectedCarga.pedidos.map(p => p.id));
+    const allIds = new Set(selectedCarga.pedidos.map((p) => p.id));
     setSelectedPedidos(allIds);
   };
 
@@ -204,9 +198,9 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   };
 
   const updatePhone = (pedidoId: number, phone: string) => {
-    setEditedPhones(prev => ({
+    setEditedPhones((prev) => ({
       ...prev,
-      [pedidoId]: phone
+      [pedidoId]: phone,
     }));
   };
 
@@ -238,7 +232,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     setShowConfirmDialog(false);
     setSending(true);
     setShowProgressDialog(true);
-    
+
     // Helper para gravar envios com retentativas (melhora confiabilidade)
     const insertCampaignSendWithRetry = async (
       payload: {
@@ -259,12 +253,12 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         carga_id?: number | null;
       },
       retries = 2,
-      delayMs = 500
+      delayMs = 500,
     ) => {
       let attempt = 0;
       let lastError: any = null;
       while (attempt <= retries) {
-        const { error } = await supabase.from('campaign_sends').insert(payload);
+        const { error } = await supabase.from("campaign_sends").insert(payload);
         if (!error) return true;
         lastError = error;
         attempt++;
@@ -272,30 +266,28 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           await new Promise((r) => setTimeout(r, delayMs));
         }
       }
-      console.error('Falha ao inserir campaign_sends após retentativas:', lastError, payload);
+      console.error("Falha ao inserir campaign_sends após retentativas:", lastError, payload);
       return false;
     };
-    
-    const pedidosParaEnviar = selectedCarga?.pedidos.filter(p => 
-      selectedPedidos.has(p.id)
-    ) || [];
+
+    const pedidosParaEnviar = selectedCarga?.pedidos.filter((p) => selectedPedidos.has(p.id)) || [];
 
     setSendProgress({ current: 0, total: pedidosParaEnviar.length, success: 0, failed: 0, blocked: 0 });
 
     // Gerar nome automático: Carga #numero - data hora
     const now = new Date();
-    const campaignName = `Carga #${selectedCarga.id} - ${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+    const campaignName = `Carga #${selectedCarga.id} - ${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 
     // Salvar campanha no banco
     try {
       const { data: campaign, error: campaignError } = await supabase
-        .from('campaigns')
+        .from("campaigns")
         .insert({
           name: campaignName,
           message: messageTemplate,
-          status: 'sending',
-          target_type: 'carga',
-          sent_count: 0
+          status: "sending",
+          target_type: "carga",
+          sent_count: 0,
         })
         .select()
         .single();
@@ -303,7 +295,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       if (campaignError) throw campaignError;
 
       toast.success(`Enviando ${pedidosParaEnviar.length} mensagens...`);
-      
+
       let successCount = 0;
       let errorCount = 0;
       let blockedCount = 0;
@@ -323,15 +315,15 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         if (!phone || phone.length < 10) {
           errorCount++;
           console.error(`✗ Telefone inválido para ${pedido.cliente?.nome}: ${rawPhone}`);
-          
+
           // Registrar envio com erro de telefone inválido
           await insertCampaignSendWithRetry({
             campaign_id: campaign.id,
             customer_name: pedido.cliente?.nome || "Cliente",
-            customer_phone: rawPhone || 'Não informado',
+            customer_phone: rawPhone || "Não informado",
             message_sent: formattedMessage,
-            status: 'failed',
-            error_message: 'Telefone inválido',
+            status: "failed",
+            error_message: "Telefone inválido",
             driver_name: selectedCarga?.nomeMotorista || null,
             peso_total: pedido.pesoBruto || 0,
             valor_total: pedido.valor || 0,
@@ -342,30 +334,26 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             pedido_numero: pedido.pedido,
             carga_id: selectedCarga.id,
           });
-          
-          setSendProgress(prev => ({ ...prev, current: i + 1, failed: prev.failed + 1 }));
+
+          setSendProgress((prev) => ({ ...prev, current: i + 1, failed: prev.failed + 1 }));
           continue;
         }
 
         // Verificar se o número está na blacklist
-        const { data: blacklisted } = await supabase
-          .from('blacklist')
-          .select('id')
-          .eq('phone', phone)
-          .maybeSingle();
+        const { data: blacklisted } = await supabase.from("blacklist").select("id").eq("phone", phone).maybeSingle();
 
         if (blacklisted) {
           blockedCount++;
           console.log(`⊘ Bloqueado por blacklist: ${pedido.cliente?.nome}`);
-          
+
           // Registrar como bloqueado pela blacklist
           await insertCampaignSendWithRetry({
             campaign_id: campaign.id,
             customer_name: pedido.cliente?.nome || "Cliente",
             customer_phone: phone,
             message_sent: formattedMessage,
-            status: 'blocked',
-            error_message: 'Bloqueado pela blacklist',
+            status: "blocked",
+            error_message: "Bloqueado pela blacklist",
             driver_name: selectedCarga?.nomeMotorista || null,
             peso_total: pedido.pesoBruto || 0,
             valor_total: pedido.valor || 0,
@@ -376,17 +364,17 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             pedido_numero: pedido.pedido,
             carga_id: selectedCarga.id,
           });
-          
-          setSendProgress(prev => ({ ...prev, current: i + 1, blocked: prev.blocked + 1 }));
+
+          setSendProgress((prev) => ({ ...prev, current: i + 1, blocked: prev.blocked + 1 }));
           continue;
         }
 
         try {
           // Enviar e registrar de forma atômica no backend
-          const { data, error } = await supabase.functions.invoke('campaign-send', {
+          const { data, error } = await supabase.functions.invoke("campaign-send", {
             body: {
               campaignId: campaign.id,
-              customerName: pedido.cliente?.nome || 'Cliente',
+              customerName: pedido.cliente?.nome || "Cliente",
               customerPhone: phone,
               message: formattedMessage,
               driverName: selectedCarga?.nomeMotorista || null,
@@ -398,28 +386,28 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               pedido_id: pedido.id,
               pedido_numero: pedido.pedido,
               carga_id: selectedCarga.id,
-            }
+            },
           });
 
           if (error) throw error;
-          if (data?.status !== 'success') {
-            throw new Error(data?.error || 'Falha no envio');
+          if (data?.status !== "success") {
+            throw new Error(data?.error || "Falha no envio");
           }
 
           successCount++;
-          setSendProgress(prev => ({ ...prev, current: i + 1, success: prev.success + 1 }));
+          setSendProgress((prev) => ({ ...prev, current: i + 1, success: prev.success + 1 }));
           console.log(`✓ Enviado para ${pedido.cliente?.nome}`);
         } catch (error) {
           errorCount++;
           console.error(`✗ Erro ao enviar para ${pedido.cliente?.nome}:`, error);
-          
+
           // Registrar envio com erro - não propagar o erro
           const inserted = await insertCampaignSendWithRetry({
             campaign_id: campaign.id,
             customer_name: pedido.cliente?.nome || "Cliente",
             customer_phone: phone,
             message_sent: formattedMessage,
-            status: 'failed',
+            status: "failed",
             error_message: error instanceof Error ? error.message : String(error),
             driver_name: selectedCarga?.nomeMotorista || null,
             peso_total: pedido.pesoBruto || 0,
@@ -432,49 +420,49 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             carga_id: selectedCarga.id,
           });
           if (!inserted) {
-            console.error('Erro ao salvar registro de falha (após retentativas).');
+            console.error("Erro ao salvar registro de falha (após retentativas).");
           }
-          
-          setSendProgress(prev => ({ ...prev, current: i + 1, failed: prev.failed + 1 }));
+
+          setSendProgress((prev) => ({ ...prev, current: i + 1, failed: prev.failed + 1 }));
         }
 
         if (i < pedidosParaEnviar.length - 1) {
           // Delay progressivo: 2s → 5s → 7s → 9s → 11s → 13s → 17s
           const delaySeconds = getProgressiveDelay(i);
           setCountdown(delaySeconds);
-          
+
           // Countdown visual
           for (let sec = delaySeconds; sec > 0; sec--) {
             setCountdown(sec);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise((resolve) => setTimeout(resolve, 1000));
           }
           setCountdown(0);
         }
       }
-      
+
       // Atualizar campanha com status final
       await supabase
-        .from('campaigns')
+        .from("campaigns")
         .update({
-          status: errorCount === 0 ? 'completed' : 'completed_with_errors',
-          sent_count: successCount
+          status: errorCount === 0 ? "completed" : "completed_with_errors",
+          sent_count: successCount,
         })
-        .eq('id', campaign.id);
+        .eq("id", campaign.id);
 
       setSending(false);
       setShowProgressDialog(false);
-      
+
       if (errorCount === 0 && blockedCount === 0) {
         toast.success(`Campanha enviada com sucesso! ${successCount} mensagens enviadas`);
       } else {
         toast.error(`Campanha concluída: ${successCount} enviadas, ${blockedCount} bloqueadas, ${errorCount} falharam`);
       }
-      
+
       setSelectedPedidos(new Set());
       setEditedPhones({});
     } catch (error) {
-      console.error('Error saving campaign:', error);
-      toast.error('Erro ao salvar campanha');
+      console.error("Error saving campaign:", error);
+      toast.error("Erro ao salvar campanha");
       setSending(false);
       setShowProgressDialog(false);
     }
@@ -496,7 +484,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplateId(templateId);
-    const template = savedTemplates.find(t => t.id === templateId);
+    const template = savedTemplates.find((t) => t.id === templateId);
     if (template) {
       setMessageTemplate(template.template);
     }
@@ -511,7 +499,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     const newTemplate = {
       id: Date.now().toString(),
       name: newTemplateName,
-      template: messageTemplate
+      template: messageTemplate,
     };
 
     setSavedTemplates([...savedTemplates, newTemplate]);
@@ -521,10 +509,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   };
 
   const handleUpdateTemplate = () => {
-    const updatedTemplates = savedTemplates.map(t => 
-      t.id === selectedTemplateId 
-        ? { ...t, template: messageTemplate }
-        : t
+    const updatedTemplates = savedTemplates.map((t) =>
+      t.id === selectedTemplateId ? { ...t, template: messageTemplate } : t,
     );
     setSavedTemplates(updatedTemplates);
     toast.success("Template atualizado!");
@@ -536,7 +522,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       return;
     }
 
-    setSavedTemplates(savedTemplates.filter(t => t.id !== selectedTemplateId));
+    setSavedTemplates(savedTemplates.filter((t) => t.id !== selectedTemplateId));
     setSelectedTemplateId("default");
     setMessageTemplate(savedTemplates[0].template);
     toast.success("Template deletado!");
@@ -550,9 +536,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             <MessageSquare className="h-5 w-5 text-primary" />
             Criar Nova Campanha
           </CardTitle>
-          <CardDescription>
-            Configure campanhas de atualização de status para seus clientes
-          </CardDescription>
+          <CardDescription>Configure campanhas de atualização de status para seus clientes</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Filtros de Carga */}
@@ -581,8 +565,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                 <SelectTrigger>
                   <SelectValue placeholder="Escolha uma carga" />
                 </SelectTrigger>
-                <SelectContent 
-                  className="bg-background z-50 max-h-[400px] max-w-[500px]" 
+                <SelectContent
+                  className="bg-background z-50 max-h-[400px] max-w-[500px]"
                   onCloseAutoFocus={(e) => e.preventDefault()}
                   position="popper"
                 >
@@ -594,8 +578,12 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                         value={cargaSearch}
                         onChange={(e) => setCargaSearch(e.target.value)}
                         className="pl-9 h-9"
-                        onKeyDown={(e) => { e.stopPropagation(); }}
-                        onPointerDown={(e) => { e.stopPropagation(); }}
+                        onKeyDown={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                        }}
                       />
                     </div>
                   </div>
@@ -605,28 +593,31 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                     </div>
                   ) : (
                     <ScrollArea className="h-[300px]">
-                      {filteredCargas.filter(carga => 
-                        cargaSearch === "" || 
-                        carga.id.toString().includes(cargaSearch) ||
-                        formatDate(carga.data).includes(cargaSearch) ||
-                        statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) ||
-                        carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase())
-                      ).length === 0 ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                          Nenhuma carga encontrada
-                        </div>
-                      ) : (
-                        filteredCargas.filter(carga => 
-                          cargaSearch === "" || 
+                      {filteredCargas.filter(
+                        (carga) =>
+                          cargaSearch === "" ||
                           carga.id.toString().includes(cargaSearch) ||
                           formatDate(carga.data).includes(cargaSearch) ||
                           statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) ||
-                          carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase())
-                        ).map((carga) => (
-                          <SelectItem key={carga.id} value={carga.id.toString()} className="text-xs">
-                            Carga #{carga.id} - {formatDate(carga.data)} - {statusMap[carga.status]} ({carga.pedidos?.length || 0} pedidos)
-                          </SelectItem>
-                        ))
+                          carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase()),
+                      ).length === 0 ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">Nenhuma carga encontrada</div>
+                      ) : (
+                        filteredCargas
+                          .filter(
+                            (carga) =>
+                              cargaSearch === "" ||
+                              carga.id.toString().includes(cargaSearch) ||
+                              formatDate(carga.data).includes(cargaSearch) ||
+                              statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) ||
+                              carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase()),
+                          )
+                          .map((carga) => (
+                            <SelectItem key={carga.id} value={carga.id.toString()} className="text-xs">
+                              Carga #{carga.id} - {formatDate(carga.data)} - {statusMap[carga.status]} (
+                              {carga.pedidos?.length || 0} pedidos)
+                            </SelectItem>
+                          ))
                       )}
                     </ScrollArea>
                   )}
@@ -644,18 +635,10 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                   Pedidos da Carga (selecionados: {selectedPedidos.size})
                 </Label>
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={selectAllPedidos}
-                  >
+                  <Button variant="outline" size="sm" onClick={selectAllPedidos}>
                     Selecionar Todos
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={deselectAllPedidos}
-                  >
+                  <Button variant="outline" size="sm" onClick={deselectAllPedidos}>
                     Limpar
                   </Button>
                 </div>
@@ -681,9 +664,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                             onCheckedChange={() => togglePedido(pedido.id)}
                           />
                         </TableCell>
-                        <TableCell className="font-medium">
-                          {pedido.pedido}
-                        </TableCell>
+                        <TableCell className="font-medium">{pedido.pedido}</TableCell>
                         <TableCell>{pedido.cliente?.nome || "N/A"}</TableCell>
                         <TableCell>
                           <Input
@@ -705,7 +686,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           {/* Templates de Mensagem */}
           <div className="space-y-4 border-t pt-4">
             <Label>Templates de Mensagem</Label>
-            
+
             <div className="grid md:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Selecionar Template</Label>
@@ -714,7 +695,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                     <SelectValue placeholder="Escolha um template" />
                   </SelectTrigger>
                   <SelectContent>
-                    {savedTemplates.map(template => (
+                    {savedTemplates.map((template) => (
                       <SelectItem key={template.id} value={template.id}>
                         {template.name}
                       </SelectItem>
@@ -739,17 +720,17 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             </div>
 
             <div className="flex gap-2">
-              <Button 
-                onClick={handleUpdateTemplate} 
-                variant="outline" 
+              <Button
+                onClick={handleUpdateTemplate}
+                variant="outline"
                 size="sm"
                 disabled={selectedTemplateId === "default"}
               >
                 Atualizar Template Atual
               </Button>
-              <Button 
-                onClick={handleDeleteTemplate} 
-                variant="outline" 
+              <Button
+                onClick={handleDeleteTemplate}
+                variant="outline"
                 size="sm"
                 disabled={selectedTemplateId === "default"}
               >
@@ -769,9 +750,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               rows={4}
             />
             <div className="flex flex-wrap gap-2">
-              <p className="text-xs text-muted-foreground w-full">
-                Variáveis disponíveis:
-              </p>
+              <p className="text-xs text-muted-foreground w-full">Variáveis disponíveis:</p>
               {["{cliente}", "{pedido}", "{valor}", "{status}", "{notaFiscal}"].map((v) => (
                 <Badge key={v} variant="outline" className="text-xs">
                   {v}
@@ -822,15 +801,13 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               <AlertDialogHeader>
                 <AlertDialogTitle>Confirma o envio da campanha?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Serão enviadas {selectedPedidos.size} mensagens para os clientes selecionados.
-                  Esta ação não pode ser desfeita.
+                  Serão enviadas {selectedPedidos.size} mensagens para os clientes selecionados. Esta ação não pode ser
+                  desfeita.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleSendCampaign}>
-                  Confirmar Envio
-                </AlertDialogAction>
+                <AlertDialogAction onClick={handleSendCampaign}>Confirmar Envio</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -840,19 +817,19 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Enviando Campanha</DialogTitle>
-                <DialogDescription>
-                  Acompanhe o progresso do envio em tempo real
-                </DialogDescription>
+                <DialogDescription>Acompanhe o progresso do envio em tempo real</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Progresso</span>
-                    <span className="font-medium">{sendProgress.current} / {sendProgress.total}</span>
+                    <span className="font-medium">
+                      {sendProgress.current} / {sendProgress.total}
+                    </span>
                   </div>
                   <Progress value={(sendProgress.current / sendProgress.total) * 100} />
                 </div>
-                
+
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div className="space-y-1">
                     <div className="text-2xl font-bold text-green-600">{sendProgress.success}</div>
@@ -885,9 +862,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
 
           {!whatsappConnected && (
             <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
-              <p className="text-sm text-warning">
-                ⚠️ Conecte o WhatsApp primeiro para poder enviar campanhas
-              </p>
+              <p className="text-sm text-warning">⚠️ Conecte o WhatsApp primeiro para poder enviar campanhas</p>
             </div>
           )}
         </CardContent>
