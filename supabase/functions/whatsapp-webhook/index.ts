@@ -275,7 +275,7 @@ serve(async (req) => {
             console.log(`[${msgId}] ✅ Delivery confirmed`);
             continue;
           } else if (choice === '2') {
-            // Reagendar - adicionar tag "reagendar" e enviar mensagem
+            // Reagendar - adicionar tag "reagendar", enviar mensagem e marcar como ativa
             await supabase.functions.invoke('whatsapp-send', {
               body: {
                 phone: customerPhone,
@@ -288,10 +288,13 @@ serve(async (req) => {
               if (!currentTags.includes('reagendar')) {
                 await supabase
                   .from('conversations')
-                  .update({ tags: [...currentTags, 'reagendar'] })
+                  .update({ 
+                    tags: [...currentTags, 'reagendar'],
+                    status: 'active'
+                  })
                   .eq('id', existingConv.id);
               }
-              console.log(`[${msgId}] 📅 Tagged for rescheduling`);
+              console.log(`[${msgId}] 📅 Tagged for rescheduling and set to active`);
             }
             continue;
           } else if (choice === '3') {
