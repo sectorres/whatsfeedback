@@ -275,7 +275,14 @@ serve(async (req) => {
             console.log(`[${msgId}] ✅ Delivery confirmed`);
             continue;
           } else if (choice === '2') {
-            // Reagendar - adicionar tag "reagendar"
+            // Reagendar - adicionar tag "reagendar" e enviar mensagem
+            await supabase.functions.invoke('whatsapp-send', {
+              body: {
+                phone: customerPhone,
+                message: 'Ok, só um momento.'
+              }
+            });
+            
             if (existingConv) {
               const currentTags = existingConv.tags || [];
               if (!currentTags.includes('reagendar')) {
