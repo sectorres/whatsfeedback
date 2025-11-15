@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File, MoreVertical, Edit, Plus } from "lucide-react";
+import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File, MoreVertical, Edit, Plus, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow, format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -599,7 +599,7 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                 conversations.map((conv) => (
                   <div
                     key={conv.id}
-                    className={`p-3 rounded-lg cursor-pointer mb-2 transition-colors relative ${
+                    className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${
                       selectedConversation?.id === conv.id
                         ? 'bg-primary/10'
                         : 'hover:bg-muted'
@@ -609,7 +609,7 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <div className="font-medium">{conv.customer_name || conv.customer_phone}</div>
+                          <div className="font-medium text-sm">{conv.customer_name || conv.customer_phone}</div>
                           {conv.unread_count > 0 && (
                             <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center px-1">
                               {conv.unread_count}
@@ -655,7 +655,7 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                 archivedConversations.map((conv) => (
                   <div
                     key={conv.id}
-                    className={`p-3 rounded-lg cursor-pointer mb-2 transition-colors ${
+                    className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${
                       selectedConversation?.id === conv.id
                         ? 'bg-primary/10'
                         : 'hover:bg-muted'
@@ -663,7 +663,14 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                     onClick={() => setSelectedConversation(conv)}
                   >
                     <div className="flex-1">
-                      <div className="font-medium">{conv.customer_name || conv.customer_phone}</div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="font-medium text-sm">{conv.customer_name || conv.customer_phone}</div>
+                        {conv.tags?.includes('reagendado') && (
+                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs h-5">
+                            Reagendado
+                          </Badge>
+                        )}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {conv.customer_phone}
                       </div>
@@ -698,6 +705,11 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                         Reagendar
                       </Badge>
                     )}
+                    {selectedConversation.tags?.includes('reagendado') && (
+                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs">
+                        Reagendado
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {selectedConversation.customer_phone}
@@ -725,6 +737,34 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                      </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                {selectedConversation.tags?.includes('reagendar') && (
+                  <Button
+                    onClick={async () => {
+                      if (!selectedConversation) return;
+                      
+                      const currentTags = selectedConversation.tags || [];
+                      const updatedTags = currentTags.filter(tag => tag !== 'reagendar');
+                      updatedTags.push('reagendado');
+                      
+                      await supabase
+                        .from('conversations')
+                        .update({ 
+                          status: 'archived',
+                          tags: updatedTags
+                        })
+                        .eq('id', selectedConversation.id);
+                      
+                      toast.success('Conversa reagendada e encerrada');
+                      setSelectedConversation(null);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/20"
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Reagendado
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={closeConversation}>
                   <X className="h-4 w-4 mr-2" />
                   Encerrar
