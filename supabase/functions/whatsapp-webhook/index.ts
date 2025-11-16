@@ -264,8 +264,53 @@ serve(async (req) => {
             .eq('customer_phone', customerPhone)
             .maybeSingle();
 
+          if (!existingConv) {
+            console.log(`[${msgId}] ⚠️ No conversation found for phone: ${customerPhone}`);
+            continue;
+          }
+
+          // Buscar última campanha enviada para este cliente
+          const { data: lastCampaign } = await supabase
+            .from('campaign_sends')
+            .select('*')
+            .eq('customer_phone', customerPhone)
+            .order('sent_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          // Verificar se já existe uma resposta para esta campanha (prevenir duplicatas)
+          if (lastCampaign) {
+            const { data: existingResponse } = await supabase
+              .from('campaign_responses')
+              .select('*')
+              .eq('conversation_id', existingConv.id)
+              .eq('campaign_send_id', lastCampaign.id)
+              .maybeSingle();
+
+            if (existingResponse) {
+              console.log(`[${msgId}] ⚠️ Response already recorded for this campaign, ignoring duplicate`);
+              continue;
+            }
+          }
+
           if (choice === '1') {
-            // Confirmado
+            // Confirmado - registrar resposta e adicionar tag
+            const responseType = 'confirmed';
+            
+            await supabase.from('campaign_responses').insert({
+              conversation_id: existingConv.id,
+              campaign_send_id: lastCampaign?.id,
+              response_type: responseType
+            });
+
+            const currentTags = existingConv.tags || [];
+            if (!currentTags.includes('confirmado')) {
+              await supabase
+                .from('conversations')
+                .update({ tags: [...currentTags, 'confirmado'] })
+                .eq('id', existingConv.id);
+            }
+
             await supabase.functions.invoke('whatsapp-send', {
               body: {
                 phone: customerPhone,
@@ -275,7 +320,15 @@ serve(async (req) => {
             console.log(`[${msgId}] ✅ Delivery confirmed`);
             continue;
           } else if (choice === '2') {
-            // Reagendar - adicionar tag "reagendar", enviar mensagem e marcar como ativa
+            // Reagendar - registrar resposta, adicionar tag e marcar como ativa
+            const responseType = 'reschedule';
+            
+            await supabase.from('campaign_responses').insert({
+              conversation_id: existingConv.id,
+              campaign_send_id: lastCampaign?.id,
+              response_type: responseType
+            });
+
             await supabase.functions.invoke('whatsapp-send', {
               body: {
                 phone: customerPhone,
@@ -283,22 +336,28 @@ serve(async (req) => {
               }
             });
             
-            if (existingConv) {
-              const currentTags = existingConv.tags || [];
-              if (!currentTags.includes('reagendar')) {
-                await supabase
-                  .from('conversations')
-                  .update({ 
-                    tags: [...currentTags, 'reagendar'],
-                    status: 'active'
-                  })
-                  .eq('id', existingConv.id);
-              }
-              console.log(`[${msgId}] 📅 Tagged for rescheduling and set to active`);
+            const currentTags = existingConv.tags || [];
+            if (!currentTags.includes('reagendar')) {
+              await supabase
+                .from('conversations')
+                .update({ 
+                  tags: [...currentTags, 'reagendar'],
+                  status: 'active'
+                })
+                .eq('id', existingConv.id);
             }
+            console.log(`[${msgId}] 📅 Tagged for rescheduling and set to active`);
             continue;
           } else if (choice === '3') {
-            // Não é meu número - adicionar à blacklist
+            // Não é meu número - registrar resposta e adicionar à blacklist
+            const responseType = 'wrong_number';
+            
+            await supabase.from('campaign_responses').insert({
+              conversation_id: existingConv.id,
+              campaign_send_id: lastCampaign?.id,
+              response_type: responseType
+            });
+
             const { error: blacklistError } = await supabase
               .from('blacklist')
               .insert({
