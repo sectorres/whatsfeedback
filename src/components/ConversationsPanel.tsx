@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File, MoreVertical, Edit, Plus, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow, format, isToday } from "date-fns";
@@ -58,15 +60,32 @@ interface Message {
   media_description?: string | null;
 }
 
+interface Reschedule {
+  id: string;
+  scheduled_date: string;
+  status: string;
+  campaign_send_id: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+interface CampaignSend {
+  id: string;
+  pedido_numero: string | null;
+  customer_name: string | null;
+  sent_at: string;
+}
+
 export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab: boolean }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([]);
+  const [rescheduledConversations, setRescheduledConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
+  const [activeTab, setActiveTab] = useState<"active" | "archived" | "rescheduled">("active");
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -77,6 +96,10 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
   const [newConversationPhone, setNewConversationPhone] = useState("");
   const [newConversationName, setNewConversationName] = useState("");
   const [creatingConversation, setCreatingConversation] = useState(false);
+  const [reschedules, setReschedules] = useState<Reschedule[]>([]);
+  const [campaignSends, setCampaignSends] = useState<CampaignSend[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -163,6 +186,8 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation.id);
+      loadReschedules(selectedConversation.id);
+      loadCampaignHistory(selectedConversation.customer_phone);
 
       // Marcar como lida ao abrir
       markAsRead(selectedConversation.id);
@@ -213,6 +238,12 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
       .eq('status', 'closed')
       .order('last_message_at', { ascending: false });
 
+    const { data: rescheduledData, error: rescheduledError } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('status', 'rescheduled')
+      .order('last_message_at', { ascending: false });
+
     if (activeError) {
       console.error('Error loading active conversations:', activeError);
       toast.error('Erro ao carregar conversas ativas');
@@ -225,7 +256,41 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
     } else {
       setArchivedConversations(archivedData || []);
     }
+
+    if (rescheduledError) {
+      console.error('Error loading rescheduled conversations:', rescheduledError);
+    } else {
+      setRescheduledConversations(rescheduledData || []);
+    }
     setLoading(false);
+  };
+
+  const loadReschedules = async (conversationId: string) => {
+    const { data, error } = await supabase
+      .from('reschedules')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error loading reschedules:', error);
+    } else {
+      setReschedules(data || []);
+    }
+  };
+
+  const loadCampaignHistory = async (customerPhone: string) => {
+    const { data, error } = await supabase
+      .from('campaign_sends')
+      .select('id, pedido_numero, customer_name, sent_at')
+      .eq('customer_phone', customerPhone)
+      .order('sent_at', { ascending: false });
+
+    if (error) {
+      console.error('Error loading campaign history:', error);
+    } else {
+      setCampaignSends(data || []);
+    }
   };
 
   const loadMessages = async (conversationId: string) => {
@@ -571,17 +636,22 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "active" | "archived")} className="flex flex-col h-full min-h-0">
-          <TabsList className="grid w-full grid-cols-2 mb-2">
-            <TabsTrigger value="active" className="gap-2">
-              <MessageCircle className="h-4 w-4" />
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "active" | "archived" | "rescheduled")} className="flex flex-col h-full min-h-0">
+          <TabsList className="grid w-full grid-cols-3 mb-2">
+            <TabsTrigger value="active" className="gap-1 text-xs">
+              <MessageCircle className="h-3 w-3" />
               Ativas
-              <Badge variant="secondary">{conversations.length}</Badge>
+              <Badge variant="secondary" className="text-xs">{conversations.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="archived" className="gap-2">
-              <Archive className="h-4 w-4" />
+            <TabsTrigger value="rescheduled" className="gap-1 text-xs">
+              <Calendar className="h-3 w-3" />
+              Reagendadas
+              <Badge variant="secondary" className="text-xs">{rescheduledConversations.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="archived" className="gap-1 text-xs">
+              <Archive className="h-3 w-3" />
               Antigas
-              <Badge variant="secondary">{archivedConversations.length}</Badge>
+              <Badge variant="secondary" className="text-xs">{archivedConversations.length}</Badge>
             </TabsTrigger>
           </TabsList>
 
@@ -618,6 +688,11 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                           {conv.tags?.includes('reagendar') && (
                             <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs h-5">
                               Reagendar
+                            </Badge>
+                          )}
+                          {conv.tags?.includes('confirmado') && (
+                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs h-5">
+                              Confirmado
                             </Badge>
                           )}
                         </div>
@@ -686,6 +761,52 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
               )}
             </ScrollArea>
           </TabsContent>
+
+          <TabsContent value="rescheduled" className="mt-0 flex-1 min-h-0">
+            <ScrollArea className="h-full">
+              {loading ? (
+                <div className="flex justify-center p-4">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : rescheduledConversations.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center p-4">
+                  Nenhuma conversa reagendada
+                </p>
+              ) : (
+                rescheduledConversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${
+                      selectedConversation?.id === conv.id
+                        ? 'bg-primary/10'
+                        : 'hover:bg-muted'
+                    }`}
+                    onClick={() => setSelectedConversation(conv)}
+                  >
+                    <div className="flex items-start gap-2 justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="font-medium text-sm">{conv.customer_name || conv.customer_phone}</div>
+                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs h-5">
+                            Reagendado
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {conv.customer_phone}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {formatDistanceToNow(new Date(conv.last_message_at), {
+                            addSuffix: true,
+                            locale: ptBR
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </ScrollArea>
+          </TabsContent>
         </Tabs>
       </Card>
 
@@ -738,31 +859,84 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
                   </DropdownMenuContent>
                 </DropdownMenu>
                 {selectedConversation.tags?.includes('reagendar') && (
+                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-blue-500/10 text-blue-600 border-blue-500/30 hover:bg-blue-500/20"
+                      >
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Reagendar
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <CalendarComponent
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => {
+                          setSelectedDate(date);
+                          if (date && selectedConversation) {
+                            const formattedDate = format(date, "dd/MM/yyyy", { locale: ptBR });
+                            setMessageText(`Ok, seu reagendamento foi realizado para o dia ${formattedDate}`);
+                            setCalendarOpen(false);
+                          }
+                        }}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
+                {selectedDate && selectedConversation.tags?.includes('reagendar') && (
                   <Button
-                    onClick={async () => {
-                      if (!selectedConversation) return;
-                      
-                      const currentTags = selectedConversation.tags || [];
-                      const updatedTags = currentTags.filter(tag => tag !== 'reagendar');
-                      updatedTags.push('reagendado');
-                      
-                      await supabase
-                        .from('conversations')
-                        .update({ 
-                          status: 'archived',
-                          tags: updatedTags
-                        })
-                        .eq('id', selectedConversation.id);
-                      
-                      toast.success('Conversa reagendada e encerrada');
-                      setSelectedConversation(null);
-                    }}
                     variant="outline"
                     size="sm"
                     className="bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/20"
+                    onClick={async () => {
+                      if (!selectedConversation || !selectedDate) return;
+
+                      // Buscar última campanha do cliente
+                      const lastCampaign = campaignSends[0];
+
+                      // Inserir reagendamento
+                      const { error: rescheduleError } = await supabase
+                        .from('reschedules')
+                        .insert({
+                          conversation_id: selectedConversation.id,
+                          campaign_send_id: lastCampaign?.id,
+                          customer_phone: selectedConversation.customer_phone,
+                          customer_name: selectedConversation.customer_name,
+                          scheduled_date: format(selectedDate, 'yyyy-MM-dd'),
+                          status: 'pending'
+                        });
+
+                      if (rescheduleError) {
+                        toast.error('Erro ao registrar reagendamento');
+                        return;
+                      }
+
+                      // Remover tag 'reagendar' e mudar status para 'rescheduled'
+                      const currentTags = selectedConversation.tags || [];
+                      const updatedTags = currentTags.filter(tag => tag !== 'reagendar');
+                      updatedTags.push('reagendado');
+
+                      await supabase
+                        .from('conversations')
+                        .update({
+                          status: 'rescheduled',
+                          tags: updatedTags
+                        })
+                        .eq('id', selectedConversation.id);
+
+                      toast.success('Reagendamento confirmado!');
+                      setSelectedDate(undefined);
+                      loadConversations();
+                      loadReschedules(selectedConversation.id);
+                    }}
                   >
                     <Calendar className="h-4 w-4 mr-2" />
-                    Reagendado
+                    Confirmar Reagendamento
                   </Button>
                 )}
                 <Button variant="outline" size="sm" onClick={closeConversation}>
@@ -772,6 +946,46 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
               </div>
             </div>
             <Separator className="mb-4" />
+
+            {/* Histórico de Pedidos e Reagendamentos */}
+            {(campaignSends.length > 0 || reschedules.length > 0) && (
+              <div className="mb-4 space-y-2">
+                {campaignSends.length > 0 && (
+                  <div className="bg-muted/30 rounded-lg p-2">
+                    <h4 className="text-xs font-semibold mb-2">Histórico de Pedidos</h4>
+                    <div className="space-y-1">
+                      {campaignSends.slice(0, 3).map((campaign, index) => (
+                        <div key={campaign.id} className="text-xs flex items-center gap-2">
+                          <Badge variant={index === 0 ? "default" : "secondary"} className="text-xs">
+                            {campaign.pedido_numero || `Pedido ${campaign.id.slice(0, 8)}`}
+                          </Badge>
+                          <span className="text-muted-foreground">
+                            {format(new Date(campaign.sent_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {reschedules.length > 0 && (
+                  <div className="bg-muted/30 rounded-lg p-2">
+                    <h4 className="text-xs font-semibold mb-2">Reagendamentos</h4>
+                    <div className="space-y-1">
+                      {reschedules.map((reschedule) => (
+                        <div key={reschedule.id} className="text-xs flex items-center gap-2">
+                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs">
+                            {format(new Date(reschedule.scheduled_date), "dd/MM/yyyy", { locale: ptBR })}
+                          </Badge>
+                          <span className="text-muted-foreground">
+                            {reschedule.status === 'pending' ? 'Pendente' : 'Confirmado'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             
             <ScrollArea className="flex-1 min-h-0 pr-4">
               <div className="space-y-4 pb-4">

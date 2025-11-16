@@ -113,6 +113,48 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_responses: {
+        Row: {
+          campaign_send_id: string | null
+          conversation_id: string
+          created_at: string
+          id: string
+          responded_at: string
+          response_type: string
+        }
+        Insert: {
+          campaign_send_id?: string | null
+          conversation_id: string
+          created_at?: string
+          id?: string
+          responded_at?: string
+          response_type: string
+        }
+        Update: {
+          campaign_send_id?: string | null
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          responded_at?: string
+          response_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_responses_campaign_send_id_fkey"
+            columns: ["campaign_send_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_sends"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_responses_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_sends: {
         Row: {
           campaign_id: string
@@ -305,6 +347,63 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reschedules: {
+        Row: {
+          campaign_send_id: string | null
+          confirmed_at: string | null
+          conversation_id: string
+          created_at: string
+          customer_name: string | null
+          customer_phone: string
+          id: string
+          notes: string | null
+          scheduled_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_send_id?: string | null
+          confirmed_at?: string | null
+          conversation_id: string
+          created_at?: string
+          customer_name?: string | null
+          customer_phone: string
+          id?: string
+          notes?: string | null
+          scheduled_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_send_id?: string | null
+          confirmed_at?: string | null
+          conversation_id?: string
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string
+          id?: string
+          notes?: string | null
+          scheduled_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reschedules_campaign_send_id_fkey"
+            columns: ["campaign_send_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_sends"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reschedules_conversation_id_fkey"
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
