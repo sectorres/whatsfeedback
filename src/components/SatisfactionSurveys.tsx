@@ -709,7 +709,7 @@ export function SatisfactionSurveys() {
                               </p>
                             )}
                             <p>{survey.customer_phone || sendDetails?.customer_phone}</p>
-                            <p>Enviados: {new Date(survey.sent_at).toLocaleString("pt-BR")}</p>
+                            <p>Enviado: {new Date(survey.sent_at).toLocaleString("pt-BR")}</p>
                             {survey.responded_at && (
                               <p className="text-green-600">
                                 Respondido: {new Date(survey.responded_at).toLocaleString("pt-BR")}
