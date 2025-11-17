@@ -165,7 +165,7 @@ serve(async (req) => {
       await supabase.functions.invoke("whatsapp-send", {
         body: {
           phone: normalizedPhone,
-          message: `Por favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Não é meu número`,
+          message: `Por favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação`,
         },
       });
       console.log("Confirmation message sent successfully");
