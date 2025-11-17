@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File, MoreVertical, Edit, Plus, Calendar } from "lucide-react";
+import { MessageCircle, Send, X, Loader2, Archive, Paperclip, Image as ImageIcon, File, MoreVertical, Edit, Plus, Calendar, CheckCircle2, Clock, Package } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow, format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -74,6 +74,8 @@ interface CampaignSend {
   pedido_numero: string | null;
   customer_name: string | null;
   sent_at: string;
+  valor_total: number | null;
+  quantidade_itens: number | null;
 }
 
 export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab: boolean }) {
@@ -282,7 +284,7 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
   const loadCampaignHistory = async (customerPhone: string) => {
     const { data, error } = await supabase
       .from('campaign_sends')
-      .select('id, pedido_numero, customer_name, sent_at')
+      .select('id, pedido_numero, customer_name, sent_at, valor_total, quantidade_itens')
       .eq('customer_phone', customerPhone)
       .order('sent_at', { ascending: false });
 
@@ -622,7 +624,7 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
   };
 
   return (
-    <div className="grid md:grid-cols-3 gap-4 h-[calc(100vh-200px)] min-h-0">
+    <div className="grid gap-4 h-[calc(100vh-200px)] min-h-0" style={{ gridTemplateColumns: "300px 1fr 320px" }}>
       {/* Lista de conversas */}
       <Card className="p-4 flex flex-col h-full min-h-0 overflow-hidden">
         <div className="flex items-center justify-between mb-2">
@@ -811,32 +813,20 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
       </Card>
 
       {/* Área de chat */}
-      <Card className="md:col-span-2 p-4 flex flex-col h-full min-h-0 overflow-hidden">
+      <Card className="p-4 flex flex-col h-full min-h-0 overflow-hidden">
         {selectedConversation ? (
           <>
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3 flex-1">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">
-                      {selectedConversation.customer_name || selectedConversation.customer_phone}
-                    </h3>
-                    {selectedConversation.tags?.includes('reagendar') && (
-                      <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs">
-                        Reagendar
-                      </Badge>
-                    )}
-                    {selectedConversation.tags?.includes('reagendado') && (
-                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs">
-                        Reagendado
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedConversation.customer_phone}
-                  </p>
-                </div>
-                
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold">
+                  {selectedConversation.customer_name || selectedConversation.customer_phone}
+                </h3>
+                {selectedConversation.tags?.includes('confirmado') && (
+                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs">
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    Confirmado
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <DropdownMenu>
@@ -1140,6 +1130,61 @@ export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab:
             Selecione uma conversa para começar
           </div>
         )}
+      </Card>
+
+      {/* Histórico de Pedidos - Coluna Lateral */}
+      <Card className="p-0 flex flex-col h-full min-h-0 overflow-hidden">
+        <div className="p-4 border-b bg-muted/50">
+          <h4 className="text-sm font-semibold flex items-center gap-2">
+            <Package className="w-4 h-4" />
+            Histórico de Pedidos
+          </h4>
+        </div>
+        <ScrollArea className="flex-1">
+          {selectedConversation ? (
+            <div className="p-4">
+              {campaignSends.length > 0 ? (
+                <div className="space-y-3">
+                  {campaignSends.map((send) => {
+                    const reschedule = reschedules.find(r => r.campaign_send_id === send.id);
+                    return (
+                      <div key={send.id} className="bg-background p-3 rounded-lg border space-y-2">
+                        {reschedule && (
+                          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 mb-2">
+                            <Clock className="w-3 h-3 mr-1" />
+                            Reagendado: {format(new Date(reschedule.scheduled_date), "dd/MM/yyyy", { locale: ptBR })}
+                          </Badge>
+                        )}
+                        <div className="font-medium text-sm">{send.pedido_numero || 'Pedido sem número'}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Enviado: {format(new Date(send.sent_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </div>
+                        {send.valor_total && (
+                          <div className="text-xs text-muted-foreground">
+                            Valor: R$ {send.valor_total.toFixed(2)}
+                          </div>
+                        )}
+                        {send.quantidade_itens && (
+                          <div className="text-xs text-muted-foreground">
+                            {send.quantidade_itens} {send.quantidade_itens === 1 ? 'item' : 'itens'}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  Nenhum pedido encontrado
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground p-4 text-center">
+              <p className="text-sm">Selecione uma conversa para ver o histórico de pedidos</p>
+            </div>
+          )}
+        </ScrollArea>
       </Card>
 
       <ImageModal 
