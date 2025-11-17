@@ -17,9 +17,23 @@ import { AudioPlayer } from "@/components/AudioPlayer";
 import { ImageModal } from "@/components/ImageModal";
 import { isValidPhoneNumber, normalizePhone } from "@/lib/phone-utils";
 import { CustomerOrdersDialog } from "@/components/CustomerOrdersDialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+
 interface Conversation {
   id: string;
   customer_phone: string;
@@ -31,6 +45,7 @@ interface Conversation {
   last_read_at: string | null;
   tags: string[] | null;
 }
+
 interface Message {
   id: string;
   conversation_id: string;
@@ -44,6 +59,7 @@ interface Message {
   media_transcription?: string | null;
   media_description?: string | null;
 }
+
 interface Reschedule {
   id: string;
   scheduled_date: string;
@@ -52,6 +68,7 @@ interface Reschedule {
   notes: string | null;
   created_at: string;
 }
+
 interface CampaignSend {
   id: string;
   pedido_numero: string | null;
@@ -60,11 +77,8 @@ interface CampaignSend {
   valor_total: number | null;
   quantidade_itens: number | null;
 }
-export function ConversationsPanel({
-  isOnAtendimentoTab
-}: {
-  isOnAtendimentoTab: boolean;
-}) {
+
+export function ConversationsPanel({ isOnAtendimentoTab }: { isOnAtendimentoTab: boolean }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([]);
   const [rescheduledConversations, setRescheduledConversations] = useState<Conversation[]>([]);
@@ -91,60 +105,80 @@ export function ConversationsPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
   useEffect(() => {
     audioRef.current = new Audio('/notification.mp3');
     audioRef.current.volume = 0.5;
     // Preparar o áudio para evitar bloqueio do navegador
     audioRef.current.load();
   }, []);
+
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "smooth"
-    });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
   const formatMessageTimestamp = (dateStr: string) => {
     const d = new Date(dateStr);
     return isToday(d) ? format(d, 'HH:mm') : format(d, 'dd/MM HH:mm');
   };
+
   useEffect(() => {
     loadConversations();
 
     // Realtime para conversas
-    const conversationsChannel = supabase.channel('conversations-changes').on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'conversations'
-    }, () => {
-      loadConversations();
-    }).subscribe();
+    const conversationsChannel = supabase
+      .channel('conversations-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations'
+        },
+        () => {
+          loadConversations();
+        }
+      )
+      .subscribe();
 
     // Realtime para todas as mensagens (notificação sonora)
-    const allMessagesChannel = supabase.channel('all-messages-notification').on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'messages'
-    }, payload => {
-      console.log('Nova mensagem recebida:', {
-        sender_type: payload.new.sender_type,
-        isOnAtendimentoTab,
-        shouldPlaySound: payload.new.sender_type === 'customer' && !isOnAtendimentoTab
-      });
-
-      // Tocar notificação sonora se for mensagem de cliente E não estiver na aba de atendimento
-      if (payload.new.sender_type === 'customer' && !isOnAtendimentoTab) {
-        console.log('Tentando tocar notificação...');
-        if (audioRef.current) {
-          audioRef.current.play().then(() => console.log('Notificação tocada com sucesso')).catch(err => {
-            console.error('Erro ao tocar notificação:', err);
-            // Tentar novamente com interação do usuário
-            toast.error('Nova mensagem recebida! (Som bloqueado pelo navegador)');
+    const allMessagesChannel = supabase
+      .channel('all-messages-notification')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        (payload) => {
+          console.log('Nova mensagem recebida:', {
+            sender_type: payload.new.sender_type,
+            isOnAtendimentoTab,
+            shouldPlaySound: payload.new.sender_type === 'customer' && !isOnAtendimentoTab
           });
+          
+          // Tocar notificação sonora se for mensagem de cliente E não estiver na aba de atendimento
+          if (payload.new.sender_type === 'customer' && !isOnAtendimentoTab) {
+            console.log('Tentando tocar notificação...');
+            if (audioRef.current) {
+              audioRef.current.play()
+                .then(() => console.log('Notificação tocada com sucesso'))
+                .catch(err => {
+                  console.error('Erro ao tocar notificação:', err);
+                  // Tentar novamente com interação do usuário
+                  toast.error('Nova mensagem recebida! (Som bloqueado pelo navegador)');
+                });
+            }
+          }
         }
-      }
-    }).subscribe();
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(conversationsChannel);
       supabase.removeChannel(allMessagesChannel);
@@ -161,56 +195,70 @@ export function ConversationsPanel({
       markAsRead(selectedConversation.id);
 
       // Realtime para mensagens da conversa selecionada
-      const messagesChannel = supabase.channel(`messages-${selectedConversation.id}`).on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${selectedConversation.id}`
-      }, payload => {
-        setMessages(prev => [...prev, payload.new as Message]);
-        // Incrementar contador de não lidas se for mensagem do cliente
-        if (payload.new.sender_type === 'customer') {
-          supabase.from('conversations').update({
-            unread_count: selectedConversation.unread_count + 1
-          }).eq('id', selectedConversation.id);
-        }
-      }).subscribe();
+      const messagesChannel = supabase
+        .channel(`messages-${selectedConversation.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `conversation_id=eq.${selectedConversation.id}`
+          },
+          (payload) => {
+            setMessages(prev => [...prev, payload.new as Message]);
+            // Incrementar contador de não lidas se for mensagem do cliente
+            if (payload.new.sender_type === 'customer') {
+              supabase
+                .from('conversations')
+                .update({ 
+                  unread_count: selectedConversation.unread_count + 1 
+                })
+                .eq('id', selectedConversation.id);
+            }
+          }
+        )
+        .subscribe();
+
       return () => {
         supabase.removeChannel(messagesChannel);
       };
     }
   }, [selectedConversation]);
+
   const loadConversations = async () => {
     setLoading(true);
-    const {
-      data: activeData,
-      error: activeError
-    } = await supabase.from('conversations').select('*').eq('status', 'active').order('last_message_at', {
-      ascending: false
-    });
-    const {
-      data: archivedData,
-      error: archivedError
-    } = await supabase.from('conversations').select('*').eq('status', 'closed').order('last_message_at', {
-      ascending: false
-    });
-    const {
-      data: rescheduledData,
-      error: rescheduledError
-    } = await supabase.from('conversations').select('*').eq('status', 'rescheduled').order('last_message_at', {
-      ascending: false
-    });
+    const { data: activeData, error: activeError } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('status', 'active')
+      .order('last_message_at', { ascending: false });
+
+    const { data: archivedData, error: archivedError } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('status', 'closed')
+      .order('last_message_at', { ascending: false });
+
+    const { data: rescheduledData, error: rescheduledError } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('status', 'rescheduled')
+      .order('last_message_at', { ascending: false });
+
     if (activeError) {
       console.error('Error loading active conversations:', activeError);
       toast.error('Erro ao carregar conversas ativas');
     } else {
       setConversations(activeData || []);
     }
+
     if (archivedError) {
       console.error('Error loading archived conversations:', archivedError);
     } else {
       setArchivedConversations(archivedData || []);
     }
+
     if (rescheduledError) {
       console.error('Error loading rescheduled conversations:', rescheduledError);
     } else {
@@ -218,39 +266,42 @@ export function ConversationsPanel({
     }
     setLoading(false);
   };
+
   const loadReschedules = async (conversationId: string) => {
-    const {
-      data,
-      error
-    } = await supabase.from('reschedules').select('*').eq('conversation_id', conversationId).order('created_at', {
-      ascending: false
-    });
+    const { data, error } = await supabase
+      .from('reschedules')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false });
+
     if (error) {
       console.error('Error loading reschedules:', error);
     } else {
       setReschedules(data || []);
     }
   };
+
   const loadCampaignHistory = async (customerPhone: string) => {
-    const {
-      data,
-      error
-    } = await supabase.from('campaign_sends').select('id, pedido_numero, customer_name, sent_at, valor_total, quantidade_itens').eq('customer_phone', customerPhone).order('sent_at', {
-      ascending: false
-    });
+    const { data, error } = await supabase
+      .from('campaign_sends')
+      .select('id, pedido_numero, customer_name, sent_at, valor_total, quantidade_itens')
+      .eq('customer_phone', customerPhone)
+      .order('sent_at', { ascending: false });
+
     if (error) {
       console.error('Error loading campaign history:', error);
     } else {
       setCampaignSends(data || []);
     }
   };
+
   const loadMessages = async (conversationId: string) => {
-    const {
-      data,
-      error
-    } = await supabase.from('messages').select('*').eq('conversation_id', conversationId).order('created_at', {
-      ascending: true
-    });
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
+
     if (error) {
       console.error('Error loading messages:', error);
       toast.error('Erro ao carregar mensagens');
@@ -258,21 +309,29 @@ export function ConversationsPanel({
       setMessages(data || []);
     }
   };
-  const markAsRead = async (conversationId: string) => {
-    await supabase.from('conversations').update({
-      unread_count: 0,
-      last_read_at: new Date().toISOString()
-    }).eq('id', conversationId);
 
+  const markAsRead = async (conversationId: string) => {
+    await supabase
+      .from('conversations')
+      .update({ 
+        unread_count: 0,
+        last_read_at: new Date().toISOString()
+      })
+      .eq('id', conversationId);
+    
     // Atualizar lista local
-    setConversations(prev => prev.map(conv => conv.id === conversationId ? {
-      ...conv,
-      unread_count: 0,
-      last_read_at: new Date().toISOString()
-    } : conv));
+    setConversations(prev => 
+      prev.map(conv => 
+        conv.id === conversationId 
+          ? { ...conv, unread_count: 0, last_read_at: new Date().toISOString() }
+          : conv
+      )
+    );
   };
+
   const sendMessage = async () => {
     if (!messageText.trim() || !selectedConversation) return;
+
     setSending(true);
     try {
       // Enviar via Evolution API
@@ -282,24 +341,28 @@ export function ConversationsPanel({
           message: messageText
         }
       });
+
       if (response.error) throw response.error;
 
       // Salvar mensagem no banco
-      const {
-        error: dbError
-      } = await supabase.from('messages').insert({
-        conversation_id: selectedConversation.id,
-        sender_type: 'operator',
-        sender_name: 'Operador',
-        message_text: messageText,
-        message_status: 'sent'
-      });
+      const { error: dbError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: selectedConversation.id,
+          sender_type: 'operator',
+          sender_name: 'Operador',
+          message_text: messageText,
+          message_status: 'sent'
+        });
+
       if (dbError) throw dbError;
 
       // Atualizar última mensagem da conversa
-      await supabase.from('conversations').update({
-        last_message_at: new Date().toISOString()
-      }).eq('id', selectedConversation.id);
+      await supabase
+        .from('conversations')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', selectedConversation.id);
+
       setMessageText("");
       toast.success('Mensagem enviada!');
     } catch (error) {
@@ -309,13 +372,15 @@ export function ConversationsPanel({
       setSending(false);
     }
   };
+
   const closeConversation = async () => {
     if (!selectedConversation) return;
-    const {
-      error
-    } = await supabase.from('conversations').update({
-      status: 'closed'
-    }).eq('id', selectedConversation.id);
+
+    const { error } = await supabase
+      .from('conversations')
+      .update({ status: 'closed' })
+      .eq('id', selectedConversation.id);
+
     if (error) {
       toast.error('Erro ao encerrar conversa');
     } else {
@@ -324,10 +389,12 @@ export function ConversationsPanel({
       loadConversations();
     }
   };
+
   const handleImageClick = (imageUrl: string) => {
     setSelectedImageUrl(imageUrl);
     setImageModalOpen(true);
   };
+
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !selectedConversation) return;
@@ -344,39 +411,42 @@ export function ConversationsPanel({
       toast.error('Arquivo muito grande. O tamanho máximo é 16MB.');
       return;
     }
+
     setUploadingFile(true);
     try {
       // Upload para o Supabase Storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `attachments/${fileName}`;
-      const {
-        error: uploadError,
-        data
-      } = await supabase.storage.from('whatsapp-media').upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
+
+      const { error: uploadError, data } = await supabase.storage
+        .from('whatsapp-media')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
       if (uploadError) throw uploadError;
 
       // Obter URL pública
-      const {
-        data: {
-          publicUrl
-        }
-      } = supabase.storage.from('whatsapp-media').getPublicUrl(filePath);
+      const { data: { publicUrl } } = supabase.storage
+        .from('whatsapp-media')
+        .getPublicUrl(filePath);
 
       // Determinar tipo de mídia
       let mediaType = 'document';
-      if (file.type.startsWith('image/')) mediaType = 'image';else if (file.type.startsWith('video/')) mediaType = 'video';else if (file.type.startsWith('audio/')) mediaType = 'audio';
+      if (file.type.startsWith('image/')) mediaType = 'image';
+      else if (file.type.startsWith('video/')) mediaType = 'video';
+      else if (file.type.startsWith('audio/')) mediaType = 'audio';
 
       // Enviar via WhatsApp usando a Evolution API diretamente
       const evolutionApiUrl = import.meta.env.VITE_SUPABASE_URL?.replace('supabase.co', 'supabase.co');
-
+      
       // Preparar payload baseado no tipo de mídia
       let mediaPayload: any = {
-        number: selectedConversation.customer_phone
+        number: selectedConversation.customer_phone,
       };
+
       if (mediaType === 'image') {
         mediaPayload.mediaMessage = {
           mediatype: 'image',
@@ -400,10 +470,7 @@ export function ConversationsPanel({
       }
 
       // Chamar edge function para enviar mídia via WhatsApp
-      const {
-        data: sendData,
-        error: sendError
-      } = await supabase.functions.invoke('whatsapp-send-media', {
+      const { data: sendData, error: sendError } = await supabase.functions.invoke('whatsapp-send-media', {
         body: {
           phone: selectedConversation.customer_phone,
           mediaUrl: publicUrl,
@@ -412,6 +479,7 @@ export function ConversationsPanel({
           caption: ''
         }
       });
+
       if (sendError) {
         console.error('Erro ao enviar mídia:', sendError);
         const serverMsg = (sendData as any)?.message as string | undefined;
@@ -420,25 +488,28 @@ export function ConversationsPanel({
       }
 
       // Salvar mensagem no banco
-      const {
-        error: dbError
-      } = await supabase.from('messages').insert({
-        conversation_id: selectedConversation.id,
-        sender_type: 'operator',
-        sender_name: 'Operador',
-        message_text: mediaType === 'image' ? '[Imagem]' : mediaType === 'audio' ? '[Áudio]' : `[${file.name}]`,
-        message_status: 'sent',
-        media_type: mediaType,
-        media_url: publicUrl
-      });
+      const { error: dbError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: selectedConversation.id,
+          sender_type: 'operator',
+          sender_name: 'Operador',
+          message_text: mediaType === 'image' ? '[Imagem]' : mediaType === 'audio' ? '[Áudio]' : `[${file.name}]`,
+          message_status: 'sent',
+          media_type: mediaType,
+          media_url: publicUrl
+        });
+
       if (dbError) throw dbError;
 
       // Atualizar última mensagem da conversa
-      await supabase.from('conversations').update({
-        last_message_at: new Date().toISOString()
-      }).eq('id', selectedConversation.id);
-      toast.success('Arquivo enviado com sucesso!');
+      await supabase
+        .from('conversations')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', selectedConversation.id);
 
+      toast.success('Arquivo enviado com sucesso!');
+      
       // Limpar input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -450,59 +521,70 @@ export function ConversationsPanel({
       setUploadingFile(false);
     }
   };
+
   const handleEditPhone = () => {
     if (!selectedConversation) return;
     setEditingPhone(selectedConversation.customer_phone);
     setEditPhoneDialogOpen(true);
   };
+
   const saveEditedPhone = async () => {
     if (!selectedConversation || !editingPhone.trim()) return;
+
     const normalized = normalizePhone(editingPhone);
+    
     if (!normalized || normalized.length < 10) {
       toast.error('Número de telefone inválido');
       return;
     }
+
     try {
-      const {
-        error
-      } = await supabase.from('conversations').update({
-        customer_phone: normalized
-      }).eq('id', selectedConversation.id);
+      const { error } = await supabase
+        .from('conversations')
+        .update({ customer_phone: normalized })
+        .eq('id', selectedConversation.id);
+
       if (error) throw error;
+
       toast.success('Telefone atualizado com sucesso!');
       setEditPhoneDialogOpen(false);
       loadConversations();
-
+      
       // Atualizar conversa selecionada
-      setSelectedConversation({
-        ...selectedConversation,
-        customer_phone: normalized
-      });
+      setSelectedConversation({ ...selectedConversation, customer_phone: normalized });
     } catch (error) {
       console.error('Error updating phone:', error);
       toast.error('Erro ao atualizar telefone');
     }
   };
+
   const createNewConversation = async () => {
     if (!newConversationPhone.trim()) {
       toast.error('Digite um número de telefone');
       return;
     }
+
     const normalized = normalizePhone(newConversationPhone);
+    
     if (!normalized || normalized.length < 10) {
       toast.error('Número de telefone inválido');
       return;
     }
+
     if (!isValidPhoneNumber(normalized)) {
       toast.error('Formato de número inválido. Use DDD + número (ex: 11987654321)');
       return;
     }
+
     setCreatingConversation(true);
     try {
       // Verificar se já existe conversa com este número
-      const {
-        data: existingConv
-      } = await supabase.from('conversations').select('*').eq('customer_phone', normalized).maybeSingle();
+      const { data: existingConv } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('customer_phone', normalized)
+        .maybeSingle();
+
       if (existingConv) {
         toast.info('Conversa já existe com este número');
         setSelectedConversation(existingConv);
@@ -514,16 +596,19 @@ export function ConversationsPanel({
       }
 
       // Criar nova conversa
-      const {
-        data: newConv,
-        error
-      } = await supabase.from('conversations').insert({
-        customer_phone: normalized,
-        customer_name: newConversationName.trim() || null,
-        status: 'active',
-        last_message_at: new Date().toISOString()
-      }).select().single();
+      const { data: newConv, error } = await supabase
+        .from('conversations')
+        .insert({
+          customer_phone: normalized,
+          customer_name: newConversationName.trim() || null,
+          status: 'active',
+          last_message_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
       if (error) throw error;
+
       toast.success('Conversa criada! Você já pode enviar mensagens.');
       setNewConversationDialogOpen(false);
       setNewConversationPhone("");
@@ -537,18 +622,23 @@ export function ConversationsPanel({
       setCreatingConversation(false);
     }
   };
-  return <div className="grid gap-4 h-[calc(100vh-200px)] min-h-0" style={{
-    gridTemplateColumns: "300px 1fr 320px"
-  }}>
+
+  return (
+    <div className="grid gap-4 h-[calc(100vh-200px)] min-h-0" style={{ gridTemplateColumns: "300px 1fr 320px" }}>
       {/* Lista de conversas */}
       <Card className="p-4 flex flex-col h-full min-h-0 overflow-hidden">
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-semibold">Conversas</h3>
-          <Button variant="outline" size="icon" onClick={() => setNewConversationDialogOpen(true)} title="Iniciar nova conversa">
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={() => setNewConversationDialogOpen(true)}
+            title="Iniciar nova conversa"
+          >
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-        <Tabs value={activeTab} onValueChange={value => setActiveTab(value as "active" | "archived" | "rescheduled")} className="flex flex-col h-full min-h-0">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "active" | "archived" | "rescheduled")} className="flex flex-col h-full min-h-0">
           <TabsList className="grid w-full grid-cols-3 mb-2">
             <TabsTrigger value="active" className="gap-1 text-xs">
               <MessageCircle className="h-3 w-3" />
@@ -569,76 +659,132 @@ export function ConversationsPanel({
 
           <TabsContent value="active" className="mt-0 flex-1 min-h-0">
             <ScrollArea className="h-full">
-              {loading ? <div className="flex justify-center p-4">
+              {loading ? (
+                <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin" />
-                </div> : conversations.length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
+                </div>
+              ) : conversations.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center p-4">
                   Nenhuma conversa ativa
-                </p> : conversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
+                </p>
+              ) : (
+                conversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${
+                      selectedConversation?.id === conv.id
+                        ? 'bg-primary/10'
+                        : 'hover:bg-muted'
+                    }`}
+                    onClick={() => setSelectedConversation(conv)}
+                  >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <div className="font-medium text-sm">{conv.customer_name || conv.customer_phone}</div>
-                          {conv.unread_count > 0 && <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center px-1">
+                          {conv.unread_count > 0 && (
+                            <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center px-1">
                               {conv.unread_count}
-                            </Badge>}
-                          {conv.tags?.includes('reagendar') && <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs h-5">
+                            </Badge>
+                          )}
+                          {conv.tags?.includes('reagendar') && (
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs h-5">
                               Reagendar
-                            </Badge>}
-                          {conv.tags?.includes('confirmado') && <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs h-5">
+                            </Badge>
+                          )}
+                          {conv.tags?.includes('confirmado') && (
+                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs h-5">
                               Confirmado
-                            </Badge>}
+                            </Badge>
+                          )}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {conv.customer_phone}
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
                           {formatDistanceToNow(new Date(conv.last_message_at), {
-                      addSuffix: true,
-                      locale: ptBR
-                    })}
+                            addSuffix: true,
+                            locale: ptBR
+                          })}
                         </div>
                       </div>
-                      {conv.unread_count > 0 && <div className="w-2 h-2 rounded-full bg-destructive" />}
+                      {conv.unread_count > 0 && (
+                        <div className="w-2 h-2 rounded-full bg-destructive" />
+                      )}
                     </div>
-                  </div>)}
+                  </div>
+                ))
+              )}
             </ScrollArea>
           </TabsContent>
 
           <TabsContent value="archived" className="mt-0 flex-1 min-h-0">
             <ScrollArea className="h-full">
-              {loading ? <div className="flex justify-center p-4">
+              {loading ? (
+                <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin" />
-                </div> : archivedConversations.length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
+                </div>
+              ) : archivedConversations.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center p-4">
                   Nenhuma conversa arquivada
-                </p> : archivedConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
+                </p>
+              ) : (
+                archivedConversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${
+                      selectedConversation?.id === conv.id
+                        ? 'bg-primary/10'
+                        : 'hover:bg-muted'
+                    }`}
+                    onClick={() => setSelectedConversation(conv)}
+                  >
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <div className="font-medium text-sm">{conv.customer_name || conv.customer_phone}</div>
-                        {conv.tags?.includes('reagendado') && <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs h-5">
+                        {conv.tags?.includes('reagendado') && (
+                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs h-5">
                             Reagendado
-                          </Badge>}
+                          </Badge>
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {conv.customer_phone}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         {formatDistanceToNow(new Date(conv.last_message_at), {
-                    addSuffix: true,
-                    locale: ptBR
-                  })}
+                          addSuffix: true,
+                          locale: ptBR
+                        })}
                       </div>
                     </div>
-                  </div>)}
+                  </div>
+                ))
+              )}
             </ScrollArea>
           </TabsContent>
 
           <TabsContent value="rescheduled" className="mt-0 flex-1 min-h-0">
             <ScrollArea className="h-full">
-              {loading ? <div className="flex justify-center p-4">
+              {loading ? (
+                <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin" />
-                </div> : rescheduledConversations.length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
+                </div>
+              ) : rescheduledConversations.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center p-4">
                   Nenhuma conversa reagendada
-                </p> : rescheduledConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
+                </p>
+              ) : (
+                rescheduledConversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${
+                      selectedConversation?.id === conv.id
+                        ? 'bg-primary/10'
+                        : 'hover:bg-muted'
+                    }`}
+                    onClick={() => setSelectedConversation(conv)}
+                  >
                     <div className="flex items-start gap-2 justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -652,13 +798,15 @@ export function ConversationsPanel({
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
                           {formatDistanceToNow(new Date(conv.last_message_at), {
-                      addSuffix: true,
-                      locale: ptBR
-                    })}
+                            addSuffix: true,
+                            locale: ptBR
+                          })}
                         </div>
                       </div>
                     </div>
-                  </div>)}
+                  </div>
+                ))
+              )}
             </ScrollArea>
           </TabsContent>
         </Tabs>
@@ -666,16 +814,19 @@ export function ConversationsPanel({
 
       {/* Área de chat */}
       <Card className="p-4 flex flex-col h-full min-h-0 overflow-hidden">
-        {selectedConversation ? <>
+        {selectedConversation ? (
+          <>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold">
                   {selectedConversation.customer_name || selectedConversation.customer_phone}
                 </h3>
-                {selectedConversation.tags?.includes('confirmado') && <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs">
+                {selectedConversation.tags?.includes('confirmado') && (
+                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs">
                     <CheckCircle2 className="w-3 h-3 mr-1" />
                     Confirmado
-                  </Badge>}
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <DropdownMenu>
@@ -688,70 +839,96 @@ export function ConversationsPanel({
                     <DropdownMenuItem onClick={() => setOrdersDialogOpen(true)}>
                       Ver Pedidos
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleEditPhone} disabled={isValidPhoneNumber(selectedConversation.customer_phone)}>
+                    <DropdownMenuItem 
+                      onClick={handleEditPhone}
+                      disabled={isValidPhoneNumber(selectedConversation.customer_phone)}
+                    >
                       <Edit className="h-4 w-4 mr-2" />
                       Editar Telefone
                      </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                {selectedConversation.tags?.includes('reagendar') && <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                {selectedConversation.tags?.includes('reagendar') && (
+                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="bg-blue-500/10 text-blue-600 border-blue-500/30 hover:bg-blue-500/20">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-blue-500/10 text-blue-600 border-blue-500/30 hover:bg-blue-500/20"
+                      >
                         <Calendar className="h-4 w-4 mr-2" />
                         Reagendar
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="end">
-                      <CalendarComponent mode="single" selected={selectedDate} onSelect={date => {
-                  setSelectedDate(date);
-                  if (date && selectedConversation) {
-                    const formattedDate = format(date, "dd/MM/yyyy", {
-                      locale: ptBR
-                    });
-                    setMessageText(`Ok, seu reagendamento foi realizado para o dia ${formattedDate}`);
-                    setCalendarOpen(false);
-                  }
-                }} disabled={date => date < new Date()} initialFocus />
+                      <CalendarComponent
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => {
+                          setSelectedDate(date);
+                          if (date && selectedConversation) {
+                            const formattedDate = format(date, "dd/MM/yyyy", { locale: ptBR });
+                            setMessageText(`Ok, seu reagendamento foi realizado para o dia ${formattedDate}`);
+                            setCalendarOpen(false);
+                          }
+                        }}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                      />
                     </PopoverContent>
-                  </Popover>}
-                {selectedDate && selectedConversation.tags?.includes('reagendar') && <Button variant="outline" size="sm" className="bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/20" onClick={async () => {
-              if (!selectedConversation || !selectedDate) return;
+                  </Popover>
+                )}
+                {selectedDate && selectedConversation.tags?.includes('reagendar') && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/20"
+                    onClick={async () => {
+                      if (!selectedConversation || !selectedDate) return;
 
-              // Buscar última campanha do cliente
-              const lastCampaign = campaignSends[0];
+                      // Buscar última campanha do cliente
+                      const lastCampaign = campaignSends[0];
 
-              // Inserir reagendamento
-              const {
-                error: rescheduleError
-              } = await supabase.from('reschedules').insert({
-                conversation_id: selectedConversation.id,
-                campaign_send_id: lastCampaign?.id,
-                customer_phone: selectedConversation.customer_phone,
-                customer_name: selectedConversation.customer_name,
-                scheduled_date: format(selectedDate, 'yyyy-MM-dd'),
-                status: 'pending'
-              });
-              if (rescheduleError) {
-                toast.error('Erro ao registrar reagendamento');
-                return;
-              }
+                      // Inserir reagendamento
+                      const { error: rescheduleError } = await supabase
+                        .from('reschedules')
+                        .insert({
+                          conversation_id: selectedConversation.id,
+                          campaign_send_id: lastCampaign?.id,
+                          customer_phone: selectedConversation.customer_phone,
+                          customer_name: selectedConversation.customer_name,
+                          scheduled_date: format(selectedDate, 'yyyy-MM-dd'),
+                          status: 'pending'
+                        });
 
-              // Remover tag 'reagendar' e mudar status para 'rescheduled'
-              const currentTags = selectedConversation.tags || [];
-              const updatedTags = currentTags.filter(tag => tag !== 'reagendar');
-              updatedTags.push('reagendado');
-              await supabase.from('conversations').update({
-                status: 'rescheduled',
-                tags: updatedTags
-              }).eq('id', selectedConversation.id);
-              toast.success('Reagendamento confirmado!');
-              setSelectedDate(undefined);
-              loadConversations();
-              loadReschedules(selectedConversation.id);
-            }}>
+                      if (rescheduleError) {
+                        toast.error('Erro ao registrar reagendamento');
+                        return;
+                      }
+
+                      // Remover tag 'reagendar' e mudar status para 'rescheduled'
+                      const currentTags = selectedConversation.tags || [];
+                      const updatedTags = currentTags.filter(tag => tag !== 'reagendar');
+                      updatedTags.push('reagendado');
+
+                      await supabase
+                        .from('conversations')
+                        .update({
+                          status: 'rescheduled',
+                          tags: updatedTags
+                        })
+                        .eq('id', selectedConversation.id);
+
+                      toast.success('Reagendamento confirmado!');
+                      setSelectedDate(undefined);
+                      loadConversations();
+                      loadReschedules(selectedConversation.id);
+                    }}
+                  >
                     <Calendar className="h-4 w-4 mr-2" />
                     Confirmar Reagendamento
-                  </Button>}
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={closeConversation}>
                   <X className="h-4 w-4 mr-2" />
                   Encerrar
@@ -761,91 +938,198 @@ export function ConversationsPanel({
             <Separator className="mb-4" />
 
             {/* Histórico de Pedidos e Reagendamentos */}
-            {(campaignSends.length > 0 || reschedules.length > 0) && <div className="mb-4 space-y-2">
-                {campaignSends.length > 0}
-                {reschedules.length > 0 && <div className="bg-muted/30 rounded-lg p-2">
+            {(campaignSends.length > 0 || reschedules.length > 0) && (
+              <div className="mb-4 space-y-2">
+                {campaignSends.length > 0 && (
+                  <div className="bg-muted/30 rounded-lg p-2">
+                    <h4 className="text-xs font-semibold mb-2">Histórico de Pedidos</h4>
+                    <div className="space-y-1">
+                      {campaignSends.slice(0, 3).map((campaign, index) => (
+                        <div key={campaign.id} className="text-xs flex items-center gap-2">
+                          <Badge variant={index === 0 ? "default" : "secondary"} className="text-xs">
+                            {campaign.pedido_numero || `Pedido ${campaign.id.slice(0, 8)}`}
+                          </Badge>
+                          <span className="text-muted-foreground">
+                            {format(new Date(campaign.sent_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {reschedules.length > 0 && (
+                  <div className="bg-muted/30 rounded-lg p-2">
                     <h4 className="text-xs font-semibold mb-2">Reagendamentos</h4>
                     <div className="space-y-1">
-                      {reschedules.map(reschedule => <div key={reschedule.id} className="text-xs flex items-center gap-2">
+                      {reschedules.map((reschedule) => (
+                        <div key={reschedule.id} className="text-xs flex items-center gap-2">
                           <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs">
-                            {format(new Date(reschedule.scheduled_date), "dd/MM/yyyy", {
-                    locale: ptBR
-                  })}
+                            {format(new Date(reschedule.scheduled_date), "dd/MM/yyyy", { locale: ptBR })}
                           </Badge>
                           <span className="text-muted-foreground">
                             {reschedule.status === 'pending' ? 'Pendente' : 'Confirmado'}
                           </span>
-                        </div>)}
+                        </div>
+                      ))}
                     </div>
-                  </div>}
-              </div>}
+                  </div>
+                )}
+              </div>
+            )}
             
             <ScrollArea className="flex-1 min-h-0 pr-4">
               <div className="space-y-4 pb-4">
-                {messages.map(msg => <div key={msg.id} className={`mb-4 ${msg.sender_type === 'operator' ? 'text-right' : 'text-left'}`}>
-                    <div className={`inline-block p-3 rounded-lg max-w-[70%] break-words ${msg.sender_type === 'operator' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`mb-4 ${
+                      msg.sender_type === 'operator' ? 'text-right' : 'text-left'
+                    }`}
+                  >
+                    <div
+                      className={`inline-block p-3 rounded-lg max-w-[70%] break-words ${
+                        msg.sender_type === 'operator'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted'
+                      }`}
+                    >
                       {/* Imagem */}
-                      {msg.media_type === 'image' && msg.media_url && <div className="mb-2">
-                          <img src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`} alt="Imagem enviada" loading="lazy" className="rounded max-w-full max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity" onClick={() => handleImageClick(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`)} onError={e => {
-                    console.error('Erro ao carregar imagem:', msg.media_url);
-                    e.currentTarget.style.display = 'none';
-                  }} />
-                        </div>}
+                      {msg.media_type === 'image' && msg.media_url && (
+                        <div className="mb-2">
+                          <img 
+                            src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`}
+                            alt="Imagem enviada" 
+                            loading="lazy"
+                            className="rounded max-w-full max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => handleImageClick(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`)}
+                            onError={(e) => {
+                              console.error('Erro ao carregar imagem:', msg.media_url);
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
 
                       {/* Sticker */}
-                      {msg.media_type === 'sticker' && msg.media_url && <div className="mb-2">
-                          <img src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`} alt="Sticker" loading="lazy" className="rounded max-w-[200px] max-h-[200px] object-contain cursor-pointer hover:opacity-90 transition-opacity bg-transparent" onClick={() => handleImageClick(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`)} onError={e => {
-                    console.error('Erro ao carregar sticker:', msg.media_url);
-                    e.currentTarget.style.display = 'none';
-                  }} />
-                        </div>}
+                      {msg.media_type === 'sticker' && msg.media_url && (
+                        <div className="mb-2">
+                          <img 
+                            src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`}
+                            alt="Sticker" 
+                            loading="lazy"
+                            className="rounded max-w-[200px] max-h-[200px] object-contain cursor-pointer hover:opacity-90 transition-opacity bg-transparent"
+                            onClick={() => handleImageClick(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`)}
+                            onError={(e) => {
+                              console.error('Erro ao carregar sticker:', msg.media_url);
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
                       
                       {/* Áudio */}
-                      {msg.media_type === 'audio' && msg.media_url && <div className="mb-2">
-                          <AudioPlayer src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`} isOperator={msg.sender_type === 'operator'} />
-                        </div>}
+                      {msg.media_type === 'audio' && msg.media_url && (
+                        <div className="mb-2">
+                          <AudioPlayer 
+                            src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`}
+                            isOperator={msg.sender_type === 'operator'}
+                          />
+                        </div>
+                      )}
 
                       {/* Vídeo */}
-                      {msg.media_type === 'video' && msg.media_url && <div className="mb-2">
-                          <video controls className="rounded max-w-full max-h-64" preload="metadata" onError={e => {
-                    console.error('Erro ao carregar vídeo:', msg.media_url);
-                  }}>
-                            <source src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`} type="video/mp4" />
+                      {msg.media_type === 'video' && msg.media_url && (
+                        <div className="mb-2">
+                          <video 
+                            controls 
+                            className="rounded max-w-full max-h-64"
+                            preload="metadata"
+                            onError={(e) => {
+                              console.error('Erro ao carregar vídeo:', msg.media_url);
+                            }}
+                          >
+                            <source 
+                              src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`} 
+                              type="video/mp4" 
+                            />
                             Seu navegador não suporta vídeo.
                           </video>
-                        </div>}
+                        </div>
+                      )}
 
                       {/* Documento */}
-                      {msg.media_type === 'document' && msg.media_url && <div className="mb-2">
-                          <a href={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm underline hover:opacity-80 transition-opacity bg-black/10 dark:bg-white/10 p-3 rounded">
+                      {msg.media_type === 'document' && msg.media_url && (
+                        <div className="mb-2">
+                          <a 
+                            href={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`}
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm underline hover:opacity-80 transition-opacity bg-black/10 dark:bg-white/10 p-3 rounded"
+                          >
                             <span className="text-2xl">📄</span>
                             <span>Visualizar documento</span>
                           </a>
-                        </div>}
+                        </div>
+                      )}
                       
-                      {msg.message_text && msg.message_text !== '[Audio]' && msg.message_text !== '[Áudio]' && msg.message_text !== '[Imagem]' && msg.message_text !== '[Image]' && <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>}
+                      {msg.message_text && 
+                       msg.message_text !== '[Audio]' && 
+                       msg.message_text !== '[Áudio]' && 
+                       msg.message_text !== '[Imagem]' && 
+                       msg.message_text !== '[Image]' && (
+                        <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>
+                      )}
                       <p className="text-xs opacity-70 mt-1">
                         {formatMessageTimestamp(msg.created_at)}
                       </p>
                     </div>
-                  </div>)}
+                  </div>
+                ))}
                 <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
 
             <div className="flex gap-2 mt-4">
-              <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
-              <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile || sending} title="Anexar arquivo">
-                {uploadingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleFileSelect}
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingFile || sending}
+                title="Anexar arquivo"
+              >
+                {uploadingFile ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Paperclip className="h-4 w-4" />
+                )}
               </Button>
-              <Input placeholder="Digite sua mensagem..." value={messageText} onChange={e => setMessageText(e.target.value)} onKeyPress={e => e.key === 'Enter' && sendMessage()} />
+              <Input
+                placeholder="Digite sua mensagem..."
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              />
               <Button onClick={sendMessage} disabled={sending || uploadingFile || !messageText.trim()}>
-                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {sending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
             </div>
-          </> : <div className="flex items-center justify-center h-full text-muted-foreground">
+          </>
+        ) : (
+          <div className="flex items-center justify-center h-full text-muted-foreground">
             Selecione uma conversa para começar
-          </div>}
+          </div>
+        )}
       </Card>
 
       {/* Histórico de Pedidos - Coluna Lateral */}
@@ -857,43 +1141,64 @@ export function ConversationsPanel({
           </h4>
         </div>
         <ScrollArea className="flex-1">
-          {selectedConversation ? <div className="p-4">
-              {campaignSends.length > 0 ? <div className="space-y-3">
-                  {campaignSends.map(send => {
-              const reschedule = reschedules.find(r => r.campaign_send_id === send.id);
-              return <div key={send.id} className="bg-background p-3 rounded-lg border space-y-2">
-                        {reschedule && <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 mb-2">
+          {selectedConversation ? (
+            <div className="p-4">
+              {campaignSends.length > 0 ? (
+                <div className="space-y-3">
+                  {campaignSends.map((send) => {
+                    const reschedule = reschedules.find(r => r.campaign_send_id === send.id);
+                    return (
+                      <div key={send.id} className="bg-background p-3 rounded-lg border space-y-2">
+                        {reschedule && (
+                          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 mb-2">
                             <Clock className="w-3 h-3 mr-1" />
-                            Reagendado: {format(new Date(reschedule.scheduled_date), "dd/MM/yyyy", {
-                    locale: ptBR
-                  })}
-                          </Badge>}
+                            Reagendado: {format(new Date(reschedule.scheduled_date), "dd/MM/yyyy", { locale: ptBR })}
+                          </Badge>
+                        )}
                         <div className="font-medium text-sm">{send.pedido_numero || 'Pedido sem número'}</div>
                         <div className="text-xs text-muted-foreground">
-                          Enviado: {format(new Date(send.sent_at), "dd/MM/yyyy 'às' HH:mm", {
-                    locale: ptBR
-                  })}
+                          Enviado: {format(new Date(send.sent_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                         </div>
-                        {send.valor_total && <div className="text-xs text-muted-foreground">
+                        {send.valor_total && (
+                          <div className="text-xs text-muted-foreground">
                             Valor: R$ {send.valor_total.toFixed(2)}
-                          </div>}
-                        {send.quantidade_itens && <div className="text-xs text-muted-foreground">
+                          </div>
+                        )}
+                        {send.quantidade_itens && (
+                          <div className="text-xs text-muted-foreground">
                             {send.quantidade_itens} {send.quantidade_itens === 1 ? 'item' : 'itens'}
-                          </div>}
-                      </div>;
-            })}
-                </div> : <p className="text-sm text-muted-foreground text-center py-8">
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">
                   Nenhum pedido encontrado
-                </p>}
-            </div> : <div className="flex items-center justify-center h-full text-muted-foreground p-4 text-center">
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground p-4 text-center">
               <p className="text-sm">Selecione uma conversa para ver o histórico de pedidos</p>
-            </div>}
+            </div>
+          )}
         </ScrollArea>
       </Card>
 
-      <ImageModal isOpen={imageModalOpen} onClose={() => setImageModalOpen(false)} imageUrl={selectedImageUrl} />
+      <ImageModal 
+        isOpen={imageModalOpen}
+        onClose={() => setImageModalOpen(false)}
+        imageUrl={selectedImageUrl}
+      />
 
-      <CustomerOrdersDialog open={ordersDialogOpen} onOpenChange={setOrdersDialogOpen} customerPhone={selectedConversation?.customer_phone || ""} customerName={selectedConversation?.customer_name || undefined} />
+      <CustomerOrdersDialog
+        open={ordersDialogOpen}
+        onOpenChange={setOrdersDialogOpen}
+        customerPhone={selectedConversation?.customer_phone || ""}
+        customerName={selectedConversation?.customer_name || undefined}
+      />
 
       <Dialog open={editPhoneDialogOpen} onOpenChange={setEditPhoneDialogOpen}>
         <DialogContent>
@@ -906,7 +1211,13 @@ export function ConversationsPanel({
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="phone">Número de Telefone</Label>
-              <Input id="phone" placeholder="(11) 98765-4321" value={editingPhone} onChange={e => setEditingPhone(e.target.value)} onKeyPress={e => e.key === 'Enter' && saveEditedPhone()} />
+              <Input
+                id="phone"
+                placeholder="(11) 98765-4321"
+                value={editingPhone}
+                onChange={(e) => setEditingPhone(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && saveEditedPhone()}
+              />
               <p className="text-xs text-muted-foreground">
                 Formatos aceitos: (11) 98765-4321, 11987654321, 5511987654321, +55 11 98765-4321
               </p>
@@ -934,32 +1245,53 @@ export function ConversationsPanel({
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="new-phone">Número de Telefone *</Label>
-              <Input id="new-phone" placeholder="(11) 98765-4321" value={newConversationPhone} onChange={e => setNewConversationPhone(e.target.value)} onKeyPress={e => e.key === 'Enter' && !creatingConversation && createNewConversation()} />
+              <Input
+                id="new-phone"
+                placeholder="(11) 98765-4321"
+                value={newConversationPhone}
+                onChange={(e) => setNewConversationPhone(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && !creatingConversation && createNewConversation()}
+              />
               <p className="text-xs text-muted-foreground">
                 Formatos aceitos: (11) 98765-4321, 11987654321, 5511987654321, +55 11 98765-4321
               </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="new-name">Nome do Cliente (opcional)</Label>
-              <Input id="new-name" placeholder="João Silva" value={newConversationName} onChange={e => setNewConversationName(e.target.value)} onKeyPress={e => e.key === 'Enter' && !creatingConversation && createNewConversation()} />
+              <Input
+                id="new-name"
+                placeholder="João Silva"
+                value={newConversationName}
+                onChange={(e) => setNewConversationName(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && !creatingConversation && createNewConversation()}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-            setNewConversationDialogOpen(false);
-            setNewConversationPhone("");
-            setNewConversationName("");
-          }} disabled={creatingConversation}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setNewConversationDialogOpen(false);
+                setNewConversationPhone("");
+                setNewConversationName("");
+              }}
+              disabled={creatingConversation}
+            >
               Cancelar
             </Button>
             <Button onClick={createNewConversation} disabled={creatingConversation}>
-              {creatingConversation ? <>
+              {creatingConversation ? (
+                <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Criando...
-                </> : 'Criar Conversa'}
+                </>
+              ) : (
+                'Criar Conversa'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>;
+    </div>
+  );
 }
