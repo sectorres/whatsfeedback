@@ -70,11 +70,11 @@ export function SatisfactionSurveys() {
   const startTimeRef = useRef<string>("");
   const countdownIntervalRef = useRef<number | null>(null);
   const currentRunIdRef = useRef<string | null>(null);
-  
+
   const { toast } = useToast();
 
-  const filteredCampaigns = campaigns.filter(campaign =>
-    campaign.name.toLowerCase().includes(campaignSearch.toLowerCase())
+  const filteredCampaigns = campaigns.filter((campaign) =>
+    campaign.name.toLowerCase().includes(campaignSearch.toLowerCase()),
   );
 
   useEffect(() => {
@@ -97,9 +97,9 @@ export function SatisfactionSurveys() {
       return;
     }
 
-  try {
-      const { error } = await supabase.functions.invoke('abort-survey-send', {
-        body: { runId: currentRunIdRef.current }
+    try {
+      const { error } = await supabase.functions.invoke("abort-survey-send", {
+        body: { runId: currentRunIdRef.current },
       });
 
       if (error) throw error;
@@ -123,10 +123,10 @@ export function SatisfactionSurveys() {
 
       currentRunIdRef.current = null;
     } catch (error: any) {
-      console.error('Erro ao abortar envio:', error);
+      console.error("Erro ao abortar envio:", error);
       toast({
         title: "Erro ao cancelar",
-        description: error.message || 'Erro desconhecido',
+        description: error.message || "Erro desconhecido",
         variant: "destructive",
       });
     }
@@ -146,12 +146,12 @@ export function SatisfactionSurveys() {
   const loadCampaigns = async () => {
     try {
       const { data: sendsData, error: sendsError } = await supabase
-        .from('campaign_sends')
-        .select('id, campaign_id')
-        .in('status', ['success', 'sent']);
+        .from("campaign_sends")
+        .select("id, campaign_id")
+        .in("status", ["success", "sent"]);
 
       if (sendsError) {
-        console.error('Erro ao buscar envios:', sendsError);
+        console.error("Erro ao buscar envios:", sendsError);
         toast({
           title: "Erro ao carregar campanhas",
           description: sendsError.message,
@@ -160,16 +160,16 @@ export function SatisfactionSurveys() {
         return;
       }
 
-      console.log('Total de sends com sucesso:', sendsData?.length || 0);
-      const sendIds = (sendsData || []).map(s => s.id);
+      console.log("Total de sends com sucesso:", sendsData?.length || 0);
+      const sendIds = (sendsData || []).map((s) => s.id);
 
       const { data: existingSurveys, error: surveysError } = await supabase
-        .from('satisfaction_surveys')
-        .select('campaign_send_id, status')
-        .in('campaign_send_id', sendIds);
+        .from("satisfaction_surveys")
+        .select("campaign_send_id, status")
+        .in("campaign_send_id", sendIds);
 
       if (surveysError) {
-        console.error('Erro ao buscar pesquisas:', surveysError);
+        console.error("Erro ao buscar pesquisas:", surveysError);
         toast({
           title: "Erro ao carregar campanhas",
           description: surveysError.message,
@@ -178,37 +178,35 @@ export function SatisfactionSurveys() {
         return;
       }
 
-      console.log('Total de pesquisas encontradas:', existingSurveys?.length || 0);
-      
+      console.log("Total de pesquisas encontradas:", existingSurveys?.length || 0);
+
       // Status que indicam que a pesquisa foi processada (não está mais pendente)
-      const processedStatuses = ['pending', 'sent', 'awaiting_feedback', 'responded', 'expired', 'cancelled', 'failed'];
+      const processedStatuses = ["pending", "sent", "awaiting_feedback", "responded", "expired", "cancelled", "failed"];
       const processedSendIds = new Set(
-        (existingSurveys || [])
-          .filter(s => processedStatuses.includes(s.status))
-          .map(s => s.campaign_send_id)
+        (existingSurveys || []).filter((s) => processedStatuses.includes(s.status)).map((s) => s.campaign_send_id),
       );
-      
-      console.log('Sends processados:', processedSendIds.size);
-      const pendingSends = (sendsData || []).filter(send => !processedSendIds.has(send.id));
-      console.log('Sends pendentes:', pendingSends.length);
-      
-      const campaignIds = [...new Set(pendingSends.map(s => s.campaign_id))];
+
+      console.log("Sends processados:", processedSendIds.size);
+      const pendingSends = (sendsData || []).filter((send) => !processedSendIds.has(send.id));
+      console.log("Sends pendentes:", pendingSends.length);
+
+      const campaignIds = [...new Set(pendingSends.map((s) => s.campaign_id))];
 
       if (campaignIds.length === 0) {
-        console.log('Nenhuma campanha com envios pendentes encontrada');
+        console.log("Nenhuma campanha com envios pendentes encontrada");
         setCampaigns([]);
-        setSelectedCampaignId('');
+        setSelectedCampaignId("");
         return;
       }
 
       const { data, error } = await supabase
-        .from('campaigns')
-        .select('*')
-        .in('id', campaignIds)
-        .order('created_at', { ascending: false });
+        .from("campaigns")
+        .select("*")
+        .in("id", campaignIds)
+        .order("created_at", { ascending: false });
 
       if (error) {
-        console.error('Erro ao buscar campanhas:', error);
+        console.error("Erro ao buscar campanhas:", error);
         toast({
           title: "Erro ao carregar campanhas",
           description: error.message,
@@ -217,15 +215,15 @@ export function SatisfactionSurveys() {
         return;
       }
 
-      console.log('Campanhas com envios pendentes:', data?.length || 0);
+      console.log("Campanhas com envios pendentes:", data?.length || 0);
       setCampaigns(data || []);
       if (data && data.length > 0 && !selectedCampaignId) {
         setSelectedCampaignId(data[0].id);
       } else if (data && data.length === 0) {
-        setSelectedCampaignId('');
+        setSelectedCampaignId("");
       }
     } catch (error) {
-      console.error('Erro ao carregar campanhas:', error);
+      console.error("Erro ao carregar campanhas:", error);
       toast({
         title: "Erro ao carregar campanhas",
         description: "Ocorreu um erro inesperado",
@@ -238,32 +236,32 @@ export function SatisfactionSurveys() {
     setLoading(true);
     try {
       const { data: sends, error: sendsError } = await supabase
-        .from('campaign_sends')
-        .select('*')
-        .eq('campaign_id', selectedCampaignId);
+        .from("campaign_sends")
+        .select("*")
+        .eq("campaign_id", selectedCampaignId);
 
       if (sendsError) throw sendsError;
 
-      const sendIds = sends?.map(s => s.id) || [];
-      
+      const sendIds = sends?.map((s) => s.id) || [];
+
       const sendsMap: Record<string, CampaignSend> = {};
-      sends?.forEach(send => {
+      sends?.forEach((send) => {
         sendsMap[send.id] = send;
       });
       setCampaignSends(sendsMap);
 
       const { data, error } = await supabase
-        .from('satisfaction_surveys')
-        .select('*')
-        .in('campaign_send_id', sendIds)
-        .not('status', 'in', '("cancelled","not_sent")')
-        .order('sent_at', { ascending: false });
+        .from("satisfaction_surveys")
+        .select("*")
+        .in("campaign_send_id", sendIds)
+        .not("status", "in", '("cancelled","not_sent")')
+        .order("sent_at", { ascending: false });
 
       if (!error && data) {
         setSurveys(data);
       }
     } catch (error) {
-      console.error('Erro ao carregar pesquisas:', error);
+      console.error("Erro ao carregar pesquisas:", error);
     } finally {
       setLoading(false);
     }
@@ -271,32 +269,30 @@ export function SatisfactionSurveys() {
 
   const loadAllDriverData = async () => {
     try {
-      const { data: sends, error: sendsError } = await supabase
-        .from('campaign_sends')
-        .select('*');
+      const { data: sends, error: sendsError } = await supabase.from("campaign_sends").select("*");
 
       if (sendsError) throw sendsError;
 
-      const sendIds = sends?.map(s => s.id) || [];
-      
+      const sendIds = sends?.map((s) => s.id) || [];
+
       const sendsMap: Record<string, CampaignSend> = {};
-      sends?.forEach(send => {
+      sends?.forEach((send) => {
         sendsMap[send.id] = send;
       });
       setAllCampaignSends(sendsMap);
 
       const { data: allSurveysData, error: surveysError } = await supabase
-        .from('satisfaction_surveys')
-        .select('*')
-        .in('campaign_send_id', sendIds)
-        .not('status', 'in', '("cancelled","not_sent")')
-        .order('sent_at', { ascending: false });
+        .from("satisfaction_surveys")
+        .select("*")
+        .in("campaign_send_id", sendIds)
+        .not("status", "in", '("cancelled","not_sent")')
+        .order("sent_at", { ascending: false });
 
       if (!surveysError && allSurveysData) {
         setAllSurveys(allSurveysData);
       }
     } catch (error) {
-      console.error('Erro ao carregar dados de motoristas:', error);
+      console.error("Erro ao carregar dados de motoristas:", error);
     }
   };
 
@@ -326,32 +322,32 @@ export function SatisfactionSurveys() {
     setSendingSurveys(true);
     setSendProgress({ current: 0, total: 0, success: 0, failed: 0 });
     setSurveyCountdown(0);
-    
+
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
-    
+
     try {
       const { data: sends, error: sendsError } = await supabase
-        .from('campaign_sends')
-        .select('id, customer_phone')
-        .eq('campaign_id', campaignId)
-        .in('status', ['success', 'sent']);
+        .from("campaign_sends")
+        .select("id, customer_phone")
+        .eq("campaign_id", campaignId)
+        .in("status", ["success", "sent"]);
       if (sendsError) throw sendsError;
       const sendIds = (sends || []).map((s: any) => s.id);
 
       const { data: existingSurveys, error: surveysError } = await supabase
-        .from('satisfaction_surveys')
-        .select('campaign_send_id, status, customer_phone, sent_at')
-        .in('campaign_send_id', sendIds);
+        .from("satisfaction_surveys")
+        .select("campaign_send_id, status, customer_phone, sent_at")
+        .in("campaign_send_id", sendIds);
       if (surveysError) throw surveysError;
 
-      const excludedStatuses = ['sent', 'awaiting_feedback', 'responded', 'expired', 'cancelled'];
+      const excludedStatuses = ["sent", "awaiting_feedback", "responded", "expired", "cancelled"];
       const alreadyProcessedSet = new Set(
         (existingSurveys || [])
           .filter((s: any) => excludedStatuses.includes(s.status))
-          .map((s: any) => s.campaign_send_id)
+          .map((s: any) => s.campaign_send_id),
       );
-      
+
       const plannedIds = sendIds.filter((id: string) => !alreadyProcessedSet.has(id));
 
       // Verificar cooldown de 1 minuto para os telefones que serão enviados
@@ -361,14 +357,14 @@ export function SatisfactionSurveys() {
           .map((s: any) => s.customer_phone);
 
         const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000).toISOString();
-        
+
         const { data: recentSurveys, error: recentError } = await supabase
-          .from('satisfaction_surveys')
-          .select('customer_phone')
-          .in('customer_phone', plannedPhones)
-          .in('status', ['sent', 'responded', 'expired'])
-          .gte('sent_at', oneMinuteAgo);
-        
+          .from("satisfaction_surveys")
+          .select("customer_phone")
+          .in("customer_phone", plannedPhones)
+          .in("status", ["sent", "responded", "expired"])
+          .gte("sent_at", oneMinuteAgo);
+
         if (recentError) throw recentError;
 
         if (recentSurveys && recentSurveys.length > 0) {
@@ -395,7 +391,6 @@ export function SatisfactionSurveys() {
       // REMOVIDO: não precriar pesquisas 'pending' no cliente para evitar que itens sumam da lista sem envio real
       // O backend criará/atualizará as pesquisas conforme cada envio for realmente processado
 
-      
       plannedIdsRef.current = plannedIds;
       startTimeRef.current = new Date().toISOString();
 
@@ -404,17 +399,17 @@ export function SatisfactionSurveys() {
       const poll = async () => {
         if (plannedIdsRef.current.length === 0) return;
         const { data: rows } = await supabase
-          .from('satisfaction_surveys')
-          .select('id,status,sent_at,campaign_send_id')
-          .in('campaign_send_id', plannedIdsRef.current)
-          .gte('sent_at', startTimeRef.current);
+          .from("satisfaction_surveys")
+          .select("id,status,sent_at,campaign_send_id")
+          .in("campaign_send_id", plannedIdsRef.current)
+          .gte("sent_at", startTimeRef.current);
 
-        const statuses = (rows || []).map(r => r.status);
-        const failed = statuses.filter(s => s === 'failed').length;
-        const success = statuses.filter(s => s === 'sent' || s === 'awaiting_feedback' || s === 'responded').length;
+        const statuses = (rows || []).map((r) => r.status);
+        const failed = statuses.filter((s) => s === "failed").length;
+        const success = statuses.filter((s) => s === "sent" || s === "awaiting_feedback" || s === "responded").length;
         const current = Math.min(success + failed, plannedIdsRef.current.length);
 
-        setSendProgress(prev => {
+        setSendProgress((prev) => {
           if (current > prev.current && current < plannedIdsRef.current.length) {
             const nextDelaySeconds = getProgressiveDelay(current);
             setSurveyCountdown(nextDelaySeconds);
@@ -431,26 +426,28 @@ export function SatisfactionSurveys() {
           }
         }
       };
-      
+
       countdownIntervalRef.current = window.setInterval(() => {
-        setSurveyCountdown(prev => prev > 0 ? prev - 1 : 0);
+        setSurveyCountdown((prev) => (prev > 0 ? prev - 1 : 0));
       }, 1000);
 
       // Iniciar polling de progresso
       await poll();
-      pollTimerRef.current = window.setInterval(() => { poll(); }, 1000);
+      pollTimerRef.current = window.setInterval(() => {
+        poll();
+      }, 1000);
 
       // Criar run antes de invocar a função (para poder abortar)
       const { data: run, error: runErr } = await supabase
-        .from('survey_send_runs')
+        .from("survey_send_runs")
         .insert({ campaign_id: campaignId })
         .select()
         .single();
       if (runErr) throw runErr;
       currentRunIdRef.current = run.id;
 
-      const { data, error } = await supabase.functions.invoke('send-satisfaction-survey', {
-        body: { campaignSendIds: plannedIds, campaignId, runId: run.id }
+      const { data, error } = await supabase.functions.invoke("send-satisfaction-survey", {
+        body: { campaignSendIds: plannedIds, campaignId, runId: run.id },
       });
       if (error) throw error;
 
@@ -465,31 +462,33 @@ export function SatisfactionSurveys() {
         const finalSuccess = Math.max(sendProgress.success, (data.surveys_sent || 0) - (data.failed_surveys || 0));
         const finalFailed = Math.max(sendProgress.failed, data.failed_surveys || 0);
         const finalCurrent = Math.max(sendProgress.current, data.surveys_sent || 0);
-        setSendProgress(prev => ({
+        setSendProgress((prev) => ({
           current: Math.max(prev.current, finalCurrent),
           total: Math.max(prev.total, plannedIdsRef.current.length),
           success: Math.max(prev.success, finalSuccess),
-          failed: Math.max(prev.failed, finalFailed)
+          failed: Math.max(prev.failed, finalFailed),
         }));
       }
 
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
       const details = [] as string[];
-      if (data?.new_surveys > 0) details.push(`${data.new_surveys} nova${data.new_surveys > 1 ? 's' : ''}`);
-      if (data?.resent_surveys > 0) details.push(`${data.resent_surveys} reenviada${data.resent_surveys > 1 ? 's' : ''}`);
-      if (data?.failed_surveys > 0) details.push(`${data.failed_surveys} falha${data.failed_surveys > 1 ? 's' : ''}`);
+      if (data?.new_surveys > 0) details.push(`${data.new_surveys} nova${data.new_surveys > 1 ? "s" : ""}`);
+      if (data?.resent_surveys > 0)
+        details.push(`${data.resent_surveys} reenviada${data.resent_surveys > 1 ? "s" : ""}`);
+      if (data?.failed_surveys > 0) details.push(`${data.failed_surveys} falha${data.failed_surveys > 1 ? "s" : ""}`);
 
       toast({
         title: "Pesquisas enviadas!",
-        description: data?.surveys_sent > 0 
-          ? `${data.surveys_sent} pesquisa${data.surveys_sent > 1 ? 's' : ''} enviada${data.surveys_sent > 1 ? 's' : ''} (${details.join(', ')})`
-          : "Nenhuma pesquisa pendente para enviar",
+        description:
+          data?.surveys_sent > 0
+            ? `${data.surveys_sent} pesquisa${data.surveys_sent > 1 ? "s" : ""} enviada${data.surveys_sent > 1 ? "s" : ""} (${details.join(", ")})`
+            : "Nenhuma pesquisa pendente para enviar",
       });
 
       loadSurveys();
     } catch (error: any) {
-      console.error('Erro ao enviar pesquisas:', error);
+      console.error("Erro ao enviar pesquisas:", error);
       if (abortController.signal.aborted) {
         toast({
           title: "Envio cancelado",
@@ -498,7 +497,7 @@ export function SatisfactionSurveys() {
       } else {
         toast({
           title: "Erro ao enviar pesquisas",
-          description: error.message || 'Erro desconhecido',
+          description: error.message || "Erro desconhecido",
           variant: "destructive",
         });
       }
@@ -528,9 +527,9 @@ export function SatisfactionSurveys() {
   };
 
   const toggleCard = (surveyId: string) => {
-    setExpandedCards(prev => ({
+    setExpandedCards((prev) => ({
       ...prev,
-      [surveyId]: !prev[surveyId]
+      [surveyId]: !prev[surveyId],
     }));
   };
 
@@ -539,32 +538,18 @@ export function SatisfactionSurveys() {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
           <h2 className="text-3xl font-bold tracking-tight mb-2">Pesquisas de Satisfação</h2>
-          <p className="text-muted-foreground">
-            Acompanhe e analise o feedback dos seus clientes
-          </p>
+          <p className="text-muted-foreground">Acompanhe e analise o feedback dos seus clientes</p>
         </div>
         <div className="flex flex-col gap-2">
-          <Button 
-            onClick={handleSendSurveysClick}
-            disabled={sendingSurveys}
-            className="gap-2"
-          >
-            {sendingSurveys ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+          <Button onClick={handleSendSurveysClick} disabled={sendingSurveys} className="gap-2">
+            {sendingSurveys ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             Enviar Pesquisas Pendentes
           </Button>
-          <Button 
-            onClick={() => setShowManagementDialog(true)}
-            variant="outline"
-            className="gap-2"
-          >
+          <Button onClick={() => setShowManagementDialog(true)} variant="outline" className="gap-2">
             <List className="h-4 w-4" />
             Gerenciamento de Envios
           </Button>
-          <Button 
+          <Button
             onClick={handleAbortSurveys}
             variant="destructive"
             disabled={!sendingSurveys && !pollTimerRef.current && !currentRunIdRef.current}
@@ -580,8 +565,8 @@ export function SatisfactionSurveys() {
         <SelectTrigger className="w-full max-w-md">
           <SelectValue placeholder="Selecione uma campanha" />
         </SelectTrigger>
-        <SelectContent 
-          className="bg-background z-50" 
+        <SelectContent
+          className="bg-background z-50"
           onCloseAutoFocus={(e) => e.preventDefault()}
           side="bottom"
           align="start"
@@ -596,23 +581,25 @@ export function SatisfactionSurveys() {
                 value={campaignSearch}
                 onChange={(e) => setCampaignSearch(e.target.value)}
                 className="pl-9 h-9"
-                onKeyDown={(e) => { e.stopPropagation(); }}
-                onPointerDown={(e) => { e.stopPropagation(); }}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                }}
               />
             </div>
           </div>
           <ScrollArea className="h-[300px]">
             {filteredCampaigns.length === 0 ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                Nenhuma campanha encontrada
-              </div>
+              <div className="p-4 text-center text-sm text-muted-foreground">Nenhuma campanha encontrada</div>
             ) : (
               filteredCampaigns.map((campaign) => {
-                const hasSurveys = allSurveys.some(survey => {
+                const hasSurveys = allSurveys.some((survey) => {
                   const send = allCampaignSends[survey.campaign_send_id];
                   return send?.campaign_id === campaign.id;
                 });
-                
+
                 return (
                   <SelectItem key={campaign.id} value={campaign.id}>
                     <div className="flex items-center gap-2">
@@ -636,12 +623,10 @@ export function SatisfactionSurveys() {
           <CardHeader className="flex flex-row items-center justify-between py-3">
             <div>
               <CardTitle className="text-lg">Prévia dos Envios desta Campanha</CardTitle>
-              <CardDescription>
-                {Object.keys(campaignSends).length} clientes
-              </CardDescription>
+              <CardDescription>{Object.keys(campaignSends).length} clientes</CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={() => setShowPreview((v) => !v)}>
-              {showPreview ? 'Ocultar prévia' : 'Mostrar prévia'}
+              {showPreview ? "Ocultar prévia" : "Mostrar prévia"}
             </Button>
           </CardHeader>
           {showPreview && (
@@ -649,16 +634,21 @@ export function SatisfactionSurveys() {
               <ScrollArea className="h-56 pr-2">
                 <div className="space-y-2">
                   {Object.values(campaignSends).map((send) => (
-                    <div key={send.id} className="grid grid-cols-3 items-center gap-2 p-2 bg-background rounded-md text-xs">
+                    <div
+                      key={send.id}
+                      className="grid grid-cols-3 items-center gap-2 p-2 bg-background rounded-md text-xs"
+                    >
                       <div className="truncate">
                         <p className="font-medium truncate">{send.customer_name}</p>
                         <p className="text-[11px] text-muted-foreground truncate">{send.customer_phone}</p>
                         {send.driver_name && (
-                          <p className="text-[11px] text-muted-foreground truncate"><span className="font-medium">Motorista:</span> {send.driver_name}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">
+                            <span className="font-medium">Motorista:</span> {send.driver_name}
+                          </p>
                         )}
                       </div>
                       <div className="col-span-2 text-right text-[11px] text-muted-foreground truncate">
-                        {send.message_sent?.match(/PEDIDO:\s*([^\n]+)/)?.[1] || 'Pedido N/A'}
+                        {send.message_sent?.match(/PEDIDO:\s*([^\n]+)/)?.[1] || "Pedido N/A"}
                       </div>
                     </div>
                   ))}
@@ -672,9 +662,7 @@ export function SatisfactionSurveys() {
       <Card>
         <CardHeader>
           <CardTitle>Respostas Recebidas</CardTitle>
-          <CardDescription>
-            Acompanhe as avaliações dos clientes
-          </CardDescription>
+          <CardDescription>Acompanhe as avaliações dos clientes</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -682,16 +670,14 @@ export function SatisfactionSurveys() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : surveys.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              Nenhuma pesquisa enviada ainda
-            </p>
+            <p className="text-center text-muted-foreground py-8">Nenhuma pesquisa enviada ainda</p>
           ) : (
             <div className="space-y-4">
               {surveys.map((survey) => {
                 const sendDetails = campaignSends[survey.campaign_send_id];
                 const driverName = sendDetails?.driver_name;
                 const isExpanded = expandedCards[survey.id] || false;
-                
+
                 return (
                   <Card key={survey.id}>
                     <CardContent className="p-4">
@@ -699,7 +685,7 @@ export function SatisfactionSurveys() {
                         <div className="flex-1 space-y-2">
                           <div className="flex items-center gap-3 flex-wrap">
                             <p className="font-semibold text-base">
-                              {survey.customer_name || sendDetails?.customer_name || 'Cliente'}
+                              {survey.customer_name || sendDetails?.customer_name || "Cliente"}
                             </p>
                             {survey.rating && (
                               <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded">
@@ -715,50 +701,44 @@ export function SatisfactionSurveys() {
                               </Badge>
                             )}
                           </div>
-                          
+
                           <div className="text-xs text-muted-foreground space-y-1">
                             {sendDetails?.message_sent && (
                               <p className="font-medium text-primary">
-                                Pedido: {sendDetails.message_sent.match(/PEDIDO:\s*([^\n]+)/i)?.[1]?.trim() || 'N/A'}
+                                Pedido: {sendDetails.message_sent.match(/PEDIDO:\s*([^\n]+)/i)?.[1]?.trim() || "N/A"}
                               </p>
                             )}
                             <p>{survey.customer_phone || sendDetails?.customer_phone}</p>
-                            <p>Enviado: {new Date(survey.sent_at).toLocaleString('pt-BR')}</p>
+                            <p>Enviados: {new Date(survey.sent_at).toLocaleString("pt-BR")}</p>
                             {survey.responded_at && (
                               <p className="text-green-600">
-                                Respondido: {new Date(survey.responded_at).toLocaleString('pt-BR')}
+                                Respondido: {new Date(survey.responded_at).toLocaleString("pt-BR")}
                               </p>
                             )}
                           </div>
                         </div>
-                        
+
                         {!survey.rating && (
                           <Badge variant="outline" className="ml-4">
-                            {survey.status === 'sent' ? 'Pendente' : 'Enviado'}
+                            {survey.status === "sent" ? "Pendente" : "Enviado"}
                           </Badge>
                         )}
                       </div>
 
                       <Collapsible open={isExpanded} onOpenChange={() => toggleCard(survey.id)}>
                         {survey.feedback && (
-                        <CollapsibleTrigger asChild>
+                          <CollapsibleTrigger asChild>
                             <Button variant="ghost" size="sm" className="w-full justify-between h-8 text-xs">
                               <span>Ver detalhes</span>
-                              {isExpanded ? (
-                                <ChevronUp className="h-4 w-4" />
-                              ) : (
-                                <ChevronDown className="h-4 w-4" />
-                              )}
+                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                             </Button>
                           </CollapsibleTrigger>
                         )}
-                        
+
                         <CollapsibleContent className="space-y-3 mt-3">
                           {survey.feedback && (
                             <div className="p-3 bg-primary/5 border border-primary/20 rounded-md">
-                              <p className="text-xs font-medium text-primary mb-1">
-                                Feedback do cliente:
-                              </p>
+                              <p className="text-xs font-medium text-primary mb-1">Feedback do cliente:</p>
                               <p className="text-sm italic">&quot;{survey.feedback}&quot;</p>
                             </div>
                           )}
@@ -778,9 +758,7 @@ export function SatisfactionSurveys() {
         <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Gerenciamento de Envios</DialogTitle>
-            <DialogDescription>
-              Selecione e envie pesquisas individualmente
-            </DialogDescription>
+            <DialogDescription>Selecione e envie pesquisas individualmente</DialogDescription>
           </DialogHeader>
           <SurveyManagement />
         </DialogContent>
@@ -791,19 +769,19 @@ export function SatisfactionSurveys() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Enviando Pesquisas</DialogTitle>
-            <DialogDescription>
-              Acompanhe o progresso do envio em tempo real
-            </DialogDescription>
+            <DialogDescription>Acompanhe o progresso do envio em tempo real</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Progresso</span>
-                <span className="font-medium">{sendProgress.current} / {sendProgress.total}</span>
+                <span className="font-medium">
+                  {sendProgress.current} / {sendProgress.total}
+                </span>
               </div>
               <Progress value={sendProgress.total > 0 ? (sendProgress.current / sendProgress.total) * 100 : 0} />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4 text-center">
               <div className="space-y-1">
                 <div className="text-2xl font-bold text-green-600">{sendProgress.success}</div>
