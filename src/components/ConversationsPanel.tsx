@@ -672,10 +672,7 @@ export function ConversationsPanel({
                 <h3 className="font-semibold">
                   {selectedConversation.customer_name || selectedConversation.customer_phone}
                 </h3>
-                {selectedConversation.tags?.includes('confirmado') && <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs">
-                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                    Confirmado
-                  </Badge>}
+                {selectedConversation.tags?.includes('confirmado')}
               </div>
               <div className="flex items-center gap-2">
                 <DropdownMenu>
