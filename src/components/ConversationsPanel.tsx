@@ -17,6 +17,7 @@ import { AudioPlayer } from "@/components/AudioPlayer";
 import { ImageModal } from "@/components/ImageModal";
 import { isValidPhoneNumber, normalizePhone } from "@/lib/phone-utils";
 import { CustomerOrdersDialog } from "@/components/CustomerOrdersDialog";
+import { OrderDetailsDialog } from "@/components/OrderDetailsDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -54,9 +55,15 @@ interface Reschedule {
 }
 interface CampaignSend {
   id: string;
-  pedido_numero: string | null;
+  campaign_id: string;
+  customer_phone: string;
   customer_name: string | null;
+  message_sent: string;
+  status: string;
   sent_at: string;
+  pedido_numero: string | null;
+  pedido_id: number | null;
+  carga_id: number | null;
   valor_total: number | null;
   quantidade_itens: number | null;
 }
@@ -88,6 +95,8 @@ export function ConversationsPanel({
   const [campaignSends, setCampaignSends] = useState<CampaignSend[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [orderDialogOpen, setOrderDialogOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -235,7 +244,7 @@ export function ConversationsPanel({
     const {
       data,
       error
-    } = await supabase.from('campaign_sends').select('id, pedido_numero, customer_name, sent_at, valor_total, quantidade_itens').eq('customer_phone', customerPhone).order('sent_at', {
+    } = await supabase.from('campaign_sends').select('id, campaign_id, customer_phone, customer_name, message_sent, status, sent_at, pedido_numero, pedido_id, carga_id, valor_total, quantidade_itens').eq('customer_phone', customerPhone).order('sent_at', {
       ascending: false
     });
     if (error) {
@@ -858,19 +867,56 @@ export function ConversationsPanel({
               {campaignSends.length > 0 ? <div className="space-y-3">
                   {campaignSends.map(send => {
               const reschedule = reschedules.find(r => r.campaign_send_id === send.id);
-              return <div key={send.id} className="bg-background p-3 rounded-lg border space-y-2">
-                        {reschedule && <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 mb-2">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Reagendado: {format(new Date(reschedule.scheduled_date), "dd/MM/yyyy", {
-                    locale: ptBR
-                  })}
-                          </Badge>}
-                        <div className="font-medium text-sm">{send.pedido_numero || 'Pedido sem número'}</div>
+              const isConfirmed = send.status === 'confirmed';
+              return <div 
+                        key={send.id} 
+                        className="bg-background p-3 rounded-lg border space-y-2 cursor-pointer hover:bg-accent transition-colors"
+                        onClick={() => {
+                          if (send.pedido_id) {
+                            setSelectedOrderId(send.pedido_id);
+                            setOrderDialogOpen(true);
+                          }
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{send.customer_name || 'Cliente'}</div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Pedido: {send.pedido_numero || 'Sem número'}
+                            </div>
+                          </div>
+                          {isConfirmed && (
+                            <Badge className="bg-green-500 hover:bg-green-600">
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Confirmado
+                            </Badge>
+                          )}
+                          {reschedule && (
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Reagendado
+                            </Badge>
+                          )}
+                        </div>
                         <div className="text-xs text-muted-foreground">
                           Enviado: {format(new Date(send.sent_at), "dd/MM/yyyy 'às' HH:mm", {
                     locale: ptBR
                   })}
                         </div>
+                        {isConfirmed && (
+                          <div className="text-xs text-green-600 font-medium">
+                            Confirmado em: {format(new Date(send.sent_at), "dd/MM/yyyy 'às' HH:mm", {
+                              locale: ptBR
+                            })}
+                          </div>
+                        )}
+                        {reschedule && (
+                          <div className="text-xs text-blue-600 font-medium">
+                            Reagendado para: {format(new Date(reschedule.scheduled_date), "dd/MM/yyyy", {
+                              locale: ptBR
+                            })}
+                          </div>
+                        )}
                         {send.valor_total && <div className="text-xs text-muted-foreground">
                             Valor: R$ {send.valor_total.toFixed(2)}
                           </div>}
@@ -891,6 +937,8 @@ export function ConversationsPanel({
       <ImageModal isOpen={imageModalOpen} onClose={() => setImageModalOpen(false)} imageUrl={selectedImageUrl} />
 
       <CustomerOrdersDialog open={ordersDialogOpen} onOpenChange={setOrdersDialogOpen} customerPhone={selectedConversation?.customer_phone || ""} customerName={selectedConversation?.customer_name || undefined} />
+
+      <OrderDetailsDialog open={orderDialogOpen} onOpenChange={setOrderDialogOpen} pedidoId={selectedOrderId} />
 
       <Dialog open={editPhoneDialogOpen} onOpenChange={setEditPhoneDialogOpen}>
         <DialogContent>

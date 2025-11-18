@@ -1,40 +1,28 @@
-import { Package, MapPin, Calendar, DollarSign, Truck, X } from "lucide-react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface Produto {
+  id: number;
   descricao: string;
   quantidade: number;
-  pesoBruto: number;
 }
 
 interface Cliente {
   nome: string;
-  documento: string;
-  telefone: string;
   endereco: string;
   bairro: string;
+  cep: string;
   cidade: string;
   estado: string;
-  cep: string;
-  referencia?: string;
-}
-
-interface Carga {
-  id: number;
-  data: string;
-  motorista: number;
-  nomeMotorista: string;
-  transportadora: number;
-  nomeTransportadora: string;
-  status: string;
+  referencia: string;
 }
 
 interface Pedido {
@@ -43,220 +31,232 @@ interface Pedido {
   notaFiscal: string;
   data: string;
   valor: number;
-  rota: string;
   cliente: Cliente;
   produtos: Produto[];
-  carga?: Carga;
+  carga?: {
+    id: number;
+    motorista: number;
+    nomeMotorista: string;
+    status: string;
+  };
+  rota?: string;
 }
 
 interface OrderDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  pedido: Pedido | null;
+  pedidoId: number | null;
 }
 
-export function OrderDetailsDialog({ open, onOpenChange, pedido }: OrderDetailsDialogProps) {
-  if (!pedido) return null;
+const formatDate = (dateStr: string) => {
+  if (!dateStr || dateStr.length !== 8) return dateStr;
+  const year = dateStr.substring(0, 4);
+  const month = dateStr.substring(4, 6);
+  const day = dateStr.substring(6, 8);
+  return `${day}/${month}/${year}`;
+};
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr || dateStr.length !== 8) return dateStr;
-    return `${dateStr.substring(6, 8)}/${dateStr.substring(4, 6)}/${dateStr.substring(0, 4)}`;
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+};
+
+const formatCEP = (cep: string) => {
+  if (!cep || cep.length !== 8) return cep;
+  return `${cep.substring(0, 5)}-${cep.substring(5)}`;
+};
+
+export function OrderDetailsDialog({
+  open,
+  onOpenChange,
+  pedidoId,
+}: OrderDetailsDialogProps) {
+  const [pedido, setPedido] = useState<Pedido | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open && pedidoId) {
+      fetchPedidoDetails();
+    }
+  }, [open, pedidoId]);
+
+  const fetchPedidoDetails = async () => {
+    if (!pedidoId) return;
+
+    setLoading(true);
+    try {
+      // Buscar configurações da API
+      const { data: configs } = await supabase
+        .from("app_config")
+        .select("config_key, config_value")
+        .in("config_key", ["api_url", "api_username", "api_password"]);
+
+      const configMap = configs?.reduce(
+        (acc, { config_key, config_value }) => {
+          acc[config_key] = config_value;
+          return acc;
+        },
+        {} as Record<string, string>
+      );
+
+      if (!configMap?.api_url || !configMap?.api_username || !configMap?.api_password) {
+        console.error("API configuration missing");
+        return;
+      }
+
+      // Buscar dados do pedido da API externa
+      const response = await fetch(
+        `${configMap.api_url}/shx-integrador/srv/ServPubGetPedidosEntrega/V1`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Basic ${btoa(`${configMap.api_username}:${configMap.api_password}`)}`,
+          },
+          body: JSON.stringify({
+            pedidoId: pedidoId,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch order details");
+      }
+
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        setPedido(data[0]);
+      }
+    } catch (error) {
+      console.error("Error fetching order details:", error);
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
-
-  const formatCEP = (cep: string) => {
-    if (!cep) return '';
-    return cep.replace(/(\d{5})(\d{3})/, '$1-$2');
-  };
-
-  const totalPeso = pedido.produtos?.reduce((sum, p) => sum + (p.pesoBruto || 0), 0) || 0;
-  const totalItens = pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh]">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Detalhes do Pedido
-          </DialogTitle>
+          <DialogTitle>Detalhes do Pedido</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(90vh-100px)]">
-          <div className="space-y-4 pr-4">
-            {/* Cabeçalho do Pedido */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Pedido</p>
-                <p className="font-semibold text-lg">{pedido.pedido}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Nota Fiscal</p>
-                <p className="font-semibold text-lg">{pedido.notaFiscal}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Data</p>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <p className="font-medium">{formatDate(pedido.data)}</p>
-                </div>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Valor Total</p>
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <p className="font-semibold text-lg text-primary">{formatCurrency(pedido.valor)}</p>
-                </div>
-              </div>
-            </div>
-
-            {pedido.rota && (
-              <div>
-                <p className="text-sm text-muted-foreground">Rota</p>
-                <div className="flex items-center gap-2">
-                  <Truck className="h-4 w-4 text-muted-foreground" />
-                  <p className="font-medium">{pedido.rota}</p>
-                </div>
-              </div>
-            )}
-
-            <Separator />
-
-            {/* Informações da Carga */}
-            {pedido.carga && (
-              <>
-                <div>
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <Truck className="h-4 w-4" />
-                    Carga
-                  </h3>
-                  <div className="space-y-2 bg-muted/50 p-4 rounded-lg">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="text-sm">
-                        <span className="text-muted-foreground">ID: </span>
-                        <span className="font-medium">{pedido.carga.id}</span>
-                      </div>
-                      <div className="text-sm">
-                        <span className="text-muted-foreground">Data: </span>
-                        <span className="font-medium">{formatDate(pedido.carga.data)}</span>
-                      </div>
-                      {pedido.carga.nomeMotorista && (
-                        <div className="text-sm">
-                          <span className="text-muted-foreground">Motorista: </span>
-                          <span className="font-medium">{pedido.carga.nomeMotorista}</span>
-                        </div>
-                      )}
-                      {pedido.carga.nomeTransportadora && (
-                        <div className="text-sm">
-                          <span className="text-muted-foreground">Transportadora: </span>
-                          <span className="font-medium">{pedido.carga.nomeTransportadora}</span>
-                        </div>
-                      )}
-                      <div className="text-sm col-span-2">
-                        <span className="text-muted-foreground">Status: </span>
-                        <Badge variant="outline" className="ml-1">
-                          {pedido.carga.status}
-                        </Badge>
-                      </div>
-                    </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : pedido ? (
+          <div className="space-y-4">
+            {/* Cliente */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-2">
+                  <div>
+                    <span className="font-semibold">Cliente: </span>
+                    <span>{pedido.cliente.nome}</span>
                   </div>
                 </div>
-                <Separator />
-              </>
-            )}
+              </CardContent>
+            </Card>
 
-            {/* Informações do Cliente */}
-            <div>
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Cliente
-              </h3>
-              <div className="space-y-2 bg-muted/50 p-4 rounded-lg">
-                <div>
-                  <p className="font-semibold">{pedido.cliente.nome}</p>
+            {/* Informações do Pedido */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="font-semibold">NF: </span>
+                    <span>{pedido.notaFiscal}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Data: </span>
+                    <span>{formatDate(pedido.data)}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Valor: </span>
+                    <span>{formatCurrency(pedido.valor)}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Carga: </span>
+                    <span>{pedido.carga?.id || "N/A"}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Motorista: </span>
+                    <span>{pedido.carga?.nomeMotorista || "N/A"}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Setor: </span>
+                    <span>{pedido.rota || "N/A"}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="font-semibold">Status: </span>
+                    <span>{pedido.carga?.status || "Aberto"}</span>
+                  </div>
                 </div>
-                {pedido.cliente.documento && (
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">CPF/CNPJ: </span>
-                    <span>{pedido.cliente.documento}</span>
-                  </div>
-                )}
-                {pedido.cliente.telefone && (
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Telefone: </span>
-                    <span>{pedido.cliente.telefone}</span>
-                  </div>
-                )}
-                {pedido.cliente.endereco && (
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Endereço: </span>
+              </CardContent>
+            </Card>
+
+            {/* Endereço de Entrega */}
+            <Card>
+              <CardContent className="pt-6">
+                <h3 className="font-semibold text-lg mb-3">Endereço de Entrega</h3>
+                <div className="space-y-2">
+                  <div>
+                    <span className="font-semibold">Rua: </span>
                     <span>{pedido.cliente.endereco}</span>
                   </div>
-                )}
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Bairro: </span>
-                  <span>{pedido.cliente.bairro}</span>
-                </div>
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Cidade: </span>
-                  <span>{pedido.cliente.cidade}/{pedido.cliente.estado}</span>
-                </div>
-                {pedido.cliente.cep && (
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">CEP: </span>
+                  <div>
+                    <span className="font-semibold">Bairro: </span>
+                    <span>{pedido.cliente.bairro}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">CEP: </span>
                     <span>{formatCEP(pedido.cliente.cep)}</span>
                   </div>
-                )}
-                {pedido.cliente.referencia && (
-                  <div className="text-sm mt-2 p-2 bg-background rounded border border-border">
-                    <span className="text-muted-foreground">Referência: </span>
-                    <span>{pedido.cliente.referencia}</span>
+                  <div>
+                    <span className="font-semibold">Cidade: </span>
+                    <span>{pedido.cliente.cidade}</span>
                   </div>
-                )}
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Produtos */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  Produtos ({pedido.produtos?.length || 0})
-                </h3>
-                <div className="flex gap-4 text-sm">
-                  <Badge variant="outline">
-                    {totalItens} itens
-                  </Badge>
-                  <Badge variant="outline">
-                    {totalPeso.toFixed(2)} kg
-                  </Badge>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {pedido.produtos?.map((produto, index) => (
-                  <div
-                    key={index}
-                    className="bg-muted/50 p-3 rounded-lg space-y-1"
-                  >
-                    <p className="font-medium text-sm">{produto.descricao}</p>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Quantidade: {produto.quantidade}</span>
-                      <span>Peso: {produto.pesoBruto?.toFixed(2) || 0} kg</span>
+                  <div>
+                    <span className="font-semibold">Estado: </span>
+                    <span>{pedido.cliente.estado}</span>
+                  </div>
+                  {pedido.cliente.referencia && (
+                    <div>
+                      <span className="font-semibold">Referência: </span>
+                      <span>{pedido.cliente.referencia}</span>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Produtos do Pedido */}
+            <Card>
+              <CardContent className="pt-6">
+                <h3 className="font-semibold text-lg mb-3">Produtos do Pedido</h3>
+                <div className="space-y-3">
+                  {pedido.produtos.map((produto) => (
+                    <div key={produto.id} className="flex justify-between items-start p-3 bg-accent/50 rounded-lg">
+                      <div className="flex-1">
+                        <div className="font-medium">{produto.descricao}</div>
+                      </div>
+                      <div className="text-sm text-muted-foreground ml-4">
+                        Qtd: {produto.quantidade}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </ScrollArea>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            Nenhum pedido encontrado
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
