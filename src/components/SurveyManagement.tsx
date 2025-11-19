@@ -103,17 +103,27 @@ export function SurveyManagement() {
   };
 
   const loadSurveyStatus = async () => {
-    if (!selectedCampaignId) return;
-    
     setLoading(true);
     try {
-      // Buscar campaign_sends da campanha selecionada
-      const { data: sends, error: sendsError } = await supabase
+      // Construir query base com limite de 500 registros para performance
+      let query = supabase
         .from('campaign_sends')
-        .select('id, customer_name, customer_phone, sent_at, pedido_numero, driver_name, campaigns(name)')
-        .eq('campaign_id', selectedCampaignId)
+        .select('id, customer_name, customer_phone, sent_at, pedido_numero, driver_name, campaign_id')
         .in('status', ['success', 'sent'])
-        .order('sent_at', { ascending: false });
+        .order('sent_at', { ascending: false })
+        .limit(500);
+      
+      // Aplicar filtro de carga se selecionado
+      if (selectedCampaignId) {
+        query = query.eq('campaign_id', selectedCampaignId);
+      }
+      
+      // Aplicar filtro de pedido se informado
+      if (pedidoSearch.trim()) {
+        query = query.ilike('pedido_numero', `%${pedidoSearch.trim()}%`);
+      }
+      
+      const { data: sends, error: sendsError } = await query;
 
       if (sendsError) throw sendsError;
 
@@ -122,11 +132,23 @@ export function SurveyManagement() {
         return;
       }
 
-      // Buscar surveys existentes
+      // Buscar nome da campanha apenas uma vez se necessário
+      const campaignIds = [...new Set(sends.map(s => s.campaign_id))];
+      const { data: campaignsData } = await supabase
+        .from('campaigns')
+        .select('id, name')
+        .in('id', campaignIds);
+
+      const campaignsMap = (campaignsData || []).reduce((acc, campaign) => {
+        acc[campaign.id] = campaign.name;
+        return acc;
+      }, {} as Record<string, string>);
+
+      // Buscar surveys existentes apenas para os sends retornados
       const sendIds = sends.map(s => s.id);
       const { data: surveys, error: surveysError } = await supabase
         .from('satisfaction_surveys')
-        .select('*')
+        .select('campaign_send_id, id, status, sent_at, responded_at, rating')
         .in('campaign_send_id', sendIds);
 
       if (surveysError) throw surveysError;
@@ -150,7 +172,7 @@ export function SurveyManagement() {
             sent_at: survey?.sent_at || send.sent_at,
             responded_at: survey?.responded_at || null,
             rating: survey?.rating || null,
-            campaign_name: (send.campaigns as any)?.name || 'N/A',
+            campaign_name: campaignsMap[send.campaign_id] || 'N/A',
             pedido_numero: send.pedido_numero || 'N/A',
             driver_name: send.driver_name || 'N/A'
           };
