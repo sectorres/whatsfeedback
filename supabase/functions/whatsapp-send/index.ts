@@ -112,6 +112,56 @@ serve(async (req) => {
       throw new Error(data.response?.message || data.message || 'Failed to send message');
     }
 
+    // Registrar mensagem no chat de atendimento
+    try {
+      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+      // Buscar ou criar conversa
+      const { data: existingConv } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('customer_phone', cleanPhone)
+        .maybeSingle();
+
+      let conversationId = existingConv?.id;
+
+      if (!existingConv) {
+        const { data: newConv } = await supabase
+          .from('conversations')
+          .insert({
+            customer_phone: cleanPhone,
+            customer_name: 'Cliente',
+            status: 'active',
+            last_message_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        conversationId = newConv?.id;
+      } else {
+        // Atualizar última mensagem
+        await supabase
+          .from('conversations')
+          .update({ last_message_at: new Date().toISOString() })
+          .eq('id', existingConv.id);
+      }
+
+      // Criar mensagem no chat
+      if (conversationId) {
+        await supabase.from('messages').insert({
+          conversation_id: conversationId,
+          sender_type: 'operator',
+          sender_name: 'Sistema',
+          message_text: message,
+          message_status: 'sent',
+        });
+      }
+    } catch (chatError) {
+      console.error('Erro ao registrar mensagem no chat:', chatError);
+      // Não bloqueia o envio se falhar o registro no chat
+    }
+
     return new Response(
       JSON.stringify(data),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

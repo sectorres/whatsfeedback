@@ -160,12 +160,14 @@ serve(async (req) => {
       .update({ status: "success", error_message: null, sent_at: new Date().toISOString() })
       .eq("id", sendRow.id);
 
-    // 3c) Enviar mensagem de confirmação
+    // 3c) Enviar mensagem de confirmação e registrar no chat
     try {
+      const confirmationMsg = `Por favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação`;
+      
       await supabase.functions.invoke("whatsapp-send", {
         body: {
           phone: normalizedPhone,
-          message: `Por favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação`,
+          message: confirmationMsg,
         },
       });
       console.log("Confirmation message sent successfully");
