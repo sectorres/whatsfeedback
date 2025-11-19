@@ -47,6 +47,7 @@ export function SurveyManagement() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
   const [campaignSearch, setCampaignSearch] = useState<string>("");
+  const [pedidoSearch, setPedidoSearch] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -64,10 +65,8 @@ export function SurveyManagement() {
   }, []);
 
   useEffect(() => {
-    if (selectedCampaignId) {
-      loadSurveyStatus();
-    }
-  }, [selectedCampaignId]);
+    loadSurveyStatus();
+  }, [selectedCampaignId, pedidoSearch]);
 
   const loadCampaigns = async () => {
     try {
@@ -93,9 +92,6 @@ export function SurveyManagement() {
       if (error) throw error;
 
       setCampaigns(data || []);
-      if (data && data.length > 0 && !selectedCampaignId) {
-        setSelectedCampaignId(data[0].id);
-      }
     } catch (error) {
       console.error('Erro ao carregar campanhas:', error);
       toast({
@@ -415,48 +411,63 @@ export function SurveyManagement() {
               Visualize e gerencie o envio individual de pesquisas de satisfação
             </CardDescription>
           </div>
-          <div className="w-[280px]">
-            <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecione uma campanha" />
-              </SelectTrigger>
-              <SelectContent 
-                className="bg-background z-50" 
-                onCloseAutoFocus={(e) => e.preventDefault()}
-                side="bottom"
-                align="start"
-                sideOffset={4}
-                position="popper"
-              >
-                <div className="p-2 border-b bg-background" onPointerDown={(e) => e.stopPropagation()}>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      placeholder="Buscar campanha..."
-                      value={campaignSearch}
-                      onChange={(e) => setCampaignSearch(e.target.value)}
-                      className="pl-9 h-9"
-                      onKeyDown={(e) => {
-                        e.stopPropagation();
-                      }}
-                    />
-                  </div>
-                </div>
-                <ScrollArea className="h-[200px]">
-                  {filteredCampaigns.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
-                      Nenhuma campanha encontrada
+          <div className="flex gap-3 items-end">
+            <div className="w-[280px]">
+              <label className="text-sm font-medium mb-1.5 block">Buscar por Pedido</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Digite o número do pedido..."
+                  value={pedidoSearch}
+                  onChange={(e) => setPedidoSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            <div className="w-[280px]">
+              <label className="text-sm font-medium mb-1.5 block">Filtrar por Carga</label>
+              <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todas as cargas" />
+                </SelectTrigger>
+                <SelectContent 
+                  className="bg-background z-50" 
+                  onCloseAutoFocus={(e) => e.preventDefault()}
+                  side="bottom"
+                  align="start"
+                  sideOffset={4}
+                  position="popper"
+                >
+                  <div className="p-2 border-b bg-background" onPointerDown={(e) => e.stopPropagation()}>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        placeholder="Buscar campanha..."
+                        value={campaignSearch}
+                        onChange={(e) => setCampaignSearch(e.target.value)}
+                        className="pl-9 h-9"
+                        onKeyDown={(e) => {
+                          e.stopPropagation();
+                        }}
+                      />
                     </div>
-                  ) : (
-                    filteredCampaigns.map((campaign) => (
-                      <SelectItem key={campaign.id} value={campaign.id}>
-                        {campaign.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </ScrollArea>
-              </SelectContent>
-            </Select>
+                  </div>
+                  <ScrollArea className="h-[200px]">
+                    {filteredCampaigns.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        Nenhuma campanha encontrada
+                      </div>
+                    ) : (
+                      filteredCampaigns.map((campaign) => (
+                        <SelectItem key={campaign.id} value={campaign.id}>
+                          {campaign.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </ScrollArea>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button
