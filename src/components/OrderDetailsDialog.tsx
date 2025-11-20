@@ -8,6 +8,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "sonner";
 
 interface Produto {
   id: number;
@@ -106,18 +107,34 @@ export function OrderDetailsDialog({
         return;
       }
 
+      console.log('Buscando pedido número:', pedidoNumero);
+      
       // Buscar todas as cargas para encontrar o pedido pelo número
       const { data: cargasData, error: cargasError } = await supabase.functions.invoke('fetch-cargas');
       
-      if (cargasError) throw cargasError;
+      if (cargasError) {
+        console.error('Erro ao buscar cargas:', cargasError);
+        throw cargasError;
+      }
+      
+      console.log('Cargas recebidas:', cargasData);
       
       if (cargasData && cargasData.status === 'SUCESSO' && cargasData.retorno?.cargas) {
         // Procurar o pedido em todas as cargas
         let foundPedido: Pedido | null = null;
         
+        console.log('Total de cargas:', cargasData.retorno.cargas.length);
+        
         for (const carga of cargasData.retorno.cargas) {
-          const pedidoEncontrado = carga.pedidos.find((p: any) => p.pedido === pedidoNumero);
+          console.log(`Carga ${carga.id} - Total de pedidos:`, carga.pedidos.length);
+          
+          const pedidoEncontrado = carga.pedidos.find((p: any) => {
+            console.log(`Comparando pedido: "${p.pedido}" com "${pedidoNumero}"`);
+            return p.pedido === pedidoNumero;
+          });
+          
           if (pedidoEncontrado) {
+            console.log('Pedido encontrado!', pedidoEncontrado);
             foundPedido = {
               ...pedidoEncontrado,
               carga: {
@@ -134,8 +151,12 @@ export function OrderDetailsDialog({
         if (foundPedido) {
           setPedido(foundPedido);
         } else {
-          console.error('Pedido não encontrado:', pedidoNumero);
+          console.error('Pedido não encontrado. Número buscado:', pedidoNumero);
+          toast.error(`Pedido ${pedidoNumero} não encontrado nas cargas atuais`);
         }
+      } else {
+        console.error('Estrutura de dados inválida:', cargasData);
+        toast.error('Erro ao buscar dados das cargas');
       }
     } catch (error) {
       console.error("Error fetching order details:", error);
