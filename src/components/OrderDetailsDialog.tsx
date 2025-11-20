@@ -19,8 +19,6 @@ interface Cliente {
   cidade: string;
   estado: string;
   referencia: string;
-  telefone?: string;
-  celular?: string;
 }
 
 interface Pedido {
@@ -43,7 +41,7 @@ interface Pedido {
 interface OrderDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  pedidoNumero: string | null; // AGORA será o telefone vindo do Supabase
+  pedidoNumero: string | null;
 }
 
 const formatDate = (dateStr: string) => {
@@ -76,13 +74,12 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
     }
   }, [open, pedidoNumero]);
 
-  const normalize = (v: string | null | undefined) => (v ? v.replace(/\D/g, "") : "");
-
   const fetchPedidoDetails = async () => {
     if (!pedidoNumero) return;
 
     setLoading(true);
     try {
+      // Buscar configurações da API
       const { data: configs } = await supabase
         .from("app_config")
         .select("config_key, config_value")
@@ -101,8 +98,9 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
         return;
       }
 
-      console.log("Buscando pedido pelo telefone:", pedidoNumero);
+      console.log("Buscando pedido número:", pedidoNumero);
 
+      // Buscar todas as cargas para encontrar o pedido pelo número
       const { data: cargasData, error: cargasError } = await supabase.functions.invoke("fetch-cargas");
 
       if (cargasError) {
@@ -110,20 +108,24 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
         throw cargasError;
       }
 
+      console.log("Cargas recebidas:", cargasData);
+
       if (cargasData && cargasData.status === "SUCESSO" && cargasData.retorno?.cargas) {
+        // Procurar o pedido em todas as cargas
         let foundPedido: Pedido | null = null;
 
-        const telefoneBusca = normalize(pedidoNumero);
+        console.log("Total de cargas:", cargasData.retorno.cargas.length);
 
         for (const carga of cargasData.retorno.cargas) {
-          const pedidoEncontrado = carga.pedidos.find((p: any) => {
-            const tel = normalize(p.cliente?.telefone);
-            const cel = normalize(p.cliente?.celular);
+          console.log(`Carga ${carga.id} - Total de pedidos:`, carga.pedidos.length);
 
-            return tel === telefoneBusca || cel === telefoneBusca;
+          const pedidoEncontrado = carga.pedidos.find((p: any) => {
+            console.log(`Comparando pedido: "${p.pedido}" com "${pedidoNumero}"`);
+            return p.pedido === pedidoNumero;
           });
 
           if (pedidoEncontrado) {
+            console.log("Pedido encontrado!", pedidoEncontrado);
             foundPedido = {
               ...pedidoEncontrado,
               carga: {
@@ -140,7 +142,8 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
         if (foundPedido) {
           setPedido(foundPedido);
         } else {
-          toast.error(`Nenhum pedido encontrado para o telefone: ${pedidoNumero}`);
+          console.error("Pedido não encontrado. Número buscado:", pedidoNumero);
+          toast.error(`Pedido ${pedidoNumero} não encontrado nas cargas atuais`);
         }
       } else {
         console.error("Estrutura de dados inválida:", cargasData);
@@ -184,80 +187,82 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className="font-semibold">NF: </span>
-                    {pedido.notaFiscal}
+                    <span>{pedido.notaFiscal}</span>
                   </div>
                   <div>
                     <span className="font-semibold">Data: </span>
-                    {formatDate(pedido.data)}
+                    <span>{formatDate(pedido.data)}</span>
                   </div>
                   <div>
                     <span className="font-semibold">Valor: </span>
-                    {formatCurrency(pedido.valor)}
+                    <span>{formatCurrency(pedido.valor)}</span>
                   </div>
                   <div>
                     <span className="font-semibold">Carga: </span>
-                    {pedido.carga?.id ?? "N/A"}
+                    <span>{pedido.carga?.id || "N/A"}</span>
                   </div>
                   <div>
                     <span className="font-semibold">Motorista: </span>
-                    {pedido.carga?.nomeMotorista ?? "N/A"}
+                    <span>{pedido.carga?.nomeMotorista || "N/A"}</span>
                   </div>
                   <div>
                     <span className="font-semibold">Setor: </span>
-                    {pedido.rota ?? "N/A"}
+                    <span>{pedido.rota || "N/A"}</span>
                   </div>
                   <div className="col-span-2">
                     <span className="font-semibold">Status: </span>
-                    {pedido.carga?.status ?? "Aberto"}
+                    <span>{pedido.carga?.status || "Aberto"}</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Endereço */}
+            {/* Endereço de Entrega */}
             <Card>
               <CardContent className="pt-6">
                 <h3 className="font-semibold text-lg mb-3">Endereço de Entrega</h3>
                 <div className="space-y-2">
                   <div>
                     <span className="font-semibold">Rua: </span>
-                    {pedido.cliente.endereco}
+                    <span>{pedido.cliente.endereco}</span>
                   </div>
                   <div>
                     <span className="font-semibold">Bairro: </span>
-                    {pedido.cliente.bairro}
+                    <span>{pedido.cliente.bairro}</span>
                   </div>
                   <div>
                     <span className="font-semibold">CEP: </span>
-                    {formatCEP(pedido.cliente.cep)}
+                    <span>{formatCEP(pedido.cliente.cep)}</span>
                   </div>
                   <div>
                     <span className="font-semibold">Cidade: </span>
-                    {pedido.cliente.cidade}
+                    <span>{pedido.cliente.cidade}</span>
                   </div>
                   <div>
                     <span className="font-semibold">Estado: </span>
-                    {pedido.cliente.estado}
+                    <span>{pedido.cliente.estado}</span>
                   </div>
                   {pedido.cliente.referencia && (
                     <div>
                       <span className="font-semibold">Referência: </span>
-                      {pedido.cliente.referencia}
+                      <span>{pedido.cliente.referencia}</span>
                     </div>
                   )}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Produtos */}
+            {/* Produtos do Pedido */}
             <Card>
               <CardContent className="pt-6">
                 <h3 className="font-semibold text-lg mb-3">Produtos do Pedido</h3>
                 <div className="space-y-3">
                   {pedido.produtos.map((produto) => (
                     <div key={produto.id} className="flex justify-between items-start p-3 bg-accent/50 rounded-lg">
-                      <div className="font-medium">{produto.descricao}</div>
-                      <div className="text-sm text-muted-foreground">Qtd: {produto.quantidade}</div>
+                      <div className="flex-1">
+                        <div className="font-medium">{produto.descricao}</div>
+                      </div>
+                      <div className="text-sm text-muted-foreground ml-4">Qtd: {produto.quantidade}</div>
                     </div>
                   ))}
                 </div>
