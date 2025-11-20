@@ -1,10 +1,5 @@
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -69,11 +64,7 @@ const formatCEP = (cep: string) => {
   return `${cep.substring(0, 5)}-${cep.substring(5)}`;
 };
 
-export function OrderDetailsDialog({
-  open,
-  onOpenChange,
-  pedidoNumero,
-}: OrderDetailsDialogProps) {
+export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDetailsDialogProps) {
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -99,7 +90,7 @@ export function OrderDetailsDialog({
           acc[config_key] = config_value;
           return acc;
         },
-        {} as Record<string, string>
+        {} as Record<string, string>,
       );
 
       if (!configMap?.api_url || !configMap?.api_username || !configMap?.api_password) {
@@ -107,56 +98,58 @@ export function OrderDetailsDialog({
         return;
       }
 
-      console.log('Buscando pedido número:', pedidoNumero);
-      
+      console.log("Buscando pedido número:", pedidoNumero);
+
       // Buscar todas as cargas para encontrar o pedido pelo número
-      const { data: cargasData, error: cargasError } = await supabase.functions.invoke('fetch-cargas');
-      
+      const { data: cargasData, error: cargasError } = await supabase.functions.invoke("fetch-cargas");
+
       if (cargasError) {
-        console.error('Erro ao buscar cargas:', cargasError);
+        console.error("Erro ao buscar cargas:", cargasError);
         throw cargasError;
       }
-      
-      console.log('Cargas recebidas:', cargasData);
-      
-      if (cargasData && cargasData.status === 'SUCESSO' && cargasData.retorno?.cargas) {
+
+      console.log("Cargas recebidas:", cargasData);
+
+      if (cargasData && cargasData.status === "SUCESSO" && cargasData.retorno?.cargas) {
         // Procurar o pedido em todas as cargas
         let foundPedido: Pedido | null = null;
-        
-        console.log('Total de cargas:', cargasData.retorno.cargas.length);
-        
+
+        console.log("Total de cargas:", cargasData.retorno.cargas.length);
+
         for (const carga of cargasData.retorno.cargas) {
           console.log(`Carga ${carga.id} - Total de pedidos:`, carga.pedidos.length);
-          
+
           const pedidoEncontrado = carga.pedidos.find((p: any) => {
             console.log(`Comparando pedido: "${p.pedido}" com "${pedidoNumero}"`);
-            return p.pedido === pedidoNumero;
+            const normalize = (v: string) => v.replace(/\D/g, "");
+
+            return normalize(p.pedido) === normalize(pedidoNumero);
           });
-          
+
           if (pedidoEncontrado) {
-            console.log('Pedido encontrado!', pedidoEncontrado);
+            console.log("Pedido encontrado!", pedidoEncontrado);
             foundPedido = {
               ...pedidoEncontrado,
               carga: {
                 id: carga.id,
                 motorista: carga.motorista,
                 nomeMotorista: carga.nomeMotorista,
-                status: carga.status
-              }
+                status: carga.status,
+              },
             };
             break;
           }
         }
-        
+
         if (foundPedido) {
           setPedido(foundPedido);
         } else {
-          console.error('Pedido não encontrado. Número buscado:', pedidoNumero);
+          console.error("Pedido não encontrado. Número buscado:", pedidoNumero);
           toast.error(`Pedido ${pedidoNumero} não encontrado nas cargas atuais`);
         }
       } else {
-        console.error('Estrutura de dados inválida:', cargasData);
-        toast.error('Erro ao buscar dados das cargas');
+        console.error("Estrutura de dados inválida:", cargasData);
+        toast.error("Erro ao buscar dados das cargas");
       }
     } catch (error) {
       console.error("Error fetching order details:", error);
@@ -271,9 +264,7 @@ export function OrderDetailsDialog({
                       <div className="flex-1">
                         <div className="font-medium">{produto.descricao}</div>
                       </div>
-                      <div className="text-sm text-muted-foreground ml-4">
-                        Qtd: {produto.quantidade}
-                      </div>
+                      <div className="text-sm text-muted-foreground ml-4">Qtd: {produto.quantidade}</div>
                     </div>
                   ))}
                 </div>
@@ -281,9 +272,7 @@ export function OrderDetailsDialog({
             </Card>
           </div>
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            Nenhum pedido encontrado
-          </div>
+          <div className="text-center py-8 text-muted-foreground">Nenhum pedido encontrado</div>
         )}
       </DialogContent>
     </Dialog>
