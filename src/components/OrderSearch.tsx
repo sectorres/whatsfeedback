@@ -158,7 +158,7 @@ export function OrderSearch({ customerPhone }: OrderSearchProps) {
       });
 
       console.log(`🎯 Busca concluída: ${foundOrders.length} pedidos encontrados de ${totalPedidos} totais`);
-      setResults(foundOrders.slice(0, 10)); // Limit to 20 results for performance
+      setResults(foundOrders.slice(0, 800)); // Limit to 20 results for performance
     } catch (error) {
       console.error("❌ Error searching orders:", error);
       toast.error("Erro ao buscar pedidos");
