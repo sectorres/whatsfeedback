@@ -45,7 +45,7 @@ interface Pedido {
 interface OrderDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  pedidoId: number | null;
+  pedidoNumero: string | null;
 }
 
 const formatDate = (dateStr: string) => {
@@ -71,19 +71,19 @@ const formatCEP = (cep: string) => {
 export function OrderDetailsDialog({
   open,
   onOpenChange,
-  pedidoId,
+  pedidoNumero,
 }: OrderDetailsDialogProps) {
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (open && pedidoId) {
+    if (open && pedidoNumero) {
       fetchPedidoDetails();
     }
-  }, [open, pedidoId]);
+  }, [open, pedidoNumero]);
 
   const fetchPedidoDetails = async () => {
-    if (!pedidoId) return;
+    if (!pedidoNumero) return;
 
     setLoading(true);
     try {
@@ -106,29 +106,36 @@ export function OrderDetailsDialog({
         return;
       }
 
-      // Buscar dados do pedido da API externa
-      const response = await fetch(
-        `${configMap.api_url}/shx-integrador/srv/ServPubGetPedidosEntrega/V1`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Basic ${btoa(`${configMap.api_username}:${configMap.api_password}`)}`,
-          },
-          body: JSON.stringify({
-            pedidoId: pedidoId,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch order details");
-      }
-
-      const data = await response.json();
+      // Buscar todas as cargas para encontrar o pedido pelo número
+      const { data: cargasData, error: cargasError } = await supabase.functions.invoke('fetch-cargas');
       
-      if (data && data.length > 0) {
-        setPedido(data[0]);
+      if (cargasError) throw cargasError;
+      
+      if (cargasData && cargasData.status === 'SUCESSO' && cargasData.retorno?.cargas) {
+        // Procurar o pedido em todas as cargas
+        let foundPedido: Pedido | null = null;
+        
+        for (const carga of cargasData.retorno.cargas) {
+          const pedidoEncontrado = carga.pedidos.find((p: any) => p.pedido === pedidoNumero);
+          if (pedidoEncontrado) {
+            foundPedido = {
+              ...pedidoEncontrado,
+              carga: {
+                id: carga.id,
+                motorista: carga.motorista,
+                nomeMotorista: carga.nomeMotorista,
+                status: carga.status
+              }
+            };
+            break;
+          }
+        }
+        
+        if (foundPedido) {
+          setPedido(foundPedido);
+        } else {
+          console.error('Pedido não encontrado:', pedidoNumero);
+        }
       }
     } catch (error) {
       console.error("Error fetching order details:", error);

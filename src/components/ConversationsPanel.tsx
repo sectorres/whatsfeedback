@@ -96,7 +96,7 @@ export function ConversationsPanel({
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
-  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [selectedOrderNumero, setSelectedOrderNumero] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -881,8 +881,8 @@ export function ConversationsPanel({
                         key={send.id} 
                         className="bg-background p-3 rounded-lg border space-y-2 cursor-pointer hover:bg-accent transition-colors"
                         onClick={() => {
-                          if (send.pedido_id) {
-                            setSelectedOrderId(send.pedido_id);
+                          if (send.pedido_numero) {
+                            setSelectedOrderNumero(send.pedido_numero);
                             setOrderDialogOpen(true);
                           }
                         }}
@@ -947,7 +947,7 @@ export function ConversationsPanel({
 
       <CustomerOrdersDialog open={ordersDialogOpen} onOpenChange={setOrdersDialogOpen} customerPhone={selectedConversation?.customer_phone || ""} customerName={selectedConversation?.customer_name || undefined} />
 
-      <OrderDetailsDialog open={orderDialogOpen} onOpenChange={setOrderDialogOpen} pedidoId={selectedOrderId} />
+      <OrderDetailsDialog open={orderDialogOpen} onOpenChange={setOrderDialogOpen} pedidoNumero={selectedOrderNumero} />
 
       <Dialog open={editPhoneDialogOpen} onOpenChange={setEditPhoneDialogOpen}>
         <DialogContent>

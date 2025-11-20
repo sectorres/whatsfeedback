@@ -60,7 +60,7 @@ export function OrderSearch({ customerPhone }: OrderSearchProps) {
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<Pedido[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedPedidoId, setSelectedPedidoId] = useState<number | null>(null);
+  const [selectedPedidoNumero, setSelectedPedidoNumero] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -185,7 +185,7 @@ export function OrderSearch({ customerPhone }: OrderSearchProps) {
   };
 
   const handlePedidoClick = (pedido: Pedido) => {
-    setSelectedPedidoId(pedido.id);
+    setSelectedPedidoNumero(pedido.pedido);
     setDetailsOpen(true);
     setIsOpen(false);
   };
@@ -302,7 +302,7 @@ export function OrderSearch({ customerPhone }: OrderSearchProps) {
     <OrderDetailsDialog 
       open={detailsOpen}
       onOpenChange={setDetailsOpen}
-      pedidoId={selectedPedidoId}
+      pedidoNumero={selectedPedidoNumero}
     />
   </>
   );
