@@ -121,9 +121,11 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
 
           const pedidoEncontrado = carga.pedidos.find((p: any) => {
             console.log(`Comparando pedido: "${p.pedido}" com "${pedidoNumero}"`);
-            const normalize = (v: string) => v.replace(/\D/g, "");
+            const pedidoId = Number(pedidoNumero); // ou Number(idDigitado)
 
-            return normalize(p.pedido) === normalize(pedidoNumero);
+            const pedidoEncontrado = response.data.pedidos.find((p: any) => {
+              return p.id === pedidoId;
+            });
           });
 
           if (pedidoEncontrado) {
