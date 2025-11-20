@@ -165,10 +165,10 @@ serve(async (req) => {
             '';
         }
 
-        // Extrair nome do remetente
-        const customerName = msg.pushName || msg.senderName || customerPhone;
+        // Extrair nome do remetente do WhatsApp
+        const customerName = msg.pushName || msg.senderName || 'Cliente';
 
-        console.log(`Processing message from ${customerPhone}: ${messageText}`);
+        console.log(`Processing message from ${customerPhone} (${customerName}): ${messageText}`);
 
         // Verificar se há pesquisa pendente para este cliente
         const { data: surveys, error: surveyError } = await supabase
@@ -294,7 +294,17 @@ serve(async (req) => {
           }
 
           if (choice === '1') {
-            // Confirmado - registrar resposta e adicionar tag
+            // Confirmado - registrar mensagem no chat ANTES de adicionar tag
+            await supabase.from('messages').insert({
+              conversation_id: existingConv.id,
+              sender_type: 'customer',
+              sender_name: customerName,
+              message_text: '1',
+              media_type: 'text',
+              media_url: null,
+            });
+            
+            // Registrar resposta e adicionar tag
             const responseType = 'confirmed';
             
             await supabase.from('campaign_responses').insert({
@@ -307,7 +317,10 @@ serve(async (req) => {
             if (!currentTags.includes('confirmado')) {
               await supabase
                 .from('conversations')
-                .update({ tags: [...currentTags, 'confirmado'] })
+                .update({ 
+                  tags: [...currentTags, 'confirmado'],
+                  last_message_at: new Date().toISOString()
+                })
                 .eq('id', existingConv.id);
             }
 
@@ -320,7 +333,17 @@ serve(async (req) => {
             console.log(`[${msgId}] ✅ Delivery confirmed`);
             continue;
           } else if (choice === '2') {
-            // Reagendar - registrar resposta, adicionar tag e marcar como ativa
+            // Reagendar - registrar mensagem no chat ANTES de adicionar tag
+            await supabase.from('messages').insert({
+              conversation_id: existingConv.id,
+              sender_type: 'customer',
+              sender_name: customerName,
+              message_text: '2',
+              media_type: 'text',
+              media_url: null,
+            });
+            
+            // Registrar resposta, adicionar tag e marcar como ativa
             const responseType = 'reschedule';
             
             await supabase.from('campaign_responses').insert({
@@ -342,14 +365,25 @@ serve(async (req) => {
                 .from('conversations')
                 .update({ 
                   tags: [...currentTags, 'reagendar'],
-                  status: 'active'
+                  status: 'active',
+                  last_message_at: new Date().toISOString()
                 })
                 .eq('id', existingConv.id);
             }
             console.log(`[${msgId}] 📅 Tagged for rescheduling and set to active`);
             continue;
           } else if (choice === '3') {
-            // Não é meu número - registrar resposta e adicionar à blacklist
+            // Não é meu número - registrar mensagem no chat ANTES de adicionar à blacklist
+            await supabase.from('messages').insert({
+              conversation_id: existingConv.id,
+              sender_type: 'customer',
+              sender_name: customerName,
+              message_text: '3',
+              media_type: 'text',
+              media_url: null,
+            });
+            
+            // Registrar resposta e adicionar à blacklist
             const responseType = 'wrong_number';
             
             await supabase.from('campaign_responses').insert({
@@ -453,20 +487,27 @@ serve(async (req) => {
             }
             conversation = newConv;
           } else {
-            // Atualizar última mensagem e incrementar contador de não lidas
+            // Atualizar última mensagem, incrementar contador de não lidas e atualizar nome se necessário
             const { data: currentConv } = await supabase
               .from('conversations')
-              .select('unread_count')
+              .select('unread_count, customer_name')
               .eq('id', conversation.id)
               .single();
 
+            const updates: any = {
+              last_message_at: new Date().toISOString(),
+              status: 'active',
+              unread_count: (currentConv?.unread_count || 0) + 1
+            };
+            
+            // Atualizar nome se estiver como "Cliente" e temos um nome real
+            if (currentConv?.customer_name === 'Cliente' && customerName !== 'Cliente') {
+              updates.customer_name = customerName;
+            }
+
             await supabase
               .from('conversations')
-              .update({
-                last_message_at: new Date().toISOString(),
-                status: 'active',
-                unread_count: (currentConv?.unread_count || 0) + 1
-              })
+              .update(updates)
               .eq('id', conversation.id);
           }
 
