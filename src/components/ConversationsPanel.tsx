@@ -867,6 +867,7 @@ export function ConversationsPanel({
                   {campaignSends.map(send => {
               const reschedule = reschedules.find(r => r.campaign_send_id === send.id);
               const isConfirmed = send.status === 'confirmed';
+              const isRescheduleRequested = send.status === 'reschedule_requested';
               return <div 
                         key={send.id} 
                         className="bg-background p-3 rounded-lg border space-y-2 cursor-pointer hover:bg-accent transition-colors"
@@ -888,6 +889,12 @@ export function ConversationsPanel({
                             <Badge className="bg-green-500 hover:bg-green-600">
                               <CheckCircle2 className="w-3 h-3 mr-1" />
                               Confirmado
+                            </Badge>
+                          )}
+                          {isRescheduleRequested && (
+                            <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Reagendar
                             </Badge>
                           )}
                           {reschedule && (

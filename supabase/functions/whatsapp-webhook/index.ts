@@ -341,7 +341,7 @@ serve(async (req) => {
             console.log(`[${msgId}] ✅ Delivery confirmed, campaign_send status updated`);
             continue;
           } else if (choice === '2') {
-            // Reagendar - registrar mensagem no chat ANTES de adicionar tag
+            // Reagendar - registrar mensagem no chat
             await supabase.from('messages').insert({
               conversation_id: existingConv.id,
               sender_type: 'customer',
@@ -351,34 +351,30 @@ serve(async (req) => {
               media_url: null,
             });
             
-            // Registrar resposta, adicionar tag e marcar como ativa
-            const responseType = 'reschedule';
+            // Atualizar status do campaign_send para 'reschedule_requested'
+            if (lastCampaign) {
+              await supabase
+                .from('campaign_sends')
+                .update({ status: 'reschedule_requested' })
+                .eq('id', lastCampaign.id);
+            }
             
+            // Registrar resposta
             await supabase.from('campaign_responses').insert({
               conversation_id: existingConv.id,
               campaign_send_id: lastCampaign?.id,
-              response_type: responseType
+              response_type: 'reschedule'
             });
 
+            // Enviar mensagem com o número para reagendar
             await supabase.functions.invoke('whatsapp-send', {
               body: {
                 phone: customerPhone,
-                message: 'Ok, só um momento.'
+                message: 'Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.'
               }
             });
             
-            const currentTags = existingConv.tags || [];
-            if (!currentTags.includes('reagendar')) {
-              await supabase
-                .from('conversations')
-                .update({ 
-                  tags: [...currentTags, 'reagendar'],
-                  status: 'active',
-                  last_message_at: new Date().toISOString()
-                })
-                .eq('id', existingConv.id);
-            }
-            console.log(`[${msgId}] 📅 Tagged for rescheduling and set to active`);
+            console.log(`[${msgId}] 📅 Reschedule request recorded, customer directed to call`);
             continue;
           } else if (choice === '3') {
             // Não é meu número - registrar mensagem no chat ANTES de adicionar à blacklist
