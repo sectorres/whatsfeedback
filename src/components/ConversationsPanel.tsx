@@ -681,16 +681,6 @@ export function ConversationsPanel({
                 <h3 className="font-semibold">
                   {selectedConversation.customer_name || selectedConversation.customer_phone}
                 </h3>
-                {selectedConversation.tags?.includes('confirmado') && (
-                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs h-5">
-                    Confirmado
-                  </Badge>
-                )}
-                {selectedConversation.tags?.includes('reagendar') && (
-                  <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs h-5">
-                    Reagendar
-                  </Badge>
-                )}
               </div>
               <div className="flex items-center gap-2">
                 <DropdownMenu>
