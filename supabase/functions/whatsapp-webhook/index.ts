@@ -304,6 +304,14 @@ serve(async (req) => {
               media_url: null,
             });
             
+            // Atualizar status do campaign_send para 'confirmed'
+            if (lastCampaign) {
+              await supabase
+                .from('campaign_sends')
+                .update({ status: 'confirmed' })
+                .eq('id', lastCampaign.id);
+            }
+            
             // Registrar resposta e adicionar tag
             const responseType = 'confirmed';
             
@@ -330,7 +338,7 @@ serve(async (req) => {
                 message: 'Obrigado pela confirmação!'
               }
             });
-            console.log(`[${msgId}] ✅ Delivery confirmed`);
+            console.log(`[${msgId}] ✅ Delivery confirmed, campaign_send status updated`);
             continue;
           } else if (choice === '2') {
             // Reagendar - registrar mensagem no chat ANTES de adicionar tag
