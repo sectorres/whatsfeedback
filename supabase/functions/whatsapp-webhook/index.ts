@@ -294,7 +294,7 @@ serve(async (req) => {
           }
 
           if (choice === '1') {
-            // Confirmado - registrar mensagem no chat ANTES de adicionar tag
+            // Confirmado - registrar mensagem do cliente no chat
             await supabase.from('messages').insert({
               conversation_id: existingConv.id,
               sender_type: 'customer',
@@ -332,16 +332,29 @@ serve(async (req) => {
                 .eq('id', existingConv.id);
             }
 
+            // Enviar resposta do bot
+            const botMessage = 'Obrigado pela confirmação!';
             await supabase.functions.invoke('whatsapp-send', {
               body: {
                 phone: customerPhone,
-                message: 'Obrigado pela confirmação!'
+                message: botMessage
               }
             });
+            
+            // Registrar mensagem do bot no chat
+            await supabase.from('messages').insert({
+              conversation_id: existingConv.id,
+              sender_type: 'agent',
+              sender_name: 'Bot',
+              message_text: botMessage,
+              media_type: 'text',
+              media_url: null,
+            });
+            
             console.log(`[${msgId}] ✅ Delivery confirmed, campaign_send status updated`);
             continue;
           } else if (choice === '2') {
-            // Reagendar - registrar mensagem no chat
+            // Reagendar - registrar mensagem do cliente no chat
             await supabase.from('messages').insert({
               conversation_id: existingConv.id,
               sender_type: 'customer',
@@ -367,17 +380,28 @@ serve(async (req) => {
             });
 
             // Enviar mensagem com o número para reagendar
+            const botMessage = 'Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.';
             await supabase.functions.invoke('whatsapp-send', {
               body: {
                 phone: customerPhone,
-                message: 'Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.'
+                message: botMessage
               }
+            });
+            
+            // Registrar mensagem do bot no chat
+            await supabase.from('messages').insert({
+              conversation_id: existingConv.id,
+              sender_type: 'agent',
+              sender_name: 'Bot',
+              message_text: botMessage,
+              media_type: 'text',
+              media_url: null,
             });
             
             console.log(`[${msgId}] 📅 Reschedule request recorded, customer directed to call`);
             continue;
           } else if (choice === '3') {
-            // Não é meu número - registrar mensagem no chat ANTES de adicionar à blacklist
+            // Não é meu número - registrar mensagem do cliente no chat
             await supabase.from('messages').insert({
               conversation_id: existingConv.id,
               sender_type: 'customer',
@@ -408,6 +432,26 @@ serve(async (req) => {
             } else {
               console.log(`[${msgId}] 🚫 Added to blacklist`);
             }
+            
+            // Enviar mensagem de confirmação
+            const botMessage = 'Entendido. Seu número foi removido da nossa lista de contatos.';
+            await supabase.functions.invoke('whatsapp-send', {
+              body: {
+                phone: customerPhone,
+                message: botMessage
+              }
+            });
+            
+            // Registrar mensagem do bot no chat
+            await supabase.from('messages').insert({
+              conversation_id: existingConv.id,
+              sender_type: 'agent',
+              sender_name: 'Bot',
+              message_text: botMessage,
+              media_type: 'text',
+              media_url: null,
+            });
+            
             continue;
           }
         }
