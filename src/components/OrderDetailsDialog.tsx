@@ -75,57 +75,50 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
   }, [open, pedidoNumero]);
 
   const fetchPedidoDetails = async () => {
-    if (!pedidoNumero) return;
+    if (!pedidoNumero) {
+      console.log("OrderDetailsDialog: pedidoNumero está vazio");
+      return;
+    }
 
     setLoading(true);
     try {
-      // Buscar configurações da API
-      const { data: configs } = await supabase
-        .from("app_config")
-        .select("config_key, config_value")
-        .in("config_key", ["api_url", "api_username", "api_password"]);
-
-      const configMap = configs?.reduce(
-        (acc, { config_key, config_value }) => {
-          acc[config_key] = config_value;
-          return acc;
-        },
-        {} as Record<string, string>,
-      );
-
-      if (!configMap?.api_url || !configMap?.api_username || !configMap?.api_password) {
-        console.error("API configuration missing");
-        return;
-      }
-
-      console.log("Buscando pedido número:", pedidoNumero);
+      console.log("OrderDetailsDialog: Iniciando busca do pedido:", pedidoNumero);
 
       // Buscar todas as cargas para encontrar o pedido pelo número
-      const { data: cargasData, error: cargasError } = await supabase.functions.invoke("fetch-cargas");
+      const { data: cargasData, error: cargasError } = await supabase.functions.invoke("fetch-cargas", {
+        body: {}
+      });
 
       if (cargasError) {
-        console.error("Erro ao buscar cargas:", cargasError);
+        console.error("OrderDetailsDialog: Erro ao buscar cargas:", cargasError);
+        toast.error("Erro ao buscar dados das cargas");
         throw cargasError;
       }
 
-      console.log("Cargas recebidas:", cargasData);
+      console.log("OrderDetailsDialog: Resposta da API:", cargasData);
 
       if (cargasData && cargasData.status === "SUCESSO" && cargasData.retorno?.cargas) {
         // Procurar o pedido em todas as cargas
         let foundPedido: Pedido | null = null;
 
-        console.log("Total de cargas:", cargasData.retorno.cargas.length);
+        console.log("OrderDetailsDialog: Total de cargas:", cargasData.retorno.cargas.length);
 
         for (const carga of cargasData.retorno.cargas) {
-          console.log(`Carga ${carga.id} - Total de pedidos:`, carga.pedidos.length);
+          if (!carga.pedidos || carga.pedidos.length === 0) {
+            console.log(`OrderDetailsDialog: Carga ${carga.id} - Sem pedidos`);
+            continue;
+          }
+
+          console.log(`OrderDetailsDialog: Carga ${carga.id} - Total de pedidos:`, carga.pedidos.length);
 
           const pedidoEncontrado = carga.pedidos.find((p: any) => {
-            console.log(`Comparando pedido: "${p.pedido}" com "${pedidoNumero}"`);
-            return p.pedido === pedidoNumero;
+            const match = p.pedido === pedidoNumero;
+            console.log(`OrderDetailsDialog: Comparando "${p.pedido}" === "${pedidoNumero}" = ${match}`);
+            return match;
           });
 
           if (pedidoEncontrado) {
-            console.log("Pedido encontrado!", pedidoEncontrado);
+            console.log("OrderDetailsDialog: Pedido encontrado!", pedidoEncontrado);
             foundPedido = {
               ...pedidoEncontrado,
               carga: {
@@ -140,17 +133,19 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
         }
 
         if (foundPedido) {
+          console.log("OrderDetailsDialog: Definindo pedido encontrado:", foundPedido);
           setPedido(foundPedido);
         } else {
-          console.error("Pedido não encontrado. Número buscado:", pedidoNumero);
+          console.error("OrderDetailsDialog: Pedido não encontrado. Número buscado:", pedidoNumero);
           toast.error(`Pedido ${pedidoNumero} não encontrado nas cargas atuais`);
         }
       } else {
-        console.error("Estrutura de dados inválida:", cargasData);
+        console.error("OrderDetailsDialog: Estrutura de dados inválida:", cargasData);
         toast.error("Erro ao buscar dados das cargas");
       }
     } catch (error) {
-      console.error("Error fetching order details:", error);
+      console.error("OrderDetailsDialog: Erro ao buscar detalhes:", error);
+      toast.error("Erro ao buscar detalhes do pedido");
     } finally {
       setLoading(false);
     }
