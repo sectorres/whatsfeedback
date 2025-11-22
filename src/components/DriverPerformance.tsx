@@ -537,9 +537,18 @@ export function DriverPerformance() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : driverMetrics.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              Nenhuma avaliação de motorista no período selecionado
-            </p>
+            <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+              <AlertCircle className="h-12 w-12 text-muted-foreground/50" />
+              <div className="space-y-2">
+                <p className="text-lg font-medium text-muted-foreground">
+                  Nenhuma avaliação de motorista encontrada
+                </p>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  Para ver dados de desempenho, é necessário enviar pesquisas de satisfação e os clientes precisam respondê-las. 
+                  Vá para a aba "Pesquisas de Satisfação" para enviar pesquisas aos clientes.
+                </p>
+              </div>
+            </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {driverMetrics.map((driver, index) => (

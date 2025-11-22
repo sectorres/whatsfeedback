@@ -24,7 +24,8 @@ serve(async (req) => {
     // Buscar todos os campaign_sends do período
     let sendsQuery = supabaseClient
       .from('campaign_sends')
-      .select('*');
+      .select('*')
+      .eq('status', 'success');
 
     if (dateFrom) {
       sendsQuery = sendsQuery.gte('sent_at', dateFrom);
@@ -37,9 +38,24 @@ serve(async (req) => {
     }
 
     const { data: campaignSends, error: sendsError } = await sendsQuery;
-    if (sendsError) throw sendsError;
+    if (sendsError) {
+      console.error('Erro ao buscar campaign_sends:', sendsError);
+      throw sendsError;
+    }
 
-    const sendIds = campaignSends?.map(s => s.id) || [];
+    console.log('Campaign sends encontrados:', campaignSends?.length || 0);
+
+    if (!campaignSends || campaignSends.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          message: 'Nenhuma campanha enviada encontrada para o período selecionado' 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const sendIds = campaignSends.map(s => s.id);
 
     // Buscar respostas de satisfação do período
     const { data: surveys, error: surveysError } = await supabaseClient
@@ -48,7 +64,12 @@ serve(async (req) => {
       .in('campaign_send_id', sendIds)
       .not('rating', 'is', null);
 
-    if (surveysError) throw surveysError;
+    if (surveysError) {
+      console.error('Erro ao buscar surveys:', surveysError);
+      throw surveysError;
+    }
+
+    console.log('Surveys encontradas:', surveys?.length || 0);
 
     if (!surveys || surveys.length === 0) {
       return new Response(
@@ -166,6 +187,12 @@ IMPORTANTE:
     // Chamar Lovable AI para gerar insights
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY não configurada');
+    }
+
+    console.log('Iniciando chamada para Lovable AI...');
+    
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -185,14 +212,19 @@ IMPORTANTE:
       }),
     });
 
+    console.log('Resposta da AI recebida com status:', aiResponse.status);
+
     if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('Erro da AI:', errorText);
+      
       if (aiResponse.status === 429) {
         throw new Error('Limite de requisições excedido. Tente novamente em alguns instantes.');
       }
       if (aiResponse.status === 402) {
         throw new Error('Créditos insuficientes. Adicione créditos no seu workspace.');
       }
-      throw new Error('Erro ao gerar insights com IA');
+      throw new Error(`Erro ao gerar insights com IA: ${aiResponse.status} - ${errorText}`);
     }
 
     const aiData = await aiResponse.json();
@@ -231,8 +263,15 @@ IMPORTANTE:
     );
   } catch (error) {
     console.error('Erro na função generate-satisfaction-insights:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    const errorDetails = error instanceof Error ? error.stack : String(error);
+    console.error('Detalhes do erro:', errorDetails);
+    
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido' }),
+      JSON.stringify({ 
+        error: errorMessage,
+        details: errorDetails 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
