@@ -160,25 +160,9 @@ serve(async (req) => {
       .update({ status: "success", error_message: null, sent_at: new Date().toISOString() })
       .eq("id", sendRow.id);
 
-    // 3c) Enviar mensagem de confirmação e registrar no chat
+    // 3c) Buscar ou criar conversa e registrar mensagens no chat
     try {
-      const confirmationMsg = `Por favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação`;
-      
-      await supabase.functions.invoke("whatsapp-send", {
-        body: {
-          phone: normalizedPhone,
-          message: confirmationMsg,
-        },
-      });
-      console.log("Confirmation message sent successfully");
-    } catch (confirmError) {
-      console.error("Error sending confirmation message:", confirmError);
-      // Não bloqueia o fluxo se falhar
-    }
-
-    // 4) Registrar no chat de atendimento
-    try {
-      // Buscar ou criar conversa
+      // Buscar conversa existente ou criar nova
       const { data: existingConv } = await supabase
         .from("conversations")
         .select("*")
@@ -208,7 +192,7 @@ serve(async (req) => {
           .eq("id", existingConv.id);
       }
 
-      // Criar mensagem no chat
+      // Registrar mensagem da campanha no chat
       if (conversationId) {
         await supabase.from("messages").insert({
           conversation_id: conversationId,
@@ -218,10 +202,34 @@ serve(async (req) => {
           message_status: "sent",
         });
       }
-    } catch (chatError) {
-      console.error("Erro ao registrar no chat:", chatError);
-      // Não bloqueia o envio se falhar o registro no chat
+
+      // Enviar mensagem de confirmação e registrar no chat
+      const confirmationMsg = `Por favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação`;
+      
+      await supabase.functions.invoke("whatsapp-send", {
+        body: {
+          phone: normalizedPhone,
+          message: confirmationMsg,
+        },
+      });
+
+      // Registrar mensagem de confirmação no chat
+      if (conversationId) {
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          sender_type: "agent",
+          sender_name: "Bot",
+          message_text: confirmationMsg,
+          message_status: "sent",
+        });
+      }
+      
+      console.log("Campaign and confirmation messages sent and recorded successfully");
+    } catch (confirmError) {
+      console.error("Error sending confirmation message:", confirmError);
+      // Não bloqueia o fluxo se falhar
     }
+
 
     return new Response(JSON.stringify({ success: true, send_id: sendRow.id, status: "success" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
