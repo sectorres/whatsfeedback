@@ -257,12 +257,14 @@ serve(async (req) => {
           const choice = confirmationMatch[0];
           console.log(`[${msgId}] 📋 Campaign confirmation response: ${choice}`);
 
-          // Buscar conversa existente
-          const { data: existingConv } = await supabase
+          // Buscar conversa existente usando normalização
+          const { data: allConversations } = await supabase
             .from('conversations')
-            .select('*')
-            .eq('customer_phone', customerPhone)
-            .maybeSingle();
+            .select('*');
+          
+          const existingConv = allConversations?.find(conv => 
+            comparePhones(conv.customer_phone, customerPhone)
+          );
 
           if (!existingConv) {
             console.log(`[${msgId}] ⚠️ No conversation found for phone: ${customerPhone}`);
@@ -509,12 +511,14 @@ serve(async (req) => {
         // Apenas criar conversa se NÃO for nota de pesquisa
         if (!isSurveyRatingOnly) {
 
-          // Buscar ou criar conversa
-          let { data: conversation } = await supabase
+          // Buscar conversas e encontrar por normalização
+          const { data: allConversations } = await supabase
             .from('conversations')
-            .select('*')
-            .eq('customer_phone', customerPhone)
-            .maybeSingle();
+            .select('*');
+          
+          let conversation = allConversations?.find(conv => 
+            comparePhones(conv.customer_phone, customerPhone)
+          );
 
           if (!conversation) {
             const { data: newConv, error: convError } = await supabase
@@ -536,20 +540,14 @@ serve(async (req) => {
             conversation = newConv;
           } else {
             // Atualizar última mensagem, incrementar contador de não lidas e atualizar nome se necessário
-            const { data: currentConv } = await supabase
-              .from('conversations')
-              .select('unread_count, customer_name')
-              .eq('id', conversation.id)
-              .single();
-
             const updates: any = {
               last_message_at: new Date().toISOString(),
               status: 'active',
-              unread_count: (currentConv?.unread_count || 0) + 1
+              unread_count: (conversation.unread_count || 0) + 1
             };
             
             // Atualizar nome se estiver como "Cliente" e temos um nome real
-            if (currentConv?.customer_name === 'Cliente' && customerName !== 'Cliente') {
+            if (conversation.customer_name === 'Cliente' && customerName !== 'Cliente') {
               updates.customer_name = customerName;
             }
 
