@@ -98,14 +98,7 @@ serve(async (req) => {
         
         console.log(`[${msgId}] 🧹 Cleaned phone: ${rawPhone}`);
         
-        // Validar dígitos
-        const digitsOnly = rawPhone.replace(/\D/g, '');
-        
-        if (!digitsOnly || digitsOnly.length < 10 || digitsOnly.length > 15) {
-          console.log(`[${msgId}] ❌ Invalid digit count: ${digitsOnly?.length || 0} (expected 10-15), skipping`);
-          continue;
-        }
-        
+        // Normalizar telefone (remove código do país 55 e zeros à esquerda)
         const customerPhone = normalizePhone(rawPhone);
         
         if (!customerPhone || customerPhone.length < 10) {
@@ -257,14 +250,12 @@ serve(async (req) => {
           const choice = confirmationMatch[0];
           console.log(`[${msgId}] 📋 Campaign confirmation response: ${choice}`);
 
-          // Buscar conversa existente usando normalização
-          const { data: allConversations } = await supabase
+          // Buscar conversa existente pelo telefone normalizado
+          const { data: existingConv } = await supabase
             .from('conversations')
-            .select('*');
-          
-          const existingConv = allConversations?.find(conv => 
-            comparePhones(conv.customer_phone, customerPhone)
-          );
+            .select('*')
+            .eq('customer_phone', customerPhone)
+            .maybeSingle();
 
           if (!existingConv) {
             console.log(`[${msgId}] ⚠️ No conversation found for phone: ${customerPhone}`);
@@ -511,14 +502,12 @@ serve(async (req) => {
         // Apenas criar conversa se NÃO for nota de pesquisa
         if (!isSurveyRatingOnly) {
 
-          // Buscar conversas e encontrar por normalização
-          const { data: allConversations } = await supabase
+          // Buscar conversa existente pelo telefone normalizado
+          let { data: conversation } = await supabase
             .from('conversations')
-            .select('*');
-          
-          let conversation = allConversations?.find(conv => 
-            comparePhones(conv.customer_phone, customerPhone)
-          );
+            .select('*')
+            .eq('customer_phone', customerPhone)
+            .maybeSingle();
 
           if (!conversation) {
             const { data: newConv, error: convError } = await supabase
