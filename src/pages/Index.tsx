@@ -21,15 +21,14 @@ import { useWhatsAppStatus } from "@/hooks/useWhatsAppStatus";
 import { SatisfactionSurveys } from "@/components/SatisfactionSurveys";
 import { IpWhitelistManager } from "@/components/IpWhitelistManager";
 import { DriverPerformance } from "@/components/DriverPerformance";
-
 const Index = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
   const unreadCount = useUnreadCount();
-  const { isConnected } = useWhatsAppStatus();
-
-  return (
-    <div className="min-h-screen bg-background">
+  const {
+    isConnected
+  } = useWhatsAppStatus();
+  return <div className="min-h-screen bg-background">
       <DashboardHeader />
       
       <main className="container mx-auto px-6 py-4">
@@ -50,11 +49,9 @@ const Index = () => {
             <TabsTrigger value="atendimento" className="flex items-center gap-1.5 text-xs sm:text-sm">
               <Headphones className="h-4 w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Atendimento</span>
-              {unreadCount > 0 && (
-                <Badge variant="destructive" className="ml-1 h-5 min-w-5 flex items-center justify-center px-1.5">
+              {unreadCount > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-5 flex items-center justify-center px-1.5">
                   {unreadCount}
-                </Badge>
-              )}
+                </Badge>}
             </TabsTrigger>
             <TabsTrigger value="desempenho" className="flex items-center gap-1.5 text-xs sm:text-sm">
               <BarChart3 className="h-4 w-4 flex-shrink-0" />
@@ -76,10 +73,8 @@ const Index = () => {
 
           <TabsContent value="atendimento" className="space-y-2">
             <div>
-              <h2 className="text-xl font-bold mb-2">Atendimento ao Cliente</h2>
-              <p className="text-muted-foreground mb-3 text-sm">
-                Gerencie conversas e responda mensagens dos clientes em tempo real
-              </p>
+              
+              
               <ConversationsPanel isOnAtendimentoTab={activeTab === "atendimento"} />
             </div>
           </TabsContent>
@@ -120,8 +115,6 @@ const Index = () => {
           WhatsFeedback | Desenvolvido por: Moisés Cavalcante. Versão: 1.0.0
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
