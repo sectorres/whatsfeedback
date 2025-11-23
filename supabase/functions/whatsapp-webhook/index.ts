@@ -244,9 +244,37 @@ serve(async (req) => {
           }
         }
 
-        // Verificar se é resposta de confirmação de campanha (1, 2 ou 3)
-        const confirmationMatch = messageText.trim().match(/^[123]$/);
-        if (confirmationMatch) {
+        // Verificar se há campanha pendente para este cliente (aguardando resposta 1, 2 ou 3)
+        const { data: pendingCampaign } = await supabase
+          .from('campaign_sends')
+          .select('*, campaign_responses(id)')
+          .eq('customer_phone', customerPhone)
+          .eq('status', 'success')
+          .is('campaign_responses.id', null)
+          .order('sent_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        // Se há campanha pendente, só aceitar 1, 2 ou 3
+        if (pendingCampaign) {
+          const confirmationMatch = messageText.trim().match(/^[123]$/);
+          
+          if (!confirmationMatch) {
+            // Resposta inválida - pedir novamente
+            console.log(`[${msgId}] ⚠️ Invalid campaign response: "${messageText}", expecting 1, 2 or 3`);
+            try {
+              await supabase.functions.invoke('whatsapp-send', {
+                body: {
+                  phone: customerPhone,
+                  message: `Por favor, responda com:\n\n1️⃣ - Confirmar\n2️⃣ - Reagendar\n3️⃣ - Parar de enviar notificação`
+                }
+              });
+            } catch (sendError) {
+              console.error('Error sending reminder:', sendError);
+            }
+            continue; // Ignorar a mensagem
+          }
+
           const choice = confirmationMatch[0];
           console.log(`[${msgId}] 📋 Campaign confirmation response: ${choice}`);
 
@@ -262,30 +290,6 @@ serve(async (req) => {
             continue;
           }
 
-          // Buscar última campanha enviada para este cliente
-          const { data: lastCampaign } = await supabase
-            .from('campaign_sends')
-            .select('*')
-            .eq('customer_phone', customerPhone)
-            .order('sent_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          // Verificar se já existe uma resposta para esta campanha (prevenir duplicatas)
-          if (lastCampaign) {
-            const { data: existingResponse } = await supabase
-              .from('campaign_responses')
-              .select('*')
-              .eq('conversation_id', existingConv.id)
-              .eq('campaign_send_id', lastCampaign.id)
-              .maybeSingle();
-
-            if (existingResponse) {
-              console.log(`[${msgId}] ⚠️ Response already recorded for this campaign, ignoring duplicate`);
-              continue;
-            }
-          }
-
           if (choice === '1') {
             // Confirmado - registrar mensagem do cliente no chat
             await supabase.from('messages').insert({
@@ -298,20 +302,16 @@ serve(async (req) => {
             });
             
             // Atualizar status do campaign_send para 'confirmed'
-            if (lastCampaign) {
-              await supabase
-                .from('campaign_sends')
-                .update({ status: 'confirmed' })
-                .eq('id', lastCampaign.id);
-            }
+            await supabase
+              .from('campaign_sends')
+              .update({ status: 'confirmed' })
+              .eq('id', pendingCampaign.id);
             
             // Registrar resposta e adicionar tag
-            const responseType = 'confirmed';
-            
             await supabase.from('campaign_responses').insert({
               conversation_id: existingConv.id,
-              campaign_send_id: lastCampaign?.id,
-              response_type: responseType
+              campaign_send_id: pendingCampaign.id,
+              response_type: 'confirmed'
             });
 
             const currentTags = existingConv.tags || [];
@@ -326,7 +326,7 @@ serve(async (req) => {
             }
 
             // Enviar resposta do bot
-            const botMessage = 'Obrigado pela confirmação!';
+            const botMessage = 'Obrigado pela confirmação! Agora você pode enviar mensagens normalmente.';
             await supabase.functions.invoke('whatsapp-send', {
               body: {
                 phone: customerPhone,
@@ -358,22 +358,20 @@ serve(async (req) => {
             });
             
             // Atualizar status do campaign_send para 'reschedule_requested'
-            if (lastCampaign) {
-              await supabase
-                .from('campaign_sends')
-                .update({ status: 'reschedule_requested' })
-                .eq('id', lastCampaign.id);
-            }
+            await supabase
+              .from('campaign_sends')
+              .update({ status: 'reschedule_requested' })
+              .eq('id', pendingCampaign.id);
             
             // Registrar resposta
             await supabase.from('campaign_responses').insert({
               conversation_id: existingConv.id,
-              campaign_send_id: lastCampaign?.id,
+              campaign_send_id: pendingCampaign.id,
               response_type: 'reschedule'
             });
 
             // Enviar mensagem com o número para reagendar
-            const botMessage = 'Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.';
+            const botMessage = 'Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.\n\nAgora você pode enviar mensagens normalmente.';
             await supabase.functions.invoke('whatsapp-send', {
               body: {
                 phone: customerPhone,
@@ -405,12 +403,10 @@ serve(async (req) => {
             });
             
             // Registrar resposta e adicionar à blacklist
-            const responseType = 'wrong_number';
-            
             await supabase.from('campaign_responses').insert({
               conversation_id: existingConv.id,
-              campaign_send_id: lastCampaign?.id,
-              response_type: responseType
+              campaign_send_id: pendingCampaign.id,
+              response_type: 'wrong_number'
             });
 
             const { error: blacklistError } = await supabase
