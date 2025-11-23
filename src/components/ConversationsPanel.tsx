@@ -593,9 +593,7 @@ export function ConversationsPanel({
                           {conv.tags?.includes('reagendar') && <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs h-5">
                               Reagendar
                             </Badge>}
-                          {conv.tags?.includes('confirmado') && <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs h-5">
-                              Confirmado
-                            </Badge>}
+                          {conv.tags?.includes('confirmado')}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {conv.customer_phone}
@@ -868,16 +866,12 @@ export function ConversationsPanel({
               const reschedule = reschedules.find(r => r.campaign_send_id === send.id);
               const isConfirmed = send.status === 'confirmed';
               const isRescheduleRequested = send.status === 'reschedule_requested';
-              return <div 
-                        key={send.id} 
-                        className="bg-background p-3 rounded-lg border space-y-2 cursor-pointer hover:bg-accent transition-colors"
-                        onClick={() => {
-                          if (send.pedido_numero) {
-                            setSelectedOrderNumero(send.pedido_numero);
-                            setOrderDialogOpen(true);
-                          }
-                        }}
-                      >
+              return <div key={send.id} className="bg-background p-3 rounded-lg border space-y-2 cursor-pointer hover:bg-accent transition-colors" onClick={() => {
+                if (send.pedido_numero) {
+                  setSelectedOrderNumero(send.pedido_numero);
+                  setOrderDialogOpen(true);
+                }
+              }}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
                             <div className="font-medium text-sm">{send.customer_name || 'Cliente'}</div>
@@ -885,44 +879,34 @@ export function ConversationsPanel({
                               Pedido: {send.pedido_numero || 'Sem número'}
                             </div>
                           </div>
-                          {isConfirmed && (
-                            <Badge className="bg-green-500 hover:bg-green-600">
+                          {isConfirmed && <Badge className="bg-green-500 hover:bg-green-600">
                               <CheckCircle2 className="w-3 h-3 mr-1" />
                               Confirmado
-                            </Badge>
-                          )}
-                          {isRescheduleRequested && (
-                            <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
+                            </Badge>}
+                          {isRescheduleRequested && <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
                               <Clock className="w-3 h-3 mr-1" />
                               Reagendar
-                            </Badge>
-                          )}
-                          {reschedule && (
-                            <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                            </Badge>}
+                          {reschedule && <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
                               <Clock className="w-3 h-3 mr-1" />
                               Reagendado
-                            </Badge>
-                          )}
+                            </Badge>}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Enviado: {format(new Date(send.sent_at), "dd/MM/yyyy 'às' HH:mm", {
                     locale: ptBR
                   })}
                         </div>
-                        {isConfirmed && (
-                          <div className="text-xs text-green-600 font-medium">
+                        {isConfirmed && <div className="text-xs text-green-600 font-medium">
                             Confirmado em: {format(new Date(send.sent_at), "dd/MM/yyyy 'às' HH:mm", {
-                              locale: ptBR
-                            })}
-                          </div>
-                        )}
-                        {reschedule && (
-                          <div className="text-xs text-blue-600 font-medium">
+                    locale: ptBR
+                  })}
+                          </div>}
+                        {reschedule && <div className="text-xs text-blue-600 font-medium">
                             Reagendado para: {format(new Date(reschedule.scheduled_date), "dd/MM/yyyy", {
-                              locale: ptBR
-                            })}
-                          </div>
-                        )}
+                    locale: ptBR
+                  })}
+                          </div>}
                         {send.valor_total && <div className="text-xs text-muted-foreground">
                             Valor: R$ {send.valor_total.toFixed(2)}
                           </div>}
