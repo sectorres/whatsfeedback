@@ -329,7 +329,7 @@ serve(async (req) => {
             }
 
             // Enviar resposta do bot
-            const botMessage = 'Obrigado pela confirmação! Agora você pode enviar mensagens normalmente.';
+            const botMessage = 'Obrigado pela confirmação!';
             await supabase.functions.invoke('whatsapp-send', {
               body: {
                 phone: customerPhone,
