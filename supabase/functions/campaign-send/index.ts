@@ -160,50 +160,8 @@ serve(async (req) => {
       .update({ status: "success", error_message: null, sent_at: new Date().toISOString() })
       .eq("id", sendRow.id);
 
-    // 3c) Buscar ou criar conversa e registrar mensagens no chat
+    // 3c) Enviar mensagem de confirmação (sem registrar no chat - o webhook fará isso)
     try {
-      // Buscar conversa existente ou criar nova
-      const { data: existingConv } = await supabase
-        .from("conversations")
-        .select("*")
-        .eq("customer_phone", normalizedPhone)
-        .maybeSingle();
-
-      let conversationId = existingConv?.id;
-
-      if (!existingConv) {
-        const { data: newConv } = await supabase
-          .from("conversations")
-          .insert({
-            customer_phone: normalizedPhone,
-            customer_name: customerName ?? "Cliente",
-            status: "active",
-            last_message_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
-
-        conversationId = newConv?.id;
-      } else {
-        // Atualizar última mensagem
-        await supabase
-          .from("conversations")
-          .update({ last_message_at: new Date().toISOString() })
-          .eq("id", existingConv.id);
-      }
-
-      // Registrar mensagem da campanha no chat
-      if (conversationId) {
-        await supabase.from("messages").insert({
-          conversation_id: conversationId,
-          sender_type: "operator",
-          sender_name: "Sistema - Campanha",
-          message_text: message,
-          message_status: "sent",
-        });
-      }
-
-      // Enviar mensagem de confirmação e registrar no chat
       const confirmationMsg = `Por favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação`;
       
       await supabase.functions.invoke("whatsapp-send", {
@@ -212,19 +170,8 @@ serve(async (req) => {
           message: confirmationMsg,
         },
       });
-
-      // Registrar mensagem de confirmação no chat
-      if (conversationId) {
-        await supabase.from("messages").insert({
-          conversation_id: conversationId,
-          sender_type: "agent",
-          sender_name: "Bot",
-          message_text: confirmationMsg,
-          message_status: "sent",
-        });
-      }
       
-      console.log("Campaign and confirmation messages sent and recorded successfully");
+      console.log("Campaign and confirmation messages sent successfully");
     } catch (confirmError) {
       console.error("Error sending confirmation message:", confirmError);
       // Não bloqueia o fluxo se falhar
