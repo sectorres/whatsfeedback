@@ -59,7 +59,10 @@ serve(async (req) => {
     for (const msg of incoming) {
       try {
         // Ignorar mensagens enviadas pelo próprio bot
-        if (msg.key?.fromMe) continue;
+        if (msg.key?.fromMe) {
+          console.log('Ignoring message from bot (fromMe=true)');
+          continue;
+        }
 
         // ID único da mensagem para logs
         const msgId = msg.key?.id || crypto.randomUUID();
