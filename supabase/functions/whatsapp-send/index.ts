@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { formatPhoneForWhatsApp } from "../_shared/phone-utils.ts";
+import { formatPhoneForWhatsApp, normalizePhone } from "../_shared/phone-utils.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const whatsappSendSchema = z.object({
@@ -46,9 +46,12 @@ serve(async (req) => {
 
     console.log('Sending WhatsApp message:', { phone, messageLength: message.length });
 
-    // Normalizar e formatar número de telefone
+    // Normalizar telefone para uso no banco (SEM código do país)
+    const normalizedPhone = normalizePhone(phone);
+    
+    // Formatar número de telefone para WhatsApp (COM código do país)
     const cleanPhone = formatPhoneForWhatsApp(phone);
-    console.log('Normalized phone:', cleanPhone);
+    console.log('Phones:', { normalized: normalizedPhone, formatted: cleanPhone });
 
     // Validar se o número tem o tamanho mínimo esperado (DDD + número)
     // Formato esperado: 55 + DDD (2 dígitos) + número (8 ou 9 dígitos) = 12 ou 13 dígitos
@@ -112,16 +115,16 @@ serve(async (req) => {
       throw new Error(data.response?.message || data.message || 'Failed to send message');
     }
 
-    // Registrar mensagem no chat de atendimento
+    // Registrar mensagem no chat de atendimento usando telefone NORMALIZADO (sem 55)
     try {
       const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-      // Buscar ou criar conversa
+      // Buscar ou criar conversa com telefone normalizado (sem 55)
       const { data: existingConv } = await supabase
         .from('conversations')
         .select('*')
-        .eq('customer_phone', cleanPhone)
+        .eq('customer_phone', normalizedPhone)
         .maybeSingle();
 
       let conversationId = existingConv?.id;
@@ -130,7 +133,7 @@ serve(async (req) => {
         const { data: newConv } = await supabase
           .from('conversations')
           .insert({
-            customer_phone: cleanPhone,
+            customer_phone: normalizedPhone,
             customer_name: 'Cliente',
             status: 'active',
             last_message_at: new Date().toISOString(),
