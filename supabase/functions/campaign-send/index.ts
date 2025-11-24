@@ -160,7 +160,7 @@ serve(async (req) => {
       .update({ status: "success", error_message: null, sent_at: new Date().toISOString() })
       .eq("id", sendRow.id);
 
-    // 3c) Enviar mensagem de confirmação (sem registrar no chat - o webhook fará isso)
+    // 3c) Enviar mensagem de confirmação (a conversa será criada pelo webhook quando processar as mensagens)
     try {
       const confirmationMsg = `Por favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação`;
       
@@ -171,7 +171,7 @@ serve(async (req) => {
         },
       });
       
-      console.log("Campaign and confirmation messages sent successfully");
+      console.log("Confirmation message sent successfully");
     } catch (confirmError) {
       console.error("Error sending confirmation message:", confirmError);
       // Não bloqueia o fluxo se falhar
