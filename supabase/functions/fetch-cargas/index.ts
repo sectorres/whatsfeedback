@@ -26,7 +26,7 @@ serve(async (req) => {
     const dataFinalFormatted = dataFinal || hoje.toISOString().slice(0, 10).replace(/-/g, '');
     
     const dataInicialDate = new Date();
-    dataInicialDate.setDate(hoje.getDate() - 30);
+    dataInicialDate.setDate(hoje.getDate() - 300);
     const dataInicialFormatted = dataInicial || dataInicialDate.toISOString().slice(0, 10).replace(/-/g, '');
 
     console.log('Fetching cargas from API...', { dataInicial: dataInicialFormatted, dataFinal: dataFinalFormatted });
