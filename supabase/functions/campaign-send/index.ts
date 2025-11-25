@@ -128,16 +128,19 @@ serve(async (req) => {
       throw insertError || new Error("Falha ao criar registro de envio");
     }
 
-    // 2) Disparar WhatsApp via função dedicada (reaproveita normalização e blacklist)
+    // 2) Preparar mensagem completa com confirmação
+    const fullMessage = `${message}\n\nPor favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação`;
+
+    // 3) Disparar WhatsApp via função dedicada (reaproveita normalização e blacklist)
     const { error: sendError } = await supabase.functions.invoke("whatsapp-send", {
       body: {
         phone: normalizedPhone,
-        message,
+        message: fullMessage,
       },
     });
 
     if (sendError) {
-      // 3a) Atualizar para failed
+      // 4a) Atualizar para failed
       await supabase
         .from("campaign_sends")
         .update({ status: "failed", error_message: sendError.message || String(sendError) })
@@ -154,28 +157,11 @@ serve(async (req) => {
       );
     }
 
-    // 3b) Atualizar para success
+    // 4b) Atualizar para success
     await supabase
       .from("campaign_sends")
       .update({ status: "success", error_message: null, sent_at: new Date().toISOString() })
       .eq("id", sendRow.id);
-
-    // 3c) Enviar mensagem de confirmação (a conversa será criada pelo webhook quando processar as mensagens)
-    try {
-      const confirmationMsg = `Por favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação`;
-      
-      await supabase.functions.invoke("whatsapp-send", {
-        body: {
-          phone: normalizedPhone,
-          message: confirmationMsg,
-        },
-      });
-      
-      console.log("Confirmation message sent successfully");
-    } catch (confirmError) {
-      console.error("Error sending confirmation message:", confirmError);
-      // Não bloqueia o fluxo se falhar
-    }
 
 
     return new Response(JSON.stringify({ success: true, send_id: sendRow.id, status: "success" }), {
