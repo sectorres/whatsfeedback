@@ -534,8 +534,8 @@ serve(async (req) => {
               unread_count: (conversation.unread_count || 0) + 1
             };
             
-            // Atualizar nome se estiver como "Cliente" e temos um nome real
-            if (conversation.customer_name === 'Cliente' && customerName !== 'Cliente') {
+            // Atualizar nome se o novo for melhor que o atual
+            if (customerName && customerName !== 'Cliente' && (!conversation.customer_name || conversation.customer_name === 'Cliente')) {
               updates.customer_name = customerName;
             }
 
