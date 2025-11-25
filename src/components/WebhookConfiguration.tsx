@@ -62,10 +62,19 @@ export function WebhookConfiguration() {
             <li>Acesse a API da Evolution no endpoint de configuração de webhook</li>
             <li>Configure o webhook para a instância <Badge variant="secondary">entregas</Badge></li>
             <li>Cole a URL do webhook acima</li>
-            <li>Ative os eventos: <Badge variant="outline">messages.upsert</Badge></li>
-            <li>Salve a configuração</li>
+            <li>
+              <strong>IMPORTANTE:</strong> Ative o evento <Badge variant="outline">messages.upsert</Badge> (recebe mensagens dos clientes)
+            </li>
+            <li>Configure <code className="text-xs bg-muted px-1 py-0.5 rounded">webhook_by_events: true</code></li>
+            <li>Salve a configuração e teste enviando uma mensagem do WhatsApp</li>
           </ol>
         </div>
+        
+        <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-900">
+          <AlertDescription className="text-sm">
+            <strong>⚠️ Atenção:</strong> Se você não receber mensagens dos clientes, verifique se o webhook está configurado corretamente na Evolution API com o evento <code className="text-xs bg-background px-1 py-0.5 rounded">messages.upsert</code> ativado.
+          </AlertDescription>
+        </Alert>
 
         <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-900">
           <AlertDescription className="text-sm">
