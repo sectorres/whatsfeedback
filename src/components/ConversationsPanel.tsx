@@ -283,32 +283,52 @@ export function ConversationsPanel({
   const sendMessage = async () => {
     if (!messageText.trim() || !selectedConversation) return;
     setSending(true);
+    
+    // Criar ID único para evitar duplicatas
+    const messageId = crypto.randomUUID();
+    
     try {
-      // Enviar via Evolution API
-      const response = await supabase.functions.invoke('whatsapp-send', {
-        body: {
-          phone: selectedConversation.customer_phone,
-          message: messageText
-        }
-      });
-      if (response.error) throw response.error;
-
-      // Salvar mensagem no banco
+      // Salvar mensagem no banco ANTES de enviar (para aparecer imediatamente)
       const {
         error: dbError
       } = await supabase.from('messages').insert({
+        id: messageId,
         conversation_id: selectedConversation.id,
         sender_type: 'operator',
         sender_name: 'Operador',
         message_text: messageText,
-        message_status: 'sent'
+        message_status: 'sending'
       });
       if (dbError) throw dbError;
+
+      // Enviar via Evolution API (não cria mensagem no banco)
+      const response = await supabase.functions.invoke('whatsapp-send', {
+        body: {
+          phone: selectedConversation.customer_phone,
+          message: messageText,
+          conversation_id: selectedConversation.id,
+          skip_message_save: true // Flag para não salvar novamente
+        }
+      });
+      
+      if (response.error) {
+        // Atualizar status para erro
+        await supabase.from('messages')
+          .update({ message_status: 'failed' })
+          .eq('id', messageId);
+        throw response.error;
+      }
+
+      // Atualizar status para enviada
+      await supabase.from('messages')
+        .update({ message_status: 'sent' })
+        .eq('id', messageId);
 
       // Atualizar última mensagem da conversa
       await supabase.from('conversations').update({
         last_message_at: new Date().toISOString()
       }).eq('id', selectedConversation.id);
+      
       setMessageText("");
       toast.success('Mensagem enviada!');
     } catch (error) {

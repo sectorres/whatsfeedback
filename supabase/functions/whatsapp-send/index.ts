@@ -5,6 +5,8 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 const whatsappSendSchema = z.object({
   phone: z.string().min(10).max(20),
   message: z.string().min(1).max(4096),
+  skip_message_save: z.boolean().optional(),
+  conversation_id: z.string().optional(),
 });
 
 const corsHeaders = {
@@ -29,7 +31,7 @@ serve(async (req) => {
       );
     }
 
-    const { phone, message } = validationResult.data;
+    const { phone, message, skip_message_save, conversation_id } = validationResult.data;
     const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
     const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
     const EVOLUTION_INSTANCE_NAME = Deno.env.get('EVOLUTION_INSTANCE_NAME');
@@ -44,7 +46,7 @@ serve(async (req) => {
       throw new Error('Supabase credentials not configured');
     }
 
-    console.log('Sending WhatsApp message:', { phone, messageLength: message.length });
+    console.log('Sending WhatsApp message:', { phone, messageLength: message.length, skipSave: skip_message_save });
 
     // Normalizar telefone para uso no banco (SEM código do país)
     const normalizedPhone = normalizePhone(phone);
@@ -115,54 +117,109 @@ serve(async (req) => {
       throw new Error(data.response?.message || data.message || 'Failed to send message');
     }
 
-    // Registrar mensagem no chat de atendimento usando telefone NORMALIZADO (sem 55)
+    // Buscar nome real do contato no WhatsApp
+    let realContactName = 'Cliente';
     try {
-      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-      // Buscar ou criar conversa com telefone normalizado (sem 55)
-      const { data: existingConv } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('customer_phone', normalizedPhone)
-        .maybeSingle();
-
-      let conversationId = existingConv?.id;
-
-      if (!existingConv) {
-        const { data: newConv } = await supabase
-          .from('conversations')
-          .insert({
-            customer_phone: normalizedPhone,
-            customer_name: 'Cliente',
-            status: 'active',
-            last_message_at: new Date().toISOString(),
+      console.log(`Fetching contact info for ${cleanPhone}...`);
+      const contactResponse = await fetch(
+        `${EVOLUTION_API_URL}/chat/findContacts/${EVOLUTION_INSTANCE_NAME}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': EVOLUTION_API_KEY
+          },
+          body: JSON.stringify({
+            where: {
+              remoteJid: `${cleanPhone}@s.whatsapp.net`
+            }
           })
-          .select()
-          .single();
+        }
+      );
 
-        conversationId = newConv?.id;
-      } else {
-        // Atualizar última mensagem
-        await supabase
-          .from('conversations')
-          .update({ last_message_at: new Date().toISOString() })
-          .eq('id', existingConv.id);
+      if (contactResponse.ok) {
+        const contacts = await contactResponse.json();
+        if (contacts && contacts.length > 0 && contacts[0].pushName) {
+          realContactName = contacts[0].pushName;
+          console.log(`Real contact name found: ${realContactName}`);
+        }
       }
+    } catch (contactError) {
+      console.error('Error fetching contact name:', contactError);
+      // Continuar com o nome 'Cliente'
+    }
 
-      // Criar mensagem no chat
-      if (conversationId) {
-        await supabase.from('messages').insert({
-          conversation_id: conversationId,
-          sender_type: 'operator',
-          sender_name: 'Sistema',
-          message_text: message,
-          message_status: 'sent',
-        });
+    // Registrar mensagem no chat de atendimento usando telefone NORMALIZADO (sem 55)
+    // Apenas se não for mensagem de operador (skip_message_save = true)
+    if (!skip_message_save) {
+      try {
+        const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+        let conversationId = conversation_id;
+
+        // Buscar ou criar conversa com telefone normalizado (sem 55)
+        if (!conversationId) {
+          const { data: existingConv } = await supabase
+            .from('conversations')
+            .select('*')
+            .eq('customer_phone', normalizedPhone)
+            .maybeSingle();
+
+          if (existingConv) {
+            conversationId = existingConv.id;
+            
+            // Atualizar nome se o novo for melhor que o atual
+            if (realContactName !== 'Cliente' && (!existingConv.customer_name || existingConv.customer_name === 'Cliente')) {
+              await supabase
+                .from('conversations')
+                .update({ 
+                  customer_name: realContactName,
+                  last_message_at: new Date().toISOString() 
+                })
+                .eq('id', conversationId);
+              console.log('Updated conversation name to:', realContactName);
+            } else {
+              // Apenas atualizar última mensagem
+              await supabase
+                .from('conversations')
+                .update({ last_message_at: new Date().toISOString() })
+                .eq('id', existingConv.id);
+            }
+          } else {
+            // Criar nova conversa com nome real
+            const { data: newConv } = await supabase
+              .from('conversations')
+              .insert({
+                customer_phone: normalizedPhone,
+                customer_name: realContactName,
+                status: 'active',
+                last_message_at: new Date().toISOString(),
+              })
+              .select()
+              .single();
+
+            conversationId = newConv?.id;
+            console.log('Created new conversation with name:', realContactName);
+          }
+        }
+
+        // Criar mensagem no chat (apenas para mensagens do bot)
+        if (conversationId) {
+          await supabase.from('messages').insert({
+            conversation_id: conversationId,
+            sender_type: 'agent',
+            sender_name: 'Bot',
+            message_text: message,
+            message_status: 'sent',
+          });
+        }
+      } catch (chatError) {
+        console.error('Erro ao registrar mensagem no chat:', chatError);
+        // Não bloqueia o envio se falhar o registro no chat
       }
-    } catch (chatError) {
-      console.error('Erro ao registrar mensagem no chat:', chatError);
-      // Não bloqueia o envio se falhar o registro no chat
+    } else {
+      console.log('Skipping message save (operator message)');
     }
 
     return new Response(
