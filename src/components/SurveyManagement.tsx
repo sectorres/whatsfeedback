@@ -65,8 +65,13 @@ export function SurveyManagement() {
   }, []);
 
   useEffect(() => {
-    loadSurveyStatus();
-  }, [selectedCampaignId]);
+    // Só carregar se houver busca ou campanha selecionada
+    if (pedidoSearch.trim().length > 0 || selectedCampaignId) {
+      loadSurveyStatus();
+    } else {
+      setItems([]);
+    }
+  }, [selectedCampaignId, pedidoSearch]);
 
   const loadCampaigns = async () => {
     try {
@@ -103,51 +108,66 @@ export function SurveyManagement() {
   };
 
   const loadSurveyStatus = async () => {
+    if (!pedidoSearch.trim() && !selectedCampaignId) {
+      setItems([]);
+      return;
+    }
+    
     setLoading(true);
     try {
-      // Primeiro, buscar dados atualizados da API externa
+      // Buscar dados atualizados da API externa
       const { data: apiData, error: apiError } = await supabase.functions.invoke("fetch-cargas");
       
       if (!apiError && apiData?.retorno?.cargas) {
-        // Atualizar campaign_sends com dados mais recentes da API
         const cargas = apiData.retorno.cargas;
+        const searchTerm = pedidoSearch.toLowerCase().trim();
         
+        // Filtrar e atualizar apenas os pedidos relevantes
         for (const carga of cargas) {
+          const cargaMatch = !searchTerm || carga.id?.toString().includes(searchTerm);
+          
           if (carga.pedidos && Array.isArray(carga.pedidos)) {
             for (const pedido of carga.pedidos) {
-              // Buscar campaign_send existente para este pedido
-              const { data: existingSend } = await supabase
-                .from("campaign_sends")
-                .select("id")
-                .eq("pedido_numero", pedido.pedido)
-                .maybeSingle();
+              const pedidoMatch = !searchTerm || pedido.pedido?.toLowerCase().includes(searchTerm);
+              const clienteMatch = !searchTerm || pedido.cliente?.nome?.toLowerCase().includes(searchTerm);
               
-              if (existingSend) {
-                // Atualizar com dados mais recentes da API
-                await supabase
+              if (cargaMatch || pedidoMatch || clienteMatch) {
+                const { data: existingSend } = await supabase
                   .from("campaign_sends")
-                  .update({
-                    driver_name: carga.nomeMotorista || null,
-                    customer_name: pedido.cliente?.nome || null,
-                  })
-                  .eq("id", existingSend.id);
+                  .select("id")
+                  .eq("pedido_numero", pedido.pedido)
+                  .maybeSingle();
+                
+                if (existingSend) {
+                  await supabase
+                    .from("campaign_sends")
+                    .update({
+                      driver_name: carga.nomeMotorista || null,
+                      customer_name: pedido.cliente?.nome || null,
+                    })
+                    .eq("id", existingSend.id);
+                }
               }
             }
           }
         }
       }
       
-      // Construir query base - TODOS os pedidos de TODAS as cargas (incluindo confirmados e reagendados)
+      // Construir query base
       let query = supabase
         .from('campaign_sends')
         .select('id, customer_name, customer_phone, sent_at, pedido_numero, driver_name, campaign_id')
-        .in('status', ['success', 'sent', 'confirmed', 'reschedule_requested']) // Incluir pedidos após resposta do cliente
+        .in('status', ['success', 'sent', 'confirmed', 'reschedule_requested'])
         .order('sent_at', { ascending: false })
-        .limit(1000);
+        .limit(100); // Reduzir limite
       
-      // Aplicar filtro de carga se selecionado
+      // Aplicar filtros
       if (selectedCampaignId) {
         query = query.eq('campaign_id', selectedCampaignId);
+      }
+      
+      if (pedidoSearch.trim()) {
+        query = query.or(`pedido_numero.ilike.%${pedidoSearch}%,customer_name.ilike.%${pedidoSearch}%`);
       }
       
       const { data: sends, error: sendsError } = await query;
