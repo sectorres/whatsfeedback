@@ -194,40 +194,79 @@ export function SatisfactionSurveys() {
   const loadSurveys = async () => {
     setLoading(true);
     try {
-      let sendsQuery = supabase.from("campaign_sends").select("*");
       if (selectedPedidoId) {
-        sendsQuery = sendsQuery.eq("id", selectedPedidoId);
-      }
-      const {
-        data: sends,
-        error: sendsError
-      } = await sendsQuery;
-      if (sendsError) throw sendsError;
-      const sendIds = sends?.map(s => s.id) || [];
-      const sendsMap: Record<string, CampaignSend> = {};
-      sends?.forEach(send => {
-        sendsMap[send.id] = send;
-      });
-      setCampaignSends(sendsMap);
-      let query = supabase.from("satisfaction_surveys").select("*").in("campaign_send_id", sendIds).not("status", "in", '("cancelled","not_sent")').order("sent_at", {
-        ascending: false
-      });
+        // Filtro por pedido específico
+        const {
+          data: send,
+          error: sendError
+        } = await supabase.from("campaign_sends").select("*").eq("id", selectedPedidoId).single();
+        if (sendError) throw sendError;
+        
+        const sendsMap: Record<string, CampaignSend> = {
+          [send.id]: send
+        };
+        setCampaignSends(sendsMap);
+        
+        let query = supabase.from("satisfaction_surveys").select("*").eq("campaign_send_id", selectedPedidoId).not("status", "in", '("cancelled","not_sent")').order("sent_at", {
+          ascending: false
+        });
 
-      // Aplicar filtros de data se definidos
-      if (dateFrom) {
-        query = query.gte('sent_at', dateFrom.toISOString());
-      }
-      if (dateTo) {
-        const endOfDay = new Date(dateTo);
-        endOfDay.setHours(23, 59, 59, 999);
-        query = query.lte('sent_at', endOfDay.toISOString());
-      }
-      const {
-        data,
-        error
-      } = await query;
-      if (!error && data) {
-        setSurveys(data);
+        // Aplicar filtros de data se definidos
+        if (dateFrom) {
+          query = query.gte('sent_at', dateFrom.toISOString());
+        }
+        if (dateTo) {
+          const endOfDay = new Date(dateTo);
+          endOfDay.setHours(23, 59, 59, 999);
+          query = query.lte('sent_at', endOfDay.toISOString());
+        }
+        
+        const {
+          data,
+          error
+        } = await query;
+        if (!error && data) {
+          setSurveys(data);
+        }
+      } else {
+        // Sem filtro - mostrar todas as surveys enviadas
+        let query = supabase.from("satisfaction_surveys").select("*").not("status", "in", '("cancelled","not_sent")').order("sent_at", {
+          ascending: false
+        });
+
+        // Aplicar filtros de data se definidos
+        if (dateFrom) {
+          query = query.gte('sent_at', dateFrom.toISOString());
+        }
+        if (dateTo) {
+          const endOfDay = new Date(dateTo);
+          endOfDay.setHours(23, 59, 59, 999);
+          query = query.lte('sent_at', endOfDay.toISOString());
+        }
+        
+        const {
+          data,
+          error
+        } = await query;
+        if (!error && data) {
+          setSurveys(data);
+          
+          // Carregar os campaign_sends relacionados
+          const sendIds = data.map(s => s.campaign_send_id);
+          if (sendIds.length > 0) {
+            const {
+              data: sends,
+              error: sendsError
+            } = await supabase.from("campaign_sends").select("*").in("id", sendIds);
+            if (!sendsError && sends) {
+              const sendsMap: Record<string, CampaignSend> = {};
+              sends.forEach(send => {
+                sendsMap[send.id] = send;
+              });
+              setCampaignSends(sendsMap);
+            }
+          }
+        }
       }
     } catch (error) {
       console.error("Erro ao carregar pesquisas:", error);
