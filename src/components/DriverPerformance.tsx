@@ -65,29 +65,13 @@ export function DriverPerformance() {
   const [loadingDriverData, setLoadingDriverData] = useState(false);
   const [generatingInsights, setGeneratingInsights] = useState(false);
   
-  // Estados para filtro de data - primeiro e último dia do mês corrente
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(() => {
-    const date = new Date();
-    date.setDate(1); // Primeiro dia do mês
-    return date;
-  });
-  const [dateTo, setDateTo] = useState<Date | undefined>(() => {
-    const date = new Date();
-    date.setMonth(date.getMonth() + 1, 0); // Último dia do mês
-    return date;
-  });
+  // Estados para filtro de data - sem filtro inicial
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   
-  // Filtros para a aba Feedback - primeiro e último dia do mês corrente
-  const [feedbackDateFrom, setFeedbackDateFrom] = useState<Date | undefined>(() => {
-    const date = new Date();
-    date.setDate(1); // Primeiro dia do mês
-    return date;
-  });
-  const [feedbackDateTo, setFeedbackDateTo] = useState<Date | undefined>(() => {
-    const date = new Date();
-    date.setMonth(date.getMonth() + 1, 0); // Último dia do mês
-    return date;
-  });
+  // Filtros para a aba Feedback - sem filtro inicial
+  const [feedbackDateFrom, setFeedbackDateFrom] = useState<Date | undefined>(undefined);
+  const [feedbackDateTo, setFeedbackDateTo] = useState<Date | undefined>(undefined);
   const [feedbackPedido, setFeedbackPedido] = useState("");
   const [feedbackMotorista, setFeedbackMotorista] = useState("");
   
