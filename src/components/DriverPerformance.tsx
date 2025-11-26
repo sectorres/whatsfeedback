@@ -98,7 +98,6 @@ export function DriverPerformance() {
       }
 
       console.log('DriverPerformance: Envios carregados:', sends?.length);
-      const sendIds = sends?.map(s => s.id) || [];
       
       // Criar mapa de todos os envios
       const sendsMap: Record<string, CampaignSend> = {};
@@ -107,11 +106,11 @@ export function DriverPerformance() {
       });
       setAllCampaignSends(sendsMap);
 
-      // Buscar todas as pesquisas que foram enviadas (excluindo apenas canceladas e não enviadas)
+      // Buscar todas as pesquisas sem filtro de IDs para evitar "Bad Request"
+      // O filtro por .in() com muitos IDs causa erro, então buscamos tudo
       const { data: allSurveysData, error: surveysError } = await supabase
         .from('satisfaction_surveys')
         .select('*')
-        .in('campaign_send_id', sendIds)
         .neq('status', 'cancelled')
         .neq('status', 'not_sent')
         .order('sent_at', { ascending: false });
