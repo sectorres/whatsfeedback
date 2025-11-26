@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,7 @@ export function SurveyManagement() {
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
   const [campaignSearch, setCampaignSearch] = useState<string>("");
   const [pedidoSearch, setPedidoSearch] = useState<string>("");
+  const [debouncedPedidoSearch, setDebouncedPedidoSearch] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -55,6 +56,15 @@ export function SurveyManagement() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
   const sendingRef = useRef(false); // Proteção adicional contra chamadas concorrentes
+
+  // Debounce para busca de pedido
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedPedidoSearch(pedidoSearch);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [pedidoSearch]);
 
   const filteredCampaigns = campaigns.filter(campaign =>
     campaign.name.toLowerCase().includes(campaignSearch.toLowerCase())
@@ -66,7 +76,7 @@ export function SurveyManagement() {
 
   useEffect(() => {
     loadSurveyStatus();
-  }, [selectedCampaignId, pedidoSearch]);
+  }, [selectedCampaignId, debouncedPedidoSearch]);
 
   const loadCampaigns = async () => {
     try {
@@ -105,13 +115,13 @@ export function SurveyManagement() {
   const loadSurveyStatus = async () => {
     setLoading(true);
     try {
-      // Construir query base com limite de 500 registros para performance
+      // Construir query base - TODOS os pedidos de TODAS as cargas
       let query = supabase
         .from('campaign_sends')
         .select('id, customer_name, customer_phone, sent_at, pedido_numero, driver_name, campaign_id')
-        .in('status', ['success', 'sent'])
+        .in('status', ['success', 'sent']) // Apenas envios bem-sucedidos
         .order('sent_at', { ascending: false })
-        .limit(500);
+        .limit(1000); // Aumentado para mostrar mais pedidos
       
       // Aplicar filtro de carga se selecionado
       if (selectedCampaignId) {
@@ -119,8 +129,8 @@ export function SurveyManagement() {
       }
       
       // Aplicar filtro de pedido se informado
-      if (pedidoSearch.trim()) {
-        query = query.ilike('pedido_numero', `%${pedidoSearch.trim()}%`);
+      if (debouncedPedidoSearch.trim()) {
+        query = query.ilike('pedido_numero', `%${debouncedPedidoSearch.trim()}%`);
       }
       
       const { data: sends, error: sendsError } = await query;
@@ -159,25 +169,23 @@ export function SurveyManagement() {
         return acc;
       }, {} as Record<string, any>);
 
-      // Combinar dados e filtrar canceladas
-      const combined = sends
-        .map(send => {
-          const survey = surveysMap[send.id];
-          return {
-            id: survey?.id || send.id,
-            campaign_send_id: send.id,
-            customer_name: send.customer_name,
-            customer_phone: send.customer_phone,
-            status: survey?.status || 'not_sent',
-            sent_at: survey?.sent_at || send.sent_at,
-            responded_at: survey?.responded_at || null,
-            rating: survey?.rating || null,
-            campaign_name: campaignsMap[send.campaign_id] || 'N/A',
-            pedido_numero: send.pedido_numero || 'N/A',
-            driver_name: send.driver_name || 'N/A'
-          };
-        })
-        .filter(item => item.status !== 'cancelled'); // Não mostrar canceladas
+      // Combinar dados - mostrar TODOS os pedidos
+      const combined = sends.map(send => {
+        const survey = surveysMap[send.id];
+        return {
+          id: survey?.id || send.id,
+          campaign_send_id: send.id,
+          customer_name: send.customer_name,
+          customer_phone: send.customer_phone,
+          status: survey?.status || 'not_sent',
+          sent_at: survey?.sent_at || send.sent_at,
+          responded_at: survey?.responded_at || null,
+          rating: survey?.rating || null,
+          campaign_name: campaignsMap[send.campaign_id] || 'N/A',
+          pedido_numero: send.pedido_numero || 'N/A',
+          driver_name: send.driver_name || 'N/A'
+        };
+      });
 
       setItems(combined);
     } catch (error) {
@@ -343,10 +351,15 @@ export function SurveyManagement() {
   };
 
   const toggleAll = () => {
-    if (selectedIds.size === items.length) {
+    // Apenas selecionar pedidos que podem ser enviados
+    const selectableItems = items.filter(
+      item => item.status === 'not_sent' || item.status === 'pending' || item.status === 'failed'
+    );
+    
+    if (selectedIds.size === selectableItems.length && selectableItems.length > 0) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(items.map(item => item.campaign_send_id)));
+      setSelectedIds(new Set(selectableItems.map(item => item.campaign_send_id)));
     }
   };
 
@@ -542,7 +555,10 @@ export function SurveyManagement() {
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={selectedIds.size === items.length && items.length > 0}
+                      checked={
+                        items.filter(i => i.status === 'not_sent' || i.status === 'pending' || i.status === 'failed').length > 0 &&
+                        selectedIds.size === items.filter(i => i.status === 'not_sent' || i.status === 'pending' || i.status === 'failed').length
+                      }
                       onCheckedChange={toggleAll}
                     />
                   </TableHead>
