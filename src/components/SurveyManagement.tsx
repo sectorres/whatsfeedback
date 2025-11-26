@@ -52,6 +52,7 @@ export function SurveyManagement() {
       loadSurveyStatus();
     } else {
       setItems([]);
+      setSelectedIds(new Set());
     }
   }, [searchTerm]);
 
@@ -181,6 +182,12 @@ export function SurveyManagement() {
       });
 
       setItems(combined);
+      
+      // Selecionar automaticamente os pedidos que podem ser enviados
+      const selectableIds = combined
+        .filter(item => item.status === 'not_sent' || item.status === 'pending' || item.status === 'failed')
+        .map(item => item.campaign_send_id);
+      setSelectedIds(new Set(selectableIds));
     } catch (error) {
       console.error('Erro ao carregar status das pesquisas:', error);
       toast({
