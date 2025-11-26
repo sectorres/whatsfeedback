@@ -202,9 +202,6 @@ export function SatisfactionSurveys() {
       }));
 
       setPedidos(pedidosList);
-      if (pedidosList.length > 0 && !selectedPedidoId) {
-        setSelectedPedidoId(pedidosList[0].campaign_send_id);
-      }
     } catch (error) {
       console.error("Erro ao carregar pedidos:", error);
       toast({
