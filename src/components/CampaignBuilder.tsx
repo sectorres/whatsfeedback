@@ -386,15 +386,6 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               pedido_id: pedido.id,
               pedido_numero: pedido.pedido,
               carga_id: selectedCarga.id,
-              pedido_detalhes: {
-                id: pedido.id,
-                pedido: pedido.pedido,
-                notaFiscal: pedido.notaFiscal,
-                valor: pedido.valor,
-                pesoBruto: pedido.pesoBruto,
-                cliente: pedido.cliente,
-                produtos: pedido.produtos,
-              },
             },
           });
 

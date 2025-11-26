@@ -82,38 +82,9 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
 
     setLoading(true);
     try {
-      console.log("OrderDetailsDialog: Iniciando busca do pedido:", pedidoNumero);
+      console.log("OrderDetailsDialog: Buscando pedido na API:", pedidoNumero);
 
-      // Primeiro, tentar buscar os detalhes salvos no campaign_sends
-      const { data: campaignSend, error: campaignError } = await supabase
-        .from('campaign_sends')
-        .select('pedido_detalhes, carga_id, driver_name')
-        .eq('pedido_numero', pedidoNumero)
-        .order('sent_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (!campaignError && campaignSend?.pedido_detalhes) {
-        console.log("OrderDetailsDialog: Detalhes encontrados no banco de dados", campaignSend.pedido_detalhes);
-        
-        // Usar os detalhes salvos
-        const pedidoData = campaignSend.pedido_detalhes as any;
-        setPedido({
-          ...pedidoData,
-          carga: pedidoData.carga || {
-            id: campaignSend.carga_id || 0,
-            motorista: 0,
-            nomeMotorista: campaignSend.driver_name || 'N/A',
-            status: 'N/A',
-          }
-        });
-        setLoading(false);
-        return;
-      }
-
-      console.log("OrderDetailsDialog: Detalhes não encontrados no banco, buscando na API...");
-
-      // Se não encontrou nos detalhes salvos, buscar na API
+      // Buscar direto na API - o pedido sempre estará disponível
       const { data: cargasData, error: cargasError } = await supabase.functions.invoke("fetch-cargas", {
         body: {}
       });
