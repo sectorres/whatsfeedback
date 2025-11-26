@@ -65,13 +65,8 @@ export function SurveyManagement() {
   }, []);
 
   useEffect(() => {
-    // Só carregar se houver busca ou campanha selecionada
-    if (pedidoSearch.trim().length > 0 || selectedCampaignId) {
-      loadSurveyStatus();
-    } else {
-      setItems([]);
-    }
-  }, [selectedCampaignId, pedidoSearch]);
+    loadSurveyStatus();
+  }, [selectedCampaignId]);
 
   const loadCampaigns = async () => {
     try {
@@ -108,66 +103,19 @@ export function SurveyManagement() {
   };
 
   const loadSurveyStatus = async () => {
-    if (!pedidoSearch.trim() && !selectedCampaignId) {
-      setItems([]);
-      return;
-    }
-    
     setLoading(true);
     try {
-      // Buscar dados atualizados da API externa
-      const { data: apiData, error: apiError } = await supabase.functions.invoke("fetch-cargas");
-      
-      if (!apiError && apiData?.retorno?.cargas) {
-        const cargas = apiData.retorno.cargas;
-        const searchTerm = pedidoSearch.toLowerCase().trim();
-        
-        // Filtrar e atualizar apenas os pedidos relevantes
-        for (const carga of cargas) {
-          const cargaMatch = !searchTerm || carga.id?.toString().includes(searchTerm);
-          
-          if (carga.pedidos && Array.isArray(carga.pedidos)) {
-            for (const pedido of carga.pedidos) {
-              const pedidoMatch = !searchTerm || pedido.pedido?.toLowerCase().includes(searchTerm);
-              const clienteMatch = !searchTerm || pedido.cliente?.nome?.toLowerCase().includes(searchTerm);
-              
-              if (cargaMatch || pedidoMatch || clienteMatch) {
-                const { data: existingSend } = await supabase
-                  .from("campaign_sends")
-                  .select("id")
-                  .eq("pedido_numero", pedido.pedido)
-                  .maybeSingle();
-                
-                if (existingSend) {
-                  await supabase
-                    .from("campaign_sends")
-                    .update({
-                      driver_name: carga.nomeMotorista || null,
-                      customer_name: pedido.cliente?.nome || null,
-                    })
-                    .eq("id", existingSend.id);
-                }
-              }
-            }
-          }
-        }
-      }
-      
-      // Construir query base
+      // Construir query base - TODOS os pedidos de TODAS as cargas (incluindo confirmados e reagendados)
       let query = supabase
         .from('campaign_sends')
         .select('id, customer_name, customer_phone, sent_at, pedido_numero, driver_name, campaign_id')
-        .in('status', ['success', 'sent', 'confirmed', 'reschedule_requested'])
+        .in('status', ['success', 'sent', 'confirmed', 'reschedule_requested']) // Incluir pedidos após resposta do cliente
         .order('sent_at', { ascending: false })
-        .limit(100); // Reduzir limite
+        .limit(1000);
       
-      // Aplicar filtros
+      // Aplicar filtro de carga se selecionado
       if (selectedCampaignId) {
         query = query.eq('campaign_id', selectedCampaignId);
-      }
-      
-      if (pedidoSearch.trim()) {
-        query = query.or(`pedido_numero.ilike.%${pedidoSearch}%,customer_name.ilike.%${pedidoSearch}%`);
       }
       
       const { data: sends, error: sendsError } = await query;
