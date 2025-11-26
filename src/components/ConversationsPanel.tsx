@@ -66,6 +66,11 @@ interface CampaignSend {
   carga_id: number | null;
   valor_total: number | null;
   quantidade_itens: number | null;
+  campaign_responses?: Array<{
+    id: string;
+    response_type: string;
+    responded_at: string;
+  }>;
 }
 export function ConversationsPanel({
   isOnAtendimentoTab
@@ -232,7 +237,13 @@ export function ConversationsPanel({
     const {
       data,
       error
-    } = await supabase.from('campaign_sends').select('id, campaign_id, customer_phone, customer_name, message_sent, status, sent_at, pedido_numero, pedido_id, carga_id, valor_total, quantidade_itens').eq('customer_phone', customerPhone).order('sent_at', {
+    } = await supabase.from('campaign_sends').select(`
+      id, campaign_id, customer_phone, customer_name, message_sent, status, sent_at, 
+      pedido_numero, pedido_id, carga_id, valor_total, quantidade_itens,
+      campaign_responses (
+        id, response_type, responded_at
+      )
+    `).eq('customer_phone', customerPhone).order('sent_at', {
       ascending: false
     });
     if (error) {
@@ -880,6 +891,8 @@ export function ConversationsPanel({
               const reschedule = reschedules.find(r => r.campaign_send_id === send.id);
               const isConfirmed = send.status === 'confirmed';
               const isRescheduleRequested = send.status === 'reschedule_requested';
+              const confirmationResponse = send.campaign_responses?.find(r => r.response_type === 'confirmed');
+              const confirmationDate = confirmationResponse?.responded_at || send.sent_at;
               return <div key={send.id} className="bg-background p-3 rounded-lg border space-y-2 cursor-pointer hover:bg-accent transition-colors" onClick={() => {
                 if (send.pedido_numero) {
                   setSelectedOrderNumero(send.pedido_numero);
@@ -912,7 +925,7 @@ export function ConversationsPanel({
                   })}
                         </div>
                         {isConfirmed && <div className="text-xs text-green-600 font-medium">
-                            Confirmado em: {format(new Date(send.sent_at), "dd/MM/yyyy 'às' HH:mm", {
+                            Confirmado em: {format(new Date(confirmationDate), "dd/MM/yyyy 'às' HH:mm", {
                     locale: ptBR
                   })}
                           </div>}
