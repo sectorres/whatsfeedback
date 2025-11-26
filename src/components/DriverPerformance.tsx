@@ -123,12 +123,13 @@ export function DriverPerformance() {
       });
       setAllCampaignSends(sendsMap);
 
-      // Buscar todas as pesquisas (excluindo apenas canceladas e não enviadas)
+      // Buscar todas as pesquisas que foram enviadas (excluindo apenas canceladas e não enviadas)
       const { data: allSurveysData, error: surveysError } = await supabase
         .from('satisfaction_surveys')
         .select('*')
         .in('campaign_send_id', sendIds)
-        .not('status', 'in', '(cancelled,not_sent)')
+        .neq('status', 'cancelled')
+        .neq('status', 'not_sent')
         .order('sent_at', { ascending: false });
 
       if (!surveysError && allSurveysData) {
