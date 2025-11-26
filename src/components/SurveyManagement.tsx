@@ -105,6 +105,38 @@ export function SurveyManagement() {
   const loadSurveyStatus = async () => {
     setLoading(true);
     try {
+      // Primeiro, buscar dados atualizados da API externa
+      const { data: apiData, error: apiError } = await supabase.functions.invoke("fetch-cargas");
+      
+      if (!apiError && apiData?.retorno?.cargas) {
+        // Atualizar campaign_sends com dados mais recentes da API
+        const cargas = apiData.retorno.cargas;
+        
+        for (const carga of cargas) {
+          if (carga.pedidos && Array.isArray(carga.pedidos)) {
+            for (const pedido of carga.pedidos) {
+              // Buscar campaign_send existente para este pedido
+              const { data: existingSend } = await supabase
+                .from("campaign_sends")
+                .select("id")
+                .eq("pedido_numero", pedido.pedido)
+                .maybeSingle();
+              
+              if (existingSend) {
+                // Atualizar com dados mais recentes da API
+                await supabase
+                  .from("campaign_sends")
+                  .update({
+                    driver_name: carga.nomeMotorista || null,
+                    customer_name: pedido.cliente?.nome || null,
+                  })
+                  .eq("id", existingSend.id);
+              }
+            }
+          }
+        }
+      }
+      
       // Construir query base - TODOS os pedidos de TODAS as cargas (incluindo confirmados e reagendados)
       let query = supabase
         .from('campaign_sends')
