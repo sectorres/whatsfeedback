@@ -169,8 +169,9 @@ serve(async (req) => {
           if (existingConv) {
             conversationId = existingConv.id;
             
-            // Atualizar nome se o novo for melhor que o atual
-            if (realContactName !== 'Cliente' && (!existingConv.customer_name || existingConv.customer_name === 'Cliente')) {
+            // SEMPRE atualizar o nome se conseguimos buscar o nome real do WhatsApp
+            // O nome do WhatsApp é sempre mais preciso que o nome da API
+            if (realContactName && realContactName !== 'Cliente') {
               await supabase
                 .from('conversations')
                 .update({ 
