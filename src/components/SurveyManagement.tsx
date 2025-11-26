@@ -47,14 +47,14 @@ export function SurveyManagement() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
   const [campaignSearch, setCampaignSearch] = useState<string>("");
-  const [pedidoSearch, setPedidoSearch] = useState<string>("");
-  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
-  const sendingRef = useRef(false); // Proteção adicional contra chamadas concorrentes
+  const sendingRef = useRef(false);
 
   const filteredCampaigns = campaigns.filter(campaign =>
     campaign.name.toLowerCase().includes(campaignSearch.toLowerCase())
@@ -64,9 +64,14 @@ export function SurveyManagement() {
     loadCampaigns();
   }, []);
 
+  // Buscar pedidos quando searchTerm ou selectedCampaignId mudarem
   useEffect(() => {
-    loadSurveyStatus();
-  }, [selectedCampaignId]);
+    if (searchTerm.trim() || selectedCampaignId) {
+      loadSurveyStatus();
+    } else {
+      setItems([]);
+    }
+  }, [searchTerm, selectedCampaignId]);
 
   const loadCampaigns = async () => {
     try {
@@ -103,19 +108,30 @@ export function SurveyManagement() {
   };
 
   const loadSurveyStatus = async () => {
+    if (!searchTerm.trim() && !selectedCampaignId) {
+      setItems([]);
+      return;
+    }
+
     setLoading(true);
     try {
-      // Construir query base - TODOS os pedidos de TODAS as cargas (incluindo confirmados e reagendados)
+      // Construir query base
       let query = supabase
         .from('campaign_sends')
         .select('id, customer_name, customer_phone, sent_at, pedido_numero, driver_name, campaign_id')
-        .in('status', ['success', 'sent', 'confirmed', 'reschedule_requested']) // Incluir pedidos após resposta do cliente
+        .in('status', ['success', 'sent', 'confirmed', 'reschedule_requested'])
         .order('sent_at', { ascending: false })
-        .limit(1000);
+        .limit(100);
       
-      // Aplicar filtro de carga se selecionado
+      // Aplicar filtros de busca
       if (selectedCampaignId) {
         query = query.eq('campaign_id', selectedCampaignId);
+      }
+      
+      if (searchTerm.trim()) {
+        // Buscar por pedido, nome do cliente
+        const searchLower = searchTerm.toLowerCase();
+        query = query.or(`pedido_numero.ilike.%${searchLower}%,customer_name.ilike.%${searchLower}%`);
       }
       
       const { data: sends, error: sendsError } = await query;
@@ -338,15 +354,8 @@ export function SurveyManagement() {
     setSelectedIds(newSelected);
   };
 
-  // Filtrar pedidos no lado do cliente (sem recarregar página)
-  const filteredItems = useMemo(() => {
-    if (!pedidoSearch.trim()) return items;
-    
-    const searchLower = pedidoSearch.toLowerCase();
-    return items.filter(item => 
-      item.pedido_numero?.toLowerCase().includes(searchLower)
-    );
-  }, [items, pedidoSearch]);
+  // Usar items diretamente sem filtro adicional no cliente
+  const filteredItems = items;
 
   const toggleAll = () => {
     // Apenas selecionar pedidos que podem ser enviados (dos itens filtrados)
@@ -424,15 +433,6 @@ export function SurveyManagement() {
     }
   };
 
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card>
@@ -445,14 +445,14 @@ export function SurveyManagement() {
             </CardDescription>
           </div>
           <div className="flex gap-3 items-end">
-            <div className="w-[280px]">
-              <label className="text-sm font-medium mb-1.5 block">Buscar por Pedido</label>
+            <div className="w-[300px]">
+              <label className="text-sm font-medium mb-1.5 block">Buscar Pedido</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Digite o número do pedido..."
-                  value={pedidoSearch}
-                  onChange={(e) => setPedidoSearch(e.target.value)}
+                  placeholder="Código do pedido, cliente ou carga..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9"
                 />
               </div>
@@ -542,9 +542,13 @@ export function SurveyManagement() {
         </div>
       </CardHeader>
       <CardContent>
-        {filteredItems.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        ) : filteredItems.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            {pedidoSearch.trim() ? 'Nenhum pedido encontrado com esse número' : 'Nenhum envio de campanha encontrado'}
+            {searchTerm.trim() || selectedCampaignId ? 'Nenhum pedido encontrado' : 'Digite um termo de busca para visualizar pedidos'}
           </div>
         ) : (
           <div className="border rounded-lg">
