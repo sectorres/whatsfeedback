@@ -190,7 +190,7 @@ export function ConversationsPanel({
     }
   }, [selectedConversation]);
   const loadConversations = async () => {
-    setLoading(true);
+    // Remover loading para evitar "piscar" na interface
     const {
       data: activeData,
       error: activeError
@@ -225,7 +225,6 @@ export function ConversationsPanel({
     } else {
       setRescheduledConversations(rescheduledData || []);
     }
-    setLoading(false);
   };
   const loadReschedules = async (conversationId: string) => {
     const {
