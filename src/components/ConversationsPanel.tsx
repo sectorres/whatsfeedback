@@ -74,13 +74,12 @@ export function ConversationsPanel({
 }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([]);
-  const [rescheduledConversations, setRescheduledConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [activeTab, setActiveTab] = useState<"active" | "archived" | "rescheduled">("active");
+  const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -203,12 +202,6 @@ export function ConversationsPanel({
     } = await supabase.from('conversations').select('*').eq('status', 'closed').order('last_message_at', {
       ascending: false
     });
-    const {
-      data: rescheduledData,
-      error: rescheduledError
-    } = await supabase.from('conversations').select('*').eq('status', 'rescheduled').order('last_message_at', {
-      ascending: false
-    });
     if (activeError) {
       console.error('Error loading active conversations:', activeError);
       toast.error('Erro ao carregar conversas ativas');
@@ -219,11 +212,6 @@ export function ConversationsPanel({
       console.error('Error loading archived conversations:', archivedError);
     } else {
       setArchivedConversations(archivedData || []);
-    }
-    if (rescheduledError) {
-      console.error('Error loading rescheduled conversations:', rescheduledError);
-    } else {
-      setRescheduledConversations(rescheduledData || []);
     }
   };
   const loadReschedules = async (conversationId: string) => {
@@ -576,17 +564,12 @@ export function ConversationsPanel({
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-        <Tabs value={activeTab} onValueChange={value => setActiveTab(value as "active" | "archived" | "rescheduled")} className="flex flex-col h-full min-h-0">
-          <TabsList className="grid w-full grid-cols-3 mb-2">
+        <Tabs value={activeTab} onValueChange={value => setActiveTab(value as "active" | "archived")} className="flex flex-col h-full min-h-0">
+          <TabsList className="grid w-full grid-cols-2 mb-2">
             <TabsTrigger value="active" className="gap-1 text-xs">
               <MessageCircle className="h-3 w-3" />
               Ativas
               <Badge variant="secondary" className="text-xs">{conversations.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="rescheduled" className="gap-1 text-xs">
-              <Calendar className="h-3 w-3" />
-              Reagendadas
-              <Badge variant="secondary" className="text-xs">{rescheduledConversations.length}</Badge>
             </TabsTrigger>
             <TabsTrigger value="archived" className="gap-1 text-xs">
               <Archive className="h-3 w-3" />
@@ -652,36 +635,6 @@ export function ConversationsPanel({
                     addSuffix: true,
                     locale: ptBR
                   })}
-                      </div>
-                    </div>
-                  </div>)}
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent value="rescheduled" className="mt-0 flex-1 min-h-0">
-            <ScrollArea className="h-full">
-              {loading ? <div className="flex justify-center p-4">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                </div> : rescheduledConversations.length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
-                  Nenhuma conversa reagendada
-                </p> : rescheduledConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
-                    <div className="flex items-start gap-2 justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <div className="font-medium text-sm">{conv.customer_name || conv.customer_phone}</div>
-                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs h-5">
-                            Reagendado
-                          </Badge>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {conv.customer_phone}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {formatDistanceToNow(new Date(conv.last_message_at), {
-                      addSuffix: true,
-                      locale: ptBR
-                    })}
-                        </div>
                       </div>
                     </div>
                   </div>)}
