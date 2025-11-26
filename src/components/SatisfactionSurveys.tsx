@@ -55,7 +55,9 @@ export function SatisfactionSurveys() {
   const [selectedPedidoId, setSelectedPedidoId] = useState<string>("");
   const [pedidoSearch, setPedidoSearch] = useState<string>("");
   const [surveys, setSurveys] = useState<Survey[]>([]);
+  const [allSurveys, setAllSurveys] = useState<Survey[]>([]);
   const [campaignSends, setCampaignSends] = useState<Record<string, CampaignSend>>({});
+  const [allCampaignSends, setAllCampaignSends] = useState<Record<string, CampaignSend>>({});
   const [loading, setLoading] = useState(false);
   const [sendingSurveys, setSendingSurveys] = useState(false);
   const [showManagementDialog, setShowManagementDialog] = useState(false);
@@ -79,13 +81,9 @@ export function SatisfactionSurveys() {
   } = useToast();
   const filteredPedidos = pedidos.filter(pedido => pedido.pedido_numero.toLowerCase().includes(pedidoSearch.toLowerCase()) || pedido.customer_name && pedido.customer_name.toLowerCase().includes(pedidoSearch.toLowerCase()));
   useEffect(() => {
-    // Só carregar se houver busca ativa
-    if (pedidoSearch.trim().length > 0) {
-      loadPedidos();
-    } else {
-      setPedidos([]);
-    }
-  }, [pedidoSearch]);
+    loadPedidos();
+    loadAllDriverData();
+  }, []);
   
   useEffect(() => {
     loadSurveys();
@@ -144,75 +142,80 @@ export function SatisfactionSurveys() {
     };
   }, []);
   const loadPedidos = async () => {
-    if (!pedidoSearch.trim()) {
-      setPedidos([]);
-      return;
-    }
-    
     try {
-      setLoading(true);
-      
-      // Buscar dados atualizados da API externa com filtro
+      // Primeiro, buscar dados atualizados da API externa
       const { data: apiData, error: apiError } = await supabase.functions.invoke("fetch-cargas");
       
-      let matchingPedidos: PedidoItem[] = [];
-      
       if (!apiError && apiData?.retorno?.cargas) {
+        // Atualizar campaign_sends com dados mais recentes da API
         const cargas = apiData.retorno.cargas;
-        const searchTerm = pedidoSearch.toLowerCase().trim();
         
-        // Filtrar cargas e pedidos que correspondem à busca
         for (const carga of cargas) {
-          const cargaMatch = carga.id?.toString().includes(searchTerm);
-          
           if (carga.pedidos && Array.isArray(carga.pedidos)) {
             for (const pedido of carga.pedidos) {
-              const pedidoMatch = pedido.pedido?.toLowerCase().includes(searchTerm);
-              const clienteMatch = pedido.cliente?.nome?.toLowerCase().includes(searchTerm);
+              // Buscar campaign_send existente para este pedido
+              const { data: existingSend } = await supabase
+                .from("campaign_sends")
+                .select("id")
+                .eq("pedido_numero", pedido.pedido)
+                .maybeSingle();
               
-              // Se houver match, atualizar/criar no banco
-              if (cargaMatch || pedidoMatch || clienteMatch) {
-                const { data: existingSend } = await supabase
+              if (existingSend) {
+                // Atualizar com dados mais recentes da API
+                await supabase
                   .from("campaign_sends")
-                  .select("id, pedido_numero, customer_name, carga_id, sent_at")
-                  .eq("pedido_numero", pedido.pedido)
-                  .maybeSingle();
-                
-                if (existingSend) {
-                  // Atualizar com dados da API
-                  await supabase
-                    .from("campaign_sends")
-                    .update({
-                      driver_name: carga.nomeMotorista || null,
-                      customer_name: pedido.cliente?.nome || null,
-                    })
-                    .eq("id", existingSend.id);
-                  
-                  // Verificar se já tem survey enviada
-                  const { data: survey } = await supabase
-                    .from("satisfaction_surveys")
-                    .select("campaign_send_id, status")
-                    .eq("campaign_send_id", existingSend.id)
-                    .maybeSingle();
-                  
-                  const sentStatuses = ["sent", "awaiting_feedback", "responded", "expired"];
-                  
-                  matchingPedidos.push({
-                    pedido_numero: existingSend.pedido_numero || "N/A",
-                    campaign_send_id: existingSend.id,
-                    customer_name: existingSend.customer_name,
-                    carga_id: existingSend.carga_id,
-                    sent_at: existingSend.sent_at,
-                    survey_sent: survey ? sentStatuses.includes(survey.status) : false
-                  });
-                }
+                  .update({
+                    driver_name: carga.nomeMotorista || null,
+                    customer_name: pedido.cliente?.nome || null,
+                  })
+                  .eq("id", existingSend.id);
               }
             }
           }
         }
       }
       
-      setPedidos(matchingPedidos);
+      // Agora buscar os pedidos atualizados do banco de dados
+      const {
+        data: sendsData,
+        error: sendsError
+      } = await supabase.from("campaign_sends").select("id, pedido_numero, customer_name, carga_id, sent_at").in("status", ["success", "sent"]).not("pedido_numero", "is", null).order("sent_at", {
+        ascending: false
+      });
+      if (sendsError) {
+        console.error("Erro ao buscar pedidos:", sendsError);
+        toast({
+          title: "Erro ao carregar pedidos",
+          description: sendsError.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      const sendIds = (sendsData || []).map(s => s.id);
+      const {
+        data: existingSurveys,
+        error: surveysError
+      } = await supabase.from("satisfaction_surveys").select("campaign_send_id, status").in("campaign_send_id", sendIds);
+      if (surveysError) {
+        console.error("Erro ao buscar pesquisas:", surveysError);
+        toast({
+          title: "Erro ao carregar pedidos",
+          description: surveysError.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      const sentStatuses = ["sent", "awaiting_feedback", "responded", "expired"];
+      const sentSurveyIds = new Set((existingSurveys || []).filter(s => sentStatuses.includes(s.status)).map(s => s.campaign_send_id));
+      const pedidosList: PedidoItem[] = (sendsData || []).map(send => ({
+        pedido_numero: send.pedido_numero || "N/A",
+        campaign_send_id: send.id,
+        customer_name: send.customer_name,
+        carga_id: send.carga_id,
+        sent_at: send.sent_at,
+        survey_sent: sentSurveyIds.has(send.id)
+      }));
+      setPedidos(pedidosList);
     } catch (error) {
       console.error("Erro ao carregar pedidos:", error);
       toast({
@@ -220,10 +223,36 @@ export function SatisfactionSurveys() {
         description: "Ocorreu um erro inesperado",
         variant: "destructive"
       });
-    } finally {
-      setLoading(false);
     }
   };
+  
+  const loadAllDriverData = async () => {
+    try {
+      const {
+        data: sends,
+        error: sendsError
+      } = await supabase.from("campaign_sends").select("*");
+      if (sendsError) throw sendsError;
+      const sendIds = sends?.map(s => s.id) || [];
+      const sendsMap: Record<string, CampaignSend> = {};
+      sends?.forEach(send => {
+        sendsMap[send.id] = send;
+      });
+      setAllCampaignSends(sendsMap);
+      const {
+        data: allSurveysData,
+        error: surveysError
+      } = await supabase.from("satisfaction_surveys").select("*").in("campaign_send_id", sendIds).not("status", "in", '("cancelled","not_sent")').order("sent_at", {
+        ascending: false
+      });
+      if (!surveysError && allSurveysData) {
+        setAllSurveys(allSurveysData);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar dados de motoristas:", error);
+    }
+  };
+  
   const loadSurveys = async () => {
     setLoading(true);
     try {
