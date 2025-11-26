@@ -57,6 +57,25 @@ serve(async (req) => {
 
     const data = await response.json();
     console.log('Successfully fetched cargas:', data.status);
+    
+    if (data.retorno?.cargas) {
+      console.log('Total de cargas retornadas:', data.retorno.cargas.length);
+      
+      // Log dos IDs das primeiras e últimas cargas
+      const cargas = data.retorno.cargas;
+      if (cargas.length > 0) {
+        console.log('Primeiras 5 cargas:', cargas.slice(0, 5).map((c: any) => ({ id: c.id, data: c.data })));
+        console.log('Últimas 5 cargas:', cargas.slice(-5).map((c: any) => ({ id: c.id, data: c.data })));
+        
+        // Procurar especificamente pela carga 220009
+        const carga220009 = cargas.find((c: any) => c.id === 220009);
+        if (carga220009) {
+          console.log('CARGA 220009 ENCONTRADA:', carga220009);
+        } else {
+          console.log('CARGA 220009 NÃO ENCONTRADA no retorno da API');
+        }
+      }
+    }
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
