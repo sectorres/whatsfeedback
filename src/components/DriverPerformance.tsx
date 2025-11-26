@@ -98,7 +98,9 @@ export function DriverPerformance() {
       }
 
       console.log('DriverPerformance: Envios carregados:', sends?.length);
+      console.log('DriverPerformance: Primeiros 3 IDs de envios:', sends?.slice(0, 3).map(s => s.id));
       const sendIds = sends?.map(s => s.id) || [];
+      console.log('DriverPerformance: Total de sendIds:', sendIds.length);
       
       // Criar mapa de todos os envios
       const sendsMap: Record<string, CampaignSend> = {};
@@ -107,13 +109,18 @@ export function DriverPerformance() {
       });
       setAllCampaignSends(sendsMap);
 
-      // Buscar todas as pesquisas que foram enviadas (excluindo apenas canceladas e não enviadas)
+      // Se não há envios, não há o que buscar
+      if (sendIds.length === 0) {
+        console.log('DriverPerformance: Nenhum envio encontrado, pulando busca de surveys');
+        setAllSurveys([]);
+        return;
+      }
+
+      // Buscar todas as pesquisas - sem filtro de status problemático
+      console.log('DriverPerformance: Buscando surveys...');
       const { data: allSurveysData, error: surveysError } = await supabase
         .from('satisfaction_surveys')
         .select('*')
-        .in('campaign_send_id', sendIds)
-        .neq('status', 'cancelled')
-        .neq('status', 'not_sent')
         .order('sent_at', { ascending: false });
 
       if (!surveysError && allSurveysData) {
