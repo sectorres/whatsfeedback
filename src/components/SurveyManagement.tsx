@@ -105,13 +105,13 @@ export function SurveyManagement() {
   const loadSurveyStatus = async () => {
     setLoading(true);
     try {
-      // Construir query base - TODOS os pedidos de TODAS as cargas
+      // Construir query base - TODOS os pedidos de TODAS as cargas (incluindo confirmados e reagendados)
       let query = supabase
         .from('campaign_sends')
         .select('id, customer_name, customer_phone, sent_at, pedido_numero, driver_name, campaign_id')
-        .in('status', ['success', 'sent']) // Apenas envios bem-sucedidos
+        .in('status', ['success', 'sent', 'confirmed', 'reschedule_requested']) // Incluir pedidos após resposta do cliente
         .order('sent_at', { ascending: false })
-        .limit(1000); // Aumentado para mostrar mais pedidos
+        .limit(1000);
       
       // Aplicar filtro de carga se selecionado
       if (selectedCampaignId) {
