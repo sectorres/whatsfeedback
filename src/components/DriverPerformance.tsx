@@ -349,7 +349,11 @@ export function DriverPerformance() {
   // Filtrar TODAS as surveys por data para indicadores de motorista
   const filteredSurveysByDate = allSurveys.filter(survey => {
     if (!dateFrom && !dateTo) return true;
-    const surveyDate = new Date(survey.sent_at);
+    
+    // Usar responded_at se disponível, caso contrário sent_at
+    const surveyDate = survey.responded_at 
+      ? new Date(survey.responded_at)
+      : new Date(survey.sent_at);
     
     if (dateFrom && dateTo) {
       const endDate = new Date(dateTo);
@@ -368,6 +372,7 @@ export function DriverPerformance() {
   });
 
   console.log('DriverPerformance: Surveys após filtro de data:', filteredSurveysByDate.length);
+  console.log('DriverPerformance: Surveys com rating:', filteredSurveysByDate.filter(s => s.rating !== null).length);
   console.log('DriverPerformance: Filtros aplicados - dateFrom:', dateFrom, 'dateTo:', dateTo);
 
   // Calcular indicadores por motorista usando TODAS as surveys (filtradas por data)
