@@ -166,6 +166,7 @@ export type Database = {
           error_message: string | null
           id: string
           message_sent: string
+          pedido_detalhes: Json | null
           pedido_id: number | null
           pedido_numero: string | null
           peso_total: number | null
@@ -186,6 +187,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           message_sent: string
+          pedido_detalhes?: Json | null
           pedido_id?: number | null
           pedido_numero?: string | null
           peso_total?: number | null
@@ -206,6 +208,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           message_sent?: string
+          pedido_detalhes?: Json | null
           pedido_id?: number | null
           pedido_numero?: string | null
           peso_total?: number | null
