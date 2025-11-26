@@ -115,6 +115,56 @@ export function SurveyManagement() {
 
     setLoading(true);
     try {
+      // Se houver busca por pedido específico, atualizar dados da API primeiro
+      if (searchTerm.trim()) {
+        console.log('Buscando dados atualizados da API para:', searchTerm);
+        
+        try {
+          // Buscar cargas da API para atualizar dados
+          const { data: apiData, error: apiError } = await supabase.functions.invoke('fetch-cargas', {
+            body: {}
+          });
+
+          if (!apiError && apiData?.retorno?.cargas) {
+            // Procurar o pedido específico em todas as cargas
+            for (const carga of apiData.retorno.cargas) {
+              if (carga.pedidos) {
+                for (const pedido of carga.pedidos) {
+                  const pedidoNumero = pedido.pedido;
+                  
+                  // Se o pedido corresponde à busca, atualizar no banco
+                  if (pedidoNumero && pedidoNumero.toLowerCase().includes(searchTerm.toLowerCase())) {
+                    console.log('Pedido encontrado na API, atualizando:', pedidoNumero);
+                    
+                    // Buscar o campaign_send existente
+                    const { data: existingSends } = await supabase
+                      .from('campaign_sends')
+                      .select('id')
+                      .eq('pedido_numero', pedidoNumero);
+                    
+                    if (existingSends && existingSends.length > 0) {
+                      // Atualizar com dados da API
+                      await supabase
+                        .from('campaign_sends')
+                        .update({
+                          driver_name: carga.nomeMotorista || 'N/A',
+                          customer_name: pedido.cliente?.nome || 'N/A'
+                        })
+                        .eq('id', existingSends[0].id);
+                      
+                      console.log('Dados atualizados para pedido:', pedidoNumero);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch (apiErr) {
+          console.error('Erro ao buscar dados da API:', apiErr);
+          // Continuar mesmo se a API falhar
+        }
+      }
+
       // Construir query base
       let query = supabase
         .from('campaign_sends')
