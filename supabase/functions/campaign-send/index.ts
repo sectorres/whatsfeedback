@@ -32,6 +32,7 @@ const campaignSendSchema = z.object({
   pedido_id: z.number().int().positive().nullish(),
   pedido_numero: z.string().max(50).nullish(),
   carga_id: z.number().int().positive().nullish(),
+  pedido_detalhes: z.any().nullish(), // Detalhes completos do pedido (cliente, produtos, etc)
 });
 
 const corsHeaders = {
@@ -79,6 +80,7 @@ serve(async (req) => {
       pedido_id,
       pedido_numero,
       carga_id,
+      pedido_detalhes,
     } = validationResult.data;
 
     if (!campaignId || !customerPhone || !message) {
@@ -120,6 +122,7 @@ serve(async (req) => {
         pedido_id: pedido_id ?? null,
         pedido_numero: pedido_numero ?? null,
         carga_id: carga_id ?? null,
+        pedido_detalhes: pedido_detalhes ?? null,
       })
       .select()
       .single();

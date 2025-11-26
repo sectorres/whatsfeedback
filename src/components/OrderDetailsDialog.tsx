@@ -84,7 +84,36 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
     try {
       console.log("OrderDetailsDialog: Iniciando busca do pedido:", pedidoNumero);
 
-      // Buscar todas as cargas para encontrar o pedido pelo número
+      // Primeiro, tentar buscar os detalhes salvos no campaign_sends
+      const { data: campaignSend, error: campaignError } = await supabase
+        .from('campaign_sends')
+        .select('pedido_detalhes, carga_id, driver_name')
+        .eq('pedido_numero', pedidoNumero)
+        .order('sent_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!campaignError && campaignSend?.pedido_detalhes) {
+        console.log("OrderDetailsDialog: Detalhes encontrados no banco de dados", campaignSend.pedido_detalhes);
+        
+        // Usar os detalhes salvos
+        const pedidoData = campaignSend.pedido_detalhes as any;
+        setPedido({
+          ...pedidoData,
+          carga: pedidoData.carga || {
+            id: campaignSend.carga_id || 0,
+            motorista: 0,
+            nomeMotorista: campaignSend.driver_name || 'N/A',
+            status: 'N/A',
+          }
+        });
+        setLoading(false);
+        return;
+      }
+
+      console.log("OrderDetailsDialog: Detalhes não encontrados no banco, buscando na API...");
+
+      // Se não encontrou nos detalhes salvos, buscar na API
       const { data: cargasData, error: cargasError } = await supabase.functions.invoke("fetch-cargas", {
         body: {}
       });
@@ -137,7 +166,7 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
           setPedido(foundPedido);
         } else {
           console.error("OrderDetailsDialog: Pedido não encontrado. Número buscado:", pedidoNumero);
-          toast.error(`Pedido ${pedidoNumero} não encontrado nas cargas atuais`);
+          toast.error(`Pedido ${pedidoNumero} não encontrado. O pedido pode já ter sido entregue ou estar fora do período disponível.`);
         }
       } else {
         console.error("OrderDetailsDialog: Estrutura de dados inválida:", cargasData);
