@@ -128,7 +128,7 @@ export function DriverPerformance() {
         .from('satisfaction_surveys')
         .select('*')
         .in('campaign_send_id', sendIds)
-        .not('status', 'in', '("cancelled","not_sent")')
+        .not('status', 'in', '(cancelled,not_sent)')
         .order('sent_at', { ascending: false });
 
       if (!surveysError && allSurveysData) {
