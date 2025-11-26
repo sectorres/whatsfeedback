@@ -9,9 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,16 +35,8 @@ interface SurveyManagementItem {
   driver_name?: string;
 }
 
-interface Campaign {
-  id: string;
-  name: string;
-}
-
 export function SurveyManagement() {
   const [items, setItems] = useState<SurveyManagementItem[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
-  const [campaignSearch, setCampaignSearch] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -56,59 +46,17 @@ export function SurveyManagement() {
   const { toast } = useToast();
   const sendingRef = useRef(false);
 
-  const filteredCampaigns = campaigns.filter(campaign =>
-    campaign.name.toLowerCase().includes(campaignSearch.toLowerCase())
-  );
-
+  // Buscar pedidos quando searchTerm mudar
   useEffect(() => {
-    loadCampaigns();
-  }, []);
-
-  // Buscar pedidos quando searchTerm ou selectedCampaignId mudarem
-  useEffect(() => {
-    if (searchTerm.trim() || selectedCampaignId) {
+    if (searchTerm.trim()) {
       loadSurveyStatus();
     } else {
       setItems([]);
     }
-  }, [searchTerm, selectedCampaignId]);
-
-  const loadCampaigns = async () => {
-    try {
-      const { data: sendsData, error: sendsError } = await supabase
-        .from('campaign_sends')
-        .select('campaign_id');
-
-      if (sendsError) throw sendsError;
-
-      const campaignIds = [...new Set(sendsData?.map(s => s.campaign_id) || [])];
-
-      if (campaignIds.length === 0) {
-        setCampaigns([]);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from('campaigns')
-        .select('id, name')
-        .in('id', campaignIds)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setCampaigns(data || []);
-    } catch (error) {
-      console.error('Erro ao carregar campanhas:', error);
-      toast({
-        title: "Erro ao carregar campanhas",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
+  }, [searchTerm]);
 
   const loadSurveyStatus = async () => {
-    if (!searchTerm.trim() && !selectedCampaignId) {
+    if (!searchTerm.trim()) {
       setItems([]);
       return;
     }
@@ -166,23 +114,14 @@ export function SurveyManagement() {
       }
 
       // Construir query base
-      let query = supabase
+      const searchLower = searchTerm.toLowerCase();
+      const query = supabase
         .from('campaign_sends')
         .select('id, customer_name, customer_phone, sent_at, pedido_numero, driver_name, campaign_id')
         .in('status', ['success', 'sent', 'confirmed', 'reschedule_requested'])
+        .or(`pedido_numero.ilike.%${searchLower}%,customer_name.ilike.%${searchLower}%`)
         .order('sent_at', { ascending: false })
         .limit(100);
-      
-      // Aplicar filtros de busca
-      if (selectedCampaignId) {
-        query = query.eq('campaign_id', selectedCampaignId);
-      }
-      
-      if (searchTerm.trim()) {
-        // Buscar por pedido, nome do cliente
-        const searchLower = searchTerm.toLowerCase();
-        query = query.or(`pedido_numero.ilike.%${searchLower}%,customer_name.ilike.%${searchLower}%`);
-      }
       
       const { data: sends, error: sendsError } = await query;
 
@@ -500,56 +439,12 @@ export function SurveyManagement() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Código do pedido, cliente ou carga..."
+                  placeholder="Código do pedido ou cliente..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9"
                 />
               </div>
-            </div>
-            <div className="w-[280px]">
-              <label className="text-sm font-medium mb-1.5 block">Filtrar por Carga</label>
-              <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Todas as cargas" />
-                </SelectTrigger>
-                <SelectContent 
-                  className="bg-background z-50" 
-                  onCloseAutoFocus={(e) => e.preventDefault()}
-                  side="bottom"
-                  align="start"
-                  sideOffset={4}
-                  position="popper"
-                >
-                  <div className="p-2 border-b bg-background" onPointerDown={(e) => e.stopPropagation()}>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                      <Input
-                        placeholder="Buscar campanha..."
-                        value={campaignSearch}
-                        onChange={(e) => setCampaignSearch(e.target.value)}
-                        className="pl-9 h-9"
-                        onKeyDown={(e) => {
-                          e.stopPropagation();
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <ScrollArea className="h-[200px]">
-                    {filteredCampaigns.length === 0 ? (
-                      <div className="p-4 text-center text-sm text-muted-foreground">
-                        Nenhuma campanha encontrada
-                      </div>
-                    ) : (
-                      filteredCampaigns.map((campaign) => (
-                        <SelectItem key={campaign.id} value={campaign.id}>
-                          {campaign.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </ScrollArea>
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <div className="flex gap-2">
@@ -598,7 +493,7 @@ export function SurveyManagement() {
           </div>
         ) : filteredItems.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            {searchTerm.trim() || selectedCampaignId ? 'Nenhum pedido encontrado' : 'Digite um termo de busca para visualizar pedidos'}
+            {searchTerm.trim() ? 'Nenhum pedido encontrado' : 'Digite um termo de busca para visualizar pedidos'}
           </div>
         ) : (
           <div className="border rounded-lg">
