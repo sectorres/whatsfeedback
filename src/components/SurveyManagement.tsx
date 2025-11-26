@@ -139,20 +139,23 @@ export function SurveyManagement() {
         return acc;
       }, {} as Record<string, string>);
 
-      // Buscar surveys existentes apenas para os sends retornados
-      const sendIds = sends.map(s => s.id);
+      // Buscar surveys existentes - sem filtrar por IDs para evitar URL muito longa
       const { data: surveys, error: surveysError } = await supabase
         .from('satisfaction_surveys')
         .select('campaign_send_id, id, status, sent_at, responded_at, rating')
-        .in('campaign_send_id', sendIds);
+        .not('status', 'in', '("cancelled","not_sent")')
+        .order('sent_at', { ascending: false });
 
       if (surveysError) throw surveysError;
 
-      // Criar mapa de surveys
-      const surveysMap = (surveys || []).reduce((acc, survey) => {
-        acc[survey.campaign_send_id] = survey;
-        return acc;
-      }, {} as Record<string, any>);
+      // Criar mapa de surveys e filtrar apenas as relevantes para os sends atuais
+      const sendIdsSet = new Set(sends.map(s => s.id));
+      const surveysMap = (surveys || [])
+        .filter(survey => sendIdsSet.has(survey.campaign_send_id))
+        .reduce((acc, survey) => {
+          acc[survey.campaign_send_id] = survey;
+          return acc;
+        }, {} as Record<string, any>);
 
       // Combinar dados - mostrar TODOS os pedidos
       const combined = sends.map(send => {
