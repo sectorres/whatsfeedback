@@ -13,18 +13,19 @@ import { Progress } from "@/components/ui/progress";
 import { SurveyManagement } from "@/components/SurveyManagement";
 import { getProgressiveDelay } from "./SendDelayConfig";
 import { Input } from "@/components/ui/input";
-import { CargaSelectionDialog } from "@/components/CargaSelectionDialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
-interface Campaign {
-  id: string;
-  name: string;
-  status: string;
-  sent_count: number;
+interface PedidoItem {
+  pedido_numero: string;
+  campaign_send_id: string;
+  customer_name: string | null;
+  carga_id: number | null;
+  sent_at: string;
+  survey_sent: boolean;
 }
 
 interface Survey {
@@ -55,9 +56,9 @@ interface CampaignSend {
 }
 
 export function SatisfactionSurveys() {
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
-  const [campaignSearch, setCampaignSearch] = useState<string>("");
+  const [pedidos, setPedidos] = useState<PedidoItem[]>([]);
+  const [selectedPedidoId, setSelectedPedidoId] = useState<string>("");
+  const [pedidoSearch, setPedidoSearch] = useState<string>("");
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [allSurveys, setAllSurveys] = useState<Survey[]>([]);
   const [campaignSends, setCampaignSends] = useState<Record<string, CampaignSend>>({});
@@ -68,7 +69,6 @@ export function SatisfactionSurveys() {
   const [showManagementDialog, setShowManagementDialog] = useState(false);
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
   const [surveyCountdown, setSurveyCountdown] = useState<number>(0);
-  const [showCargaSelection, setShowCargaSelection] = useState(false);
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const pollTimerRef = useRef<number | null>(null);
@@ -80,20 +80,21 @@ export function SatisfactionSurveys() {
 
   const { toast } = useToast();
 
-  const filteredCampaigns = campaigns.filter((campaign) =>
-    campaign.name.toLowerCase().includes(campaignSearch.toLowerCase()),
+  const filteredPedidos = pedidos.filter((pedido) =>
+    pedido.pedido_numero.toLowerCase().includes(pedidoSearch.toLowerCase()) ||
+    (pedido.customer_name && pedido.customer_name.toLowerCase().includes(pedidoSearch.toLowerCase()))
   );
 
   useEffect(() => {
-    loadCampaigns();
+    loadPedidos();
     loadAllDriverData();
   }, []);
 
   useEffect(() => {
-    if (selectedCampaignId) {
+    if (selectedPedidoId) {
       loadSurveys();
     }
-  }, [selectedCampaignId, dateFrom, dateTo]);
+  }, [selectedPedidoId, dateFrom, dateTo]);
 
   const handleAbortSurveys = async () => {
     if (!currentRunIdRef.current) {
@@ -150,24 +151,25 @@ export function SatisfactionSurveys() {
     };
   }, []);
 
-  const loadCampaigns = async () => {
+  const loadPedidos = async () => {
     try {
       const { data: sendsData, error: sendsError } = await supabase
         .from("campaign_sends")
-        .select("id, campaign_id")
-        .in("status", ["success", "sent"]);
+        .select("id, pedido_numero, customer_name, carga_id, sent_at")
+        .in("status", ["success", "sent"])
+        .not("pedido_numero", "is", null)
+        .order("sent_at", { ascending: false });
 
       if (sendsError) {
-        console.error("Erro ao buscar envios:", sendsError);
+        console.error("Erro ao buscar pedidos:", sendsError);
         toast({
-          title: "Erro ao carregar campanhas",
+          title: "Erro ao carregar pedidos",
           description: sendsError.message,
           variant: "destructive",
         });
         return;
       }
 
-      console.log("Total de sends com sucesso:", sendsData?.length || 0);
       const sendIds = (sendsData || []).map((s) => s.id);
 
       const { data: existingSurveys, error: surveysError } = await supabase
@@ -178,61 +180,35 @@ export function SatisfactionSurveys() {
       if (surveysError) {
         console.error("Erro ao buscar pesquisas:", surveysError);
         toast({
-          title: "Erro ao carregar campanhas",
+          title: "Erro ao carregar pedidos",
           description: surveysError.message,
           variant: "destructive",
         });
         return;
       }
 
-      console.log("Total de pesquisas encontradas:", existingSurveys?.length || 0);
-
-      // Status que indicam que a pesquisa foi processada (não está mais pendente)
-      const processedStatuses = ["pending", "sent", "awaiting_feedback", "responded", "expired", "cancelled", "failed"];
-      const processedSendIds = new Set(
-        (existingSurveys || []).filter((s) => processedStatuses.includes(s.status)).map((s) => s.campaign_send_id),
+      const sentStatuses = ["sent", "awaiting_feedback", "responded", "expired"];
+      const sentSurveyIds = new Set(
+        (existingSurveys || []).filter((s) => sentStatuses.includes(s.status)).map((s) => s.campaign_send_id)
       );
 
-      console.log("Sends processados:", processedSendIds.size);
-      const pendingSends = (sendsData || []).filter((send) => !processedSendIds.has(send.id));
-      console.log("Sends pendentes:", pendingSends.length);
+      const pedidosList: PedidoItem[] = (sendsData || []).map((send) => ({
+        pedido_numero: send.pedido_numero || "N/A",
+        campaign_send_id: send.id,
+        customer_name: send.customer_name,
+        carga_id: send.carga_id,
+        sent_at: send.sent_at,
+        survey_sent: sentSurveyIds.has(send.id),
+      }));
 
-      const campaignIds = [...new Set(pendingSends.map((s) => s.campaign_id))];
-
-      if (campaignIds.length === 0) {
-        console.log("Nenhuma campanha com envios pendentes encontrada");
-        setCampaigns([]);
-        setSelectedCampaignId("");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("campaigns")
-        .select("*")
-        .in("id", campaignIds)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Erro ao buscar campanhas:", error);
-        toast({
-          title: "Erro ao carregar campanhas",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log("Campanhas com envios pendentes:", data?.length || 0);
-      setCampaigns(data || []);
-      if (data && data.length > 0 && !selectedCampaignId) {
-        setSelectedCampaignId(data[0].id);
-      } else if (data && data.length === 0) {
-        setSelectedCampaignId("");
+      setPedidos(pedidosList);
+      if (pedidosList.length > 0 && !selectedPedidoId) {
+        setSelectedPedidoId(pedidosList[0].campaign_send_id);
       }
     } catch (error) {
-      console.error("Erro ao carregar campanhas:", error);
+      console.error("Erro ao carregar pedidos:", error);
       toast({
-        title: "Erro ao carregar campanhas",
+        title: "Erro ao carregar pedidos",
         description: "Ocorreu um erro inesperado",
         variant: "destructive",
       });
@@ -245,7 +221,7 @@ export function SatisfactionSurveys() {
       const { data: sends, error: sendsError } = await supabase
         .from("campaign_sends")
         .select("*")
-        .eq("campaign_id", selectedCampaignId);
+        .eq("id", selectedPedidoId);
 
       if (sendsError) throw sendsError;
 
@@ -315,28 +291,20 @@ export function SatisfactionSurveys() {
     }
   };
 
-  const handleSendSurveysClick = () => {
-    if (!selectedCampaignId) {
+  const handleSendSurveysClick = async () => {
+    if (!selectedPedidoId) {
       toast({
-        title: "Nenhuma campanha selecionada",
-        description: "Selecione uma campanha antes de enviar pesquisas",
+        title: "Nenhum pedido selecionado",
+        description: "Selecione um pedido antes de enviar pesquisas",
         variant: "destructive",
       });
       return;
     }
-    setShowCargaSelection(true);
+    await sendSurveyForPedido(selectedPedidoId);
   };
 
-  const handleCargaSelected = async (campaignId: string) => {
-    toast({
-      title: "Processando campanha",
-      description: `Iniciando envio de pesquisas`,
-    });
-    await sendSurveysForCarga(campaignId);
-  };
-
-  const sendSurveysForCarga = async (campaignId: string) => {
-    if (!campaignId) return;
+  const sendSurveyForPedido = async (campaignSendId: string) => {
+    if (!campaignSendId) return;
 
     setSendingSurveys(true);
     setSendProgress({ current: 0, total: 0, success: 0, failed: 0 });
@@ -346,13 +314,13 @@ export function SatisfactionSurveys() {
     abortControllerRef.current = abortController;
 
     try {
-      const { data: sends, error: sendsError } = await supabase
+      const { data: send, error: sendError } = await supabase
         .from("campaign_sends")
-        .select("id, customer_phone")
-        .eq("campaign_id", campaignId)
-        .in("status", ["success", "sent"]);
-      if (sendsError) throw sendsError;
-      const sendIds = (sends || []).map((s: any) => s.id);
+        .select("id, customer_phone, campaign_id")
+        .eq("id", campaignSendId)
+        .single();
+      if (sendError) throw sendError;
+      const sendIds = [send.id];
 
       const { data: existingSurveys, error: surveysError } = await supabase
         .from("satisfaction_surveys")
@@ -369,11 +337,9 @@ export function SatisfactionSurveys() {
 
       const plannedIds = sendIds.filter((id: string) => !alreadyProcessedSet.has(id));
 
-      // Verificar cooldown de 1 minuto para os telefones que serão enviados
+      // Verificar cooldown de 1 minuto para o telefone
       if (plannedIds.length > 0) {
-        const plannedPhones = (sends || [])
-          .filter((s: any) => plannedIds.includes(s.id))
-          .map((s: any) => s.customer_phone);
+        const plannedPhones = [send.customer_phone];
 
         const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000).toISOString();
 
@@ -459,14 +425,14 @@ export function SatisfactionSurveys() {
       // Criar run antes de invocar a função (para poder abortar)
       const { data: run, error: runErr } = await supabase
         .from("survey_send_runs")
-        .insert({ campaign_id: campaignId })
+        .insert({ campaign_id: send.campaign_id })
         .select()
         .single();
       if (runErr) throw runErr;
       currentRunIdRef.current = run.id;
 
       const { data, error } = await supabase.functions.invoke("send-satisfaction-survey", {
-        body: { campaignSendIds: plannedIds, campaignId, runId: run.id },
+        body: { campaignSendIds: plannedIds, campaignId: send.campaign_id, runId: run.id },
       });
       if (error) throw error;
 
@@ -522,7 +488,6 @@ export function SatisfactionSurveys() {
       }
     } finally {
       setSendingSurveys(false);
-      setShowCargaSelection(false);
       setSurveyCountdown(0);
       if (pollTimerRef.current) {
         window.clearInterval(pollTimerRef.current);
@@ -534,7 +499,7 @@ export function SatisfactionSurveys() {
       }
       abortControllerRef.current = null;
       currentRunIdRef.current = null;
-      loadCampaigns();
+      loadPedidos();
       loadSurveys();
     }
   };
@@ -580,9 +545,9 @@ export function SatisfactionSurveys() {
         </div>
       </div>
 
-      <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId}>
+      <Select value={selectedPedidoId} onValueChange={setSelectedPedidoId}>
         <SelectTrigger className="w-full max-w-md">
-          <SelectValue placeholder="Selecione uma campanha" />
+          <SelectValue placeholder="Selecione um pedido" />
         </SelectTrigger>
         <SelectContent
           className="bg-background z-50"
@@ -596,9 +561,9 @@ export function SatisfactionSurveys() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
-                placeholder="Buscar campanha..."
-                value={campaignSearch}
-                onChange={(e) => setCampaignSearch(e.target.value)}
+                placeholder="Buscar pedido ou cliente..."
+                value={pedidoSearch}
+                onChange={(e) => setPedidoSearch(e.target.value)}
                 className="pl-9 h-9"
                 onKeyDown={(e) => {
                   e.stopPropagation();
@@ -610,28 +575,28 @@ export function SatisfactionSurveys() {
             </div>
           </div>
           <ScrollArea className="h-[300px]">
-            {filteredCampaigns.length === 0 ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">Nenhuma campanha encontrada</div>
+            {filteredPedidos.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">Nenhum pedido encontrado</div>
             ) : (
-              filteredCampaigns.map((campaign) => {
-                const hasSurveys = allSurveys.some((survey) => {
-                  const send = allCampaignSends[survey.campaign_send_id];
-                  return send?.campaign_id === campaign.id;
-                });
-
-                return (
-                  <SelectItem key={campaign.id} value={campaign.id}>
-                    <div className="flex items-center gap-2">
-                      <span>{campaign.name}</span>
-                      {hasSurveys && (
-                        <Badge variant="default" className="ml-2 text-[10px] h-4 px-1">
-                          Enviada
-                        </Badge>
-                      )}
-                    </div>
-                  </SelectItem>
-                );
-              })
+              filteredPedidos.map((pedido) => (
+                <SelectItem key={pedido.campaign_send_id} value={pedido.campaign_send_id}>
+                  <div className="flex items-center gap-2">
+                    <span>{pedido.pedido_numero}</span>
+                    {pedido.customer_name && (
+                      <span className="text-xs text-muted-foreground">- {pedido.customer_name}</span>
+                    )}
+                    {pedido.survey_sent ? (
+                      <Badge variant="default" className="ml-2 text-[10px] h-4 px-1">
+                        Enviada
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="ml-2 text-[10px] h-4 px-1">
+                        Não Enviada
+                      </Badge>
+                    )}
+                  </div>
+                </SelectItem>
+              ))
             )}
           </ScrollArea>
         </SelectContent>
@@ -838,11 +803,6 @@ export function SatisfactionSurveys() {
         </DialogContent>
       </Dialog>
 
-      <CargaSelectionDialog
-        open={showCargaSelection}
-        onOpenChange={setShowCargaSelection}
-        onCargaSelected={handleCargaSelected}
-      />
     </div>
   );
 }
