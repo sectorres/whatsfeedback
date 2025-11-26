@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Send, RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle, Trash2, Search } from "lucide-react";
+import { Loader2, Send, RefreshCw, CheckCircle2, XCircle, Clock, AlertCircle, Trash2, Search, CheckSquare } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
@@ -366,6 +366,13 @@ export function SurveyManagement() {
     }
   };
 
+  const markForSending = () => {
+    const selectableItems = filteredItems.filter(
+      item => item.status === 'not_sent' || item.status === 'pending' || item.status === 'failed'
+    );
+    setSelectedIds(new Set(selectableItems.map(item => item.campaign_send_id)));
+  };
+
   const getStatusBadge = (status: string, rating: number | null) => {
     // Se já existe nota, considerar como respondida independentemente do status
     if (rating != null) {
@@ -463,6 +470,15 @@ export function SurveyManagement() {
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Atualizar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={markForSending}
+              disabled={filteredItems.length === 0}
+            >
+              <CheckSquare className="h-4 w-4 mr-2" />
+              Marcar para Envio
             </Button>
             <Button
               variant="destructive"
