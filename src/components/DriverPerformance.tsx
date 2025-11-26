@@ -133,7 +133,10 @@ export function DriverPerformance() {
 
       if (!surveysError && allSurveysData) {
         console.log('DriverPerformance: Surveys carregadas:', allSurveysData.length);
+        console.log('DriverPerformance: Amostra de surveys:', allSurveysData.slice(0, 3));
         setAllSurveys(allSurveysData);
+      } else {
+        console.error('DriverPerformance: Erro ao buscar surveys:', surveysError);
       }
     } catch (error) {
       console.error('DriverPerformance: Erro ao carregar dados de motoristas:', error);
@@ -363,6 +366,9 @@ export function DriverPerformance() {
     return true;
   });
 
+  console.log('DriverPerformance: Surveys após filtro de data:', filteredSurveysByDate.length);
+  console.log('DriverPerformance: Filtros aplicados - dateFrom:', dateFrom, 'dateTo:', dateTo);
+
   // Calcular indicadores por motorista usando TODAS as surveys (filtradas por data)
   const driverStats = filteredSurveysByDate.reduce((acc, survey) => {
     const sendDetails = allCampaignSends[survey.campaign_send_id];
@@ -449,6 +455,11 @@ export function DriverPerformance() {
       1: stat.ratings.filter(r => r === 1).length,
     }
   })).sort((a, b) => b.averageRating - a.averageRating);
+
+  console.log('DriverPerformance: Driver metrics calculados:', driverMetrics.length);
+  if (driverMetrics.length > 0) {
+    console.log('DriverPerformance: Amostra de metrics:', driverMetrics.slice(0, 3));
+  }
 
   return (
     <div className="space-y-6">
