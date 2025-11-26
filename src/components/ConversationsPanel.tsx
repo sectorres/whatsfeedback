@@ -652,7 +652,7 @@ export function ConversationsPanel({
                   {selectedConversation.customer_name || selectedConversation.customer_phone}
                 </h3>
                 <span className="text-sm text-muted-foreground">
-                  ({selectedConversation.customer_phone})
+                  {selectedConversation.customer_phone}
                 </span>
               </div>
               <div className="flex items-center gap-2">
