@@ -96,6 +96,7 @@ export function ConversationsPanel({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const [selectedOrderNumero, setSelectedOrderNumero] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -568,6 +569,12 @@ export function ConversationsPanel({
             <Plus className="h-4 w-4" />
           </Button>
         </div>
+        <Input
+          placeholder="Buscar por nome ou telefone..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="mb-2"
+        />
         <Tabs value={activeTab} onValueChange={value => setActiveTab(value as "active" | "archived")} className="flex flex-col h-full min-h-0">
           <TabsList className="grid w-full grid-cols-2 mb-2">
             <TabsTrigger value="active" className="gap-1 text-xs">
@@ -586,9 +593,23 @@ export function ConversationsPanel({
             <ScrollArea className="h-full">
               {loading ? <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin" />
-                </div> : conversations.length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
+                </div> : conversations.filter(conv => {
+                  if (!searchQuery) return true;
+                  const query = searchQuery.toLowerCase();
+                  return (
+                    conv.customer_name?.toLowerCase().includes(query) ||
+                    conv.customer_phone.includes(query)
+                  );
+                }).length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
                   Nenhuma conversa ativa
-                </p> : conversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
+                </p> : conversations.filter(conv => {
+                  if (!searchQuery) return true;
+                  const query = searchQuery.toLowerCase();
+                  return (
+                    conv.customer_name?.toLowerCase().includes(query) ||
+                    conv.customer_phone.includes(query)
+                  );
+                }).map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -621,9 +642,23 @@ export function ConversationsPanel({
             <ScrollArea className="h-full">
               {loading ? <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin" />
-                </div> : archivedConversations.length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
+                </div> : archivedConversations.filter(conv => {
+                  if (!searchQuery) return true;
+                  const query = searchQuery.toLowerCase();
+                  return (
+                    conv.customer_name?.toLowerCase().includes(query) ||
+                    conv.customer_phone.includes(query)
+                  );
+                }).length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
                   Nenhuma conversa arquivada
-                </p> : archivedConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
+                </p> : archivedConversations.filter(conv => {
+                  if (!searchQuery) return true;
+                  const query = searchQuery.toLowerCase();
+                  return (
+                    conv.customer_name?.toLowerCase().includes(query) ||
+                    conv.customer_phone.includes(query)
+                  );
+                }).map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <div className="font-medium text-sm">{conv.customer_name || conv.customer_phone}</div>
