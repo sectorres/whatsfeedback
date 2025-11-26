@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Star, Loader2, Send, ChevronDown, ChevronUp, List, Search, X } from "lucide-react";
+import { Star, Loader2, Send, ChevronDown, ChevronUp, List, Search, X, CalendarIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -14,6 +14,11 @@ import { SurveyManagement } from "@/components/SurveyManagement";
 import { getProgressiveDelay } from "./SendDelayConfig";
 import { Input } from "@/components/ui/input";
 import { CargaSelectionDialog } from "@/components/CargaSelectionDialog";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface Campaign {
   id: string;
@@ -46,6 +51,7 @@ interface CampaignSend {
   quantidade_entregas: number | null;
   quantidade_skus: number | null;
   quantidade_itens: number | null;
+  pedido_numero: string | null;
 }
 
 export function SatisfactionSurveys() {
@@ -58,12 +64,13 @@ export function SatisfactionSurveys() {
   const [allCampaignSends, setAllCampaignSends] = useState<Record<string, CampaignSend>>({});
   const [loading, setLoading] = useState(false);
   const [sendingSurveys, setSendingSurveys] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
   const [showManagementDialog, setShowManagementDialog] = useState(false);
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
   const [surveyCountdown, setSurveyCountdown] = useState<number>(0);
   const [showCargaSelection, setShowCargaSelection] = useState(false);
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const pollTimerRef = useRef<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const plannedIdsRef = useRef<string[]>([]);
@@ -86,7 +93,7 @@ export function SatisfactionSurveys() {
     if (selectedCampaignId) {
       loadSurveys();
     }
-  }, [selectedCampaignId]);
+  }, [selectedCampaignId, dateFrom, dateTo]);
 
   const handleAbortSurveys = async () => {
     if (!currentRunIdRef.current) {
@@ -250,12 +257,24 @@ export function SatisfactionSurveys() {
       });
       setCampaignSends(sendsMap);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("satisfaction_surveys")
         .select("*")
         .in("campaign_send_id", sendIds)
         .not("status", "in", '("cancelled","not_sent")')
         .order("sent_at", { ascending: false });
+
+      // Aplicar filtros de data se definidos
+      if (dateFrom) {
+        query = query.gte('sent_at', dateFrom.toISOString());
+      }
+      if (dateTo) {
+        const endOfDay = new Date(dateTo);
+        endOfDay.setHours(23, 59, 59, 999);
+        query = query.lte('sent_at', endOfDay.toISOString());
+      }
+
+      const { data, error } = await query;
 
       if (!error && data) {
         setSurveys(data);
@@ -618,51 +637,64 @@ export function SatisfactionSurveys() {
         </SelectContent>
       </Select>
 
-      {selectedCampaignId && campaignSends && Object.keys(campaignSends).length > 0 && (
-        <Card className="bg-muted/50">
-          <CardHeader className="flex flex-row items-center justify-between py-3">
-            <div>
-              <CardTitle className="text-lg">Prévia dos Envios desta Campanha</CardTitle>
-              <CardDescription>{Object.keys(campaignSends).length} clientes</CardDescription>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setShowPreview((v) => !v)}>
-              {showPreview ? "Ocultar prévia" : "Mostrar prévia"}
-            </Button>
-          </CardHeader>
-          {showPreview && (
-            <CardContent>
-              <ScrollArea className="h-56 pr-2">
-                <div className="space-y-2">
-                  {Object.values(campaignSends).map((send) => (
-                    <div
-                      key={send.id}
-                      className="grid grid-cols-3 items-center gap-2 p-2 bg-background rounded-md text-xs"
-                    >
-                      <div className="truncate">
-                        <p className="font-medium truncate">{send.customer_name}</p>
-                        <p className="text-[11px] text-muted-foreground truncate">{send.customer_phone}</p>
-                        {send.driver_name && (
-                          <p className="text-[11px] text-muted-foreground truncate">
-                            <span className="font-medium">Motorista:</span> {send.driver_name}
-                          </p>
-                        )}
-                      </div>
-                      <div className="col-span-2 text-right text-[11px] text-muted-foreground truncate">
-                        {send.message_sent?.match(/PEDIDO:\s*([^\n]+)/)?.[1] || "Pedido N/A"}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          )}
-        </Card>
-      )}
-
       <Card>
         <CardHeader>
-          <CardTitle>Respostas Recebidas</CardTitle>
-          <CardDescription>Acompanhe as avaliações dos clientes</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Respostas Recebidas</CardTitle>
+              <CardDescription>Acompanhe as avaliações dos clientes</CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("gap-2", dateFrom && "border-primary")}>
+                    <CalendarIcon className="h-4 w-4" />
+                    De
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={setDateFrom}
+                    initialFocus
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("gap-2", dateTo && "border-primary")}>
+                    <CalendarIcon className="h-4 w-4" />
+                    Até
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={setDateTo}
+                    initialFocus
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+
+              {(dateFrom || dateTo) && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    setDateFrom(undefined);
+                    setDateTo(undefined);
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -703,11 +735,9 @@ export function SatisfactionSurveys() {
                           </div>
 
                           <div className="text-xs text-muted-foreground space-y-1">
-                            {sendDetails?.message_sent && (
-                              <p className="font-medium text-primary">
-                                Pedido: {sendDetails.message_sent.match(/PEDIDO:\s*([^\n]+)/i)?.[1]?.trim() || "N/A"}
-                              </p>
-                            )}
+                            <p className="font-medium text-primary">
+                              Pedido: {sendDetails?.pedido_numero || "N/A"}
+                            </p>
                             <p>{survey.customer_phone || sendDetails?.customer_phone}</p>
                             <p>Enviado: {new Date(survey.sent_at).toLocaleString("pt-BR")}</p>
                             {survey.responded_at && (
