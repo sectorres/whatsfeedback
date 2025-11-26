@@ -57,12 +57,23 @@ serve(async (req) => {
 
     const sendIds = campaignSends.map(s => s.id);
 
-    // Buscar respostas de satisfação do período
-    const { data: surveys, error: surveysError } = await supabaseClient
+    // Buscar respostas de satisfação do período (direto por data, não por IDs)
+    let surveysQuery = supabaseClient
       .from('satisfaction_surveys')
       .select('*')
-      .in('campaign_send_id', sendIds)
       .not('rating', 'is', null);
+
+    if (dateFrom) {
+      surveysQuery = surveysQuery.gte('sent_at', dateFrom);
+    }
+
+    if (dateTo) {
+      const endDate = new Date(dateTo);
+      endDate.setHours(23, 59, 59, 999);
+      surveysQuery = surveysQuery.lte('sent_at', endDate.toISOString());
+    }
+
+    const { data: surveys, error: surveysError } = await surveysQuery;
 
     if (surveysError) {
       console.error('Erro ao buscar surveys:', surveysError);
@@ -263,14 +274,20 @@ IMPORTANTE:
     );
   } catch (error) {
     console.error('Erro na função generate-satisfaction-insights:', error);
+    
+    // Serializar corretamente o erro
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-    const errorDetails = error instanceof Error ? error.stack : String(error);
-    console.error('Detalhes do erro:', errorDetails);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('Mensagem:', errorMessage);
+    if (errorStack) {
+      console.error('Stack:', errorStack);
+    }
     
     return new Response(
       JSON.stringify({ 
         error: errorMessage,
-        details: errorDetails 
+        stack: errorStack
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
