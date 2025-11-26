@@ -4,10 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Star, Loader2, Send, ChevronDown, ChevronUp, List, Search, X, CalendarIcon } from "lucide-react";
+import { Star, Loader2, Send, List, Search, X, CalendarIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { SurveyManagement } from "@/components/SurveyManagement";
@@ -65,7 +64,6 @@ export function SatisfactionSurveys() {
   const [allCampaignSends, setAllCampaignSends] = useState<Record<string, CampaignSend>>({});
   const [loading, setLoading] = useState(false);
   const [sendingSurveys, setSendingSurveys] = useState(false);
-  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
   const [showManagementDialog, setShowManagementDialog] = useState(false);
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
   const [surveyCountdown, setSurveyCountdown] = useState<number>(0);
@@ -91,9 +89,7 @@ export function SatisfactionSurveys() {
   }, []);
 
   useEffect(() => {
-    if (selectedPedidoId) {
-      loadSurveys();
-    }
+    loadSurveys();
   }, [selectedPedidoId, dateFrom, dateTo]);
 
   const handleAbortSurveys = async () => {
@@ -215,10 +211,13 @@ export function SatisfactionSurveys() {
   const loadSurveys = async () => {
     setLoading(true);
     try {
-      const { data: sends, error: sendsError } = await supabase
-        .from("campaign_sends")
-        .select("*")
-        .eq("id", selectedPedidoId);
+      let sendsQuery = supabase.from("campaign_sends").select("*");
+      
+      if (selectedPedidoId) {
+        sendsQuery = sendsQuery.eq("id", selectedPedidoId);
+      }
+
+      const { data: sends, error: sendsError } = await sendsQuery;
 
       if (sendsError) throw sendsError;
 
@@ -507,13 +506,6 @@ export function SatisfactionSurveys() {
     return "text-red-600";
   };
 
-  const toggleCard = (surveyId: string) => {
-    setExpandedCards((prev) => ({
-      ...prev,
-      [surveyId]: !prev[surveyId],
-    }));
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
@@ -658,7 +650,7 @@ export function SatisfactionSurveys() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {loading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -666,80 +658,79 @@ export function SatisfactionSurveys() {
           ) : surveys.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">Nenhuma pesquisa enviada ainda</p>
           ) : (
-            <div className="space-y-4">
-              {surveys.map((survey) => {
-                const sendDetails = campaignSends[survey.campaign_send_id];
-                const driverName = sendDetails?.driver_name;
-                const isExpanded = expandedCards[survey.id] || false;
+            <div className="rounded-md border">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground text-xs">Pedido</th>
+                    <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground text-xs">Cliente</th>
+                    <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground text-xs">Motorista</th>
+                    <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground text-xs">Avaliação</th>
+                    <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground text-xs">Enviado</th>
+                    <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground text-xs">Status</th>
+                    <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground text-xs">Feedback</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {surveys.map((survey) => {
+                    const sendDetails = campaignSends[survey.campaign_send_id];
+                    const driverName = sendDetails?.driver_name;
 
-                return (
-                  <Card key={survey.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <p className="font-semibold text-base">
-                              {survey.customer_name || sendDetails?.customer_name || "Cliente"}
-                            </p>
-                            {survey.rating && (
-                              <div className="flex items-center gap-1 bg-muted px-2 py-1 rounded">
-                                <Star className={`h-4 w-4 ${getRatingColor(survey.rating)} fill-current`} />
-                                <span className={`text-sm font-bold ${getRatingColor(survey.rating)}`}>
-                                  {survey.rating}/5
-                                </span>
-                              </div>
-                            )}
-                            {driverName && (
-                              <Badge variant="secondary" className="text-xs">
-                                Motorista: {driverName}
-                              </Badge>
-                            )}
+                    return (
+                      <tr key={survey.id} className="border-b hover:bg-muted/50 transition-colors">
+                        <td className="p-4 align-middle text-sm font-medium">
+                          {sendDetails?.pedido_numero || "N/A"}
+                        </td>
+                        <td className="p-4 align-middle text-sm">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{survey.customer_name || sendDetails?.customer_name || "Cliente"}</span>
+                            <span className="text-xs text-muted-foreground">{survey.customer_phone || sendDetails?.customer_phone}</span>
                           </div>
-
-                          <div className="text-xs text-muted-foreground space-y-1">
-                            <p className="font-medium text-primary">
-                              Pedido: {sendDetails?.pedido_numero || "N/A"}
-                            </p>
-                            <p>{survey.customer_phone || sendDetails?.customer_phone}</p>
-                            <p>Enviado: {new Date(survey.sent_at).toLocaleString("pt-BR")}</p>
-                            {survey.responded_at && (
-                              <p className="text-green-600">
-                                Respondido: {new Date(survey.responded_at).toLocaleString("pt-BR")}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        {!survey.rating && (
-                          <Badge variant="outline" className="ml-4">
-                            {survey.status === "sent" ? "Pendente" : "Enviado"}
-                          </Badge>
-                        )}
-                      </div>
-
-                      <Collapsible open={isExpanded} onOpenChange={() => toggleCard(survey.id)}>
-                        {survey.feedback && (
-                          <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm" className="w-full justify-between h-8 text-xs">
-                              <span>Ver detalhes</span>
-                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                            </Button>
-                          </CollapsibleTrigger>
-                        )}
-
-                        <CollapsibleContent className="space-y-3 mt-3">
-                          {survey.feedback && (
-                            <div className="p-3 bg-primary/5 border border-primary/20 rounded-md">
-                              <p className="text-xs font-medium text-primary mb-1">Feedback do cliente:</p>
-                              <p className="text-sm italic">&quot;{survey.feedback}&quot;</p>
+                        </td>
+                        <td className="p-4 align-middle text-sm">
+                          {driverName || "-"}
+                        </td>
+                        <td className="p-4 align-middle">
+                          {survey.rating ? (
+                            <div className="flex items-center gap-1">
+                              <Star className={`h-4 w-4 ${getRatingColor(survey.rating)} fill-current`} />
+                              <span className={`text-sm font-bold ${getRatingColor(survey.rating)}`}>
+                                {survey.rating}/5
+                              </span>
                             </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">-</span>
                           )}
-                        </CollapsibleContent>
-                      </Collapsible>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                        </td>
+                        <td className="p-4 align-middle text-xs text-muted-foreground">
+                          {new Date(survey.sent_at).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                        <td className="p-4 align-middle">
+                          {survey.responded_at ? (
+                            <Badge variant="default" className="text-xs">Respondido</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">Pendente</Badge>
+                          )}
+                        </td>
+                        <td className="p-4 align-middle text-sm max-w-xs">
+                          {survey.feedback ? (
+                            <div className="truncate" title={survey.feedback}>
+                              {survey.feedback}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>
