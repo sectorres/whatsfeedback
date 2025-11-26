@@ -252,6 +252,10 @@ export function ConversationsPanel({
       toast.error('Erro ao carregar mensagens');
     } else {
       setMessages(data || []);
+      // Scroll para o final após carregar mensagens
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      }, 100);
     }
   };
   const markAsRead = async (conversationId: string) => {
