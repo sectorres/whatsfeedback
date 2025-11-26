@@ -132,21 +132,26 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
         // Procurar o pedido em todas as cargas
         let foundPedido: Pedido | null = null;
 
-        console.log("OrderDetailsDialog: Total de cargas:", cargasData.retorno.cargas.length);
+        console.log("OrderDetailsDialog: Total de cargas retornadas:", cargasData.retorno.cargas.length);
+        
+        // Log das primeiras e últimas cargas para ver o range
+        if (cargasData.retorno.cargas.length > 0) {
+          console.log("OrderDetailsDialog: Primeira carga ID:", cargasData.retorno.cargas[0].id);
+          console.log("OrderDetailsDialog: Última carga ID:", cargasData.retorno.cargas[cargasData.retorno.cargas.length - 1].id);
+        }
+        
+        // Se temos info da campanha, ver se a carga esperada está na lista
+        if (campaignInfo?.carga_id) {
+          const cargaExists = cargasData.retorno.cargas.some((c: any) => c.id === campaignInfo.carga_id);
+          console.log(`OrderDetailsDialog: Carga ${campaignInfo.carga_id} ${cargaExists ? 'ENCONTRADA' : 'NÃO ENCONTRADA'} na API`);
+        }
 
         for (const carga of cargasData.retorno.cargas) {
           if (!carga.pedidos || carga.pedidos.length === 0) {
-            console.log(`OrderDetailsDialog: Carga ${carga.id} - Sem pedidos`);
             continue;
           }
 
-          console.log(`OrderDetailsDialog: Carga ${carga.id} - Total de pedidos:`, carga.pedidos.length);
-
-          const pedidoEncontrado = carga.pedidos.find((p: any) => {
-            const match = p.pedido === pedidoNumero;
-            console.log(`OrderDetailsDialog: Comparando "${p.pedido}" === "${pedidoNumero}" = ${match}`);
-            return match;
-          });
+          const pedidoEncontrado = carga.pedidos.find((p: any) => p.pedido === pedidoNumero);
 
           if (pedidoEncontrado) {
             console.log("OrderDetailsDialog: Pedido encontrado!", pedidoEncontrado);

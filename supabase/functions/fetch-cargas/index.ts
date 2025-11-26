@@ -21,12 +21,15 @@ serve(async (req) => {
       throw new Error('API credentials not configured');
     }
 
-    // Se não foram fornecidas datas, usar os últimos 30 dias
+    // Se não foram fornecidas datas, usar um período amplo (90 dias no passado e 30 no futuro)
     const hoje = new Date();
-    const dataFinalFormatted = dataFinal || hoje.toISOString().slice(0, 10).replace(/-/g, '');
+    
+    const dataFinalDate = new Date();
+    dataFinalDate.setDate(hoje.getDate() + 30); // 30 dias no futuro
+    const dataFinalFormatted = dataFinal || dataFinalDate.toISOString().slice(0, 10).replace(/-/g, '');
     
     const dataInicialDate = new Date();
-    dataInicialDate.setDate(hoje.getDate() - 60);
+    dataInicialDate.setDate(hoje.getDate() - 90); // 90 dias no passado
     const dataInicialFormatted = dataInicial || dataInicialDate.toISOString().slice(0, 10).replace(/-/g, '');
 
     console.log('Fetching cargas from API...', { dataInicial: dataInicialFormatted, dataFinal: dataFinalFormatted });
