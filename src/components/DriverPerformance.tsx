@@ -43,6 +43,7 @@ interface CampaignSend {
   quantidade_entregas: number | null;
   quantidade_skus: number | null;
   quantidade_itens: number | null;
+  pedido_numero: string | null;
 }
 
 interface Insight {
@@ -1109,19 +1110,10 @@ export function DriverPerformance() {
                       <TableBody>
                         {feedbacksComFiltro.map((survey) => {
                           const send = allCampaignSends[survey.campaign_send_id];
-                          
-                          // Extrair número do pedido da mensagem
-                          let numeroPedido = 'N/A';
-                          if (send?.message_sent) {
-                            const pedidoMatch = send.message_sent.match(/PEDIDO:\s*([^\n]+)/i);
-                            if (pedidoMatch) {
-                              numeroPedido = pedidoMatch[1].trim();
-                            }
-                          }
 
                           return (
                             <TableRow key={survey.id}>
-                              <TableCell className="font-medium">{numeroPedido}</TableCell>
+                              <TableCell className="font-medium">{send?.pedido_numero || 'N/A'}</TableCell>
                               <TableCell>{survey.customer_name || 'N/A'}</TableCell>
                               <TableCell className="whitespace-nowrap">
                                 {format(new Date(survey.responded_at || survey.sent_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
