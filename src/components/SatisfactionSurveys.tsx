@@ -142,6 +142,39 @@ export function SatisfactionSurveys() {
   }, []);
   const loadPedidos = async () => {
     try {
+      // Primeiro, buscar dados atualizados da API externa
+      const { data: apiData, error: apiError } = await supabase.functions.invoke("fetch-cargas");
+      
+      if (!apiError && apiData?.retorno?.cargas) {
+        // Atualizar campaign_sends com dados mais recentes da API
+        const cargas = apiData.retorno.cargas;
+        
+        for (const carga of cargas) {
+          if (carga.pedidos && Array.isArray(carga.pedidos)) {
+            for (const pedido of carga.pedidos) {
+              // Buscar campaign_send existente para este pedido
+              const { data: existingSend } = await supabase
+                .from("campaign_sends")
+                .select("id")
+                .eq("pedido_numero", pedido.pedido)
+                .maybeSingle();
+              
+              if (existingSend) {
+                // Atualizar com dados mais recentes da API
+                await supabase
+                  .from("campaign_sends")
+                  .update({
+                    driver_name: carga.nomeMotorista || null,
+                    customer_name: pedido.cliente?.nome || null,
+                  })
+                  .eq("id", existingSend.id);
+              }
+            }
+          }
+        }
+      }
+      
+      // Agora buscar os pedidos atualizados do banco de dados
       const {
         data: sendsData,
         error: sendsError
