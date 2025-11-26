@@ -328,23 +328,23 @@ serve(async (req) => {
                 .eq('id', existingConv.id);
             }
 
-            // Enviar resposta do bot
-            const botMessage = 'Obrigado pela confirmação!';
-            await supabase.functions.invoke('whatsapp-send', {
-              body: {
-                phone: customerPhone,
-                message: botMessage
-              }
-            });
-            
-            // Registrar mensagem do bot no chat
+            // Registrar mensagem do cliente primeiro
             await supabase.from('messages').insert({
               conversation_id: existingConv.id,
               sender_type: 'agent',
               sender_name: 'Bot',
-              message_text: botMessage,
+              message_text: 'Obrigado pela confirmação!',
               media_type: 'text',
               media_url: null,
+            });
+            
+            // Enviar resposta do bot (sem salvar novamente no banco)
+            await supabase.functions.invoke('whatsapp-send', {
+              body: {
+                phone: customerPhone,
+                message: 'Obrigado pela confirmação!',
+                skip_message_save: true
+              }
             });
             
             console.log(`[${msgId}] ✅ Delivery confirmed, campaign_send status updated`);
@@ -373,23 +373,23 @@ serve(async (req) => {
               response_type: 'reschedule'
             });
 
-            // Enviar mensagem com o número para reagendar
-            const botMessage = 'Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.\n\nAgora você pode enviar mensagens normalmente.';
-            await supabase.functions.invoke('whatsapp-send', {
-              body: {
-                phone: customerPhone,
-                message: botMessage
-              }
-            });
-            
-            // Registrar mensagem do bot no chat
+            // Registrar mensagem do bot primeiro
             await supabase.from('messages').insert({
               conversation_id: existingConv.id,
               sender_type: 'agent',
               sender_name: 'Bot',
-              message_text: botMessage,
+              message_text: 'Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.',
               media_type: 'text',
               media_url: null,
+            });
+            
+            // Enviar mensagem com o número para reagendar (sem salvar novamente no banco)
+            await supabase.functions.invoke('whatsapp-send', {
+              body: {
+                phone: customerPhone,
+                message: 'Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.',
+                skip_message_save: true
+              }
             });
             
             console.log(`[${msgId}] 📅 Reschedule request recorded, customer directed to call`);
