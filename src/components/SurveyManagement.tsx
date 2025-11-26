@@ -48,7 +48,6 @@ export function SurveyManagement() {
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
   const [campaignSearch, setCampaignSearch] = useState<string>("");
   const [pedidoSearch, setPedidoSearch] = useState<string>("");
-  const [debouncedPedidoSearch, setDebouncedPedidoSearch] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -56,15 +55,6 @@ export function SurveyManagement() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
   const sendingRef = useRef(false); // Proteção adicional contra chamadas concorrentes
-
-  // Debounce para busca de pedido
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedPedidoSearch(pedidoSearch);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [pedidoSearch]);
 
   const filteredCampaigns = campaigns.filter(campaign =>
     campaign.name.toLowerCase().includes(campaignSearch.toLowerCase())
@@ -76,7 +66,7 @@ export function SurveyManagement() {
 
   useEffect(() => {
     loadSurveyStatus();
-  }, [selectedCampaignId, debouncedPedidoSearch]);
+  }, [selectedCampaignId]);
 
   const loadCampaigns = async () => {
     try {
@@ -126,11 +116,6 @@ export function SurveyManagement() {
       // Aplicar filtro de carga se selecionado
       if (selectedCampaignId) {
         query = query.eq('campaign_id', selectedCampaignId);
-      }
-      
-      // Aplicar filtro de pedido se informado
-      if (debouncedPedidoSearch.trim()) {
-        query = query.ilike('pedido_numero', `%${debouncedPedidoSearch.trim()}%`);
       }
       
       const { data: sends, error: sendsError } = await query;
@@ -350,9 +335,19 @@ export function SurveyManagement() {
     setSelectedIds(newSelected);
   };
 
+  // Filtrar pedidos no lado do cliente (sem recarregar página)
+  const filteredItems = useMemo(() => {
+    if (!pedidoSearch.trim()) return items;
+    
+    const searchLower = pedidoSearch.toLowerCase();
+    return items.filter(item => 
+      item.pedido_numero?.toLowerCase().includes(searchLower)
+    );
+  }, [items, pedidoSearch]);
+
   const toggleAll = () => {
-    // Apenas selecionar pedidos que podem ser enviados
-    const selectableItems = items.filter(
+    // Apenas selecionar pedidos que podem ser enviados (dos itens filtrados)
+    const selectableItems = filteredItems.filter(
       item => item.status === 'not_sent' || item.status === 'pending' || item.status === 'failed'
     );
     
@@ -544,9 +539,9 @@ export function SurveyManagement() {
         </div>
       </CardHeader>
       <CardContent>
-        {items.length === 0 ? (
+        {filteredItems.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            Nenhum envio de campanha encontrado
+            {pedidoSearch.trim() ? 'Nenhum pedido encontrado com esse número' : 'Nenhum envio de campanha encontrado'}
           </div>
         ) : (
           <div className="border rounded-lg">
@@ -556,8 +551,8 @@ export function SurveyManagement() {
                   <TableHead className="w-12">
                     <Checkbox
                       checked={
-                        items.filter(i => i.status === 'not_sent' || i.status === 'pending' || i.status === 'failed').length > 0 &&
-                        selectedIds.size === items.filter(i => i.status === 'not_sent' || i.status === 'pending' || i.status === 'failed').length
+                        filteredItems.filter(i => i.status === 'not_sent' || i.status === 'pending' || i.status === 'failed').length > 0 &&
+                        selectedIds.size === filteredItems.filter(i => i.status === 'not_sent' || i.status === 'pending' || i.status === 'failed').length
                       }
                       onCheckedChange={toggleAll}
                     />
@@ -572,7 +567,7 @@ export function SurveyManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item) => (
+                {filteredItems.map((item) => (
                   <TableRow key={item.campaign_send_id}>
                     <TableCell>
                        <Checkbox
