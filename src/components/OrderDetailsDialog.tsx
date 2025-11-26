@@ -84,9 +84,40 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
     try {
       console.log("OrderDetailsDialog: Buscando pedido na API:", pedidoNumero);
 
+      // Primeiro, buscar informações da carga no banco para ter a data
+      const { data: campaignInfo } = await supabase
+        .from('campaign_sends')
+        .select('carga_id, sent_at')
+        .eq('pedido_numero', pedidoNumero)
+        .order('sent_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      console.log("OrderDetailsDialog: Info da campanha:", campaignInfo);
+
+      // Calcular período de busca com base na data do envio ou usar um período amplo
+      let dataInicial: string | undefined;
+      let dataFinal: string | undefined;
+
+      if (campaignInfo?.sent_at) {
+        // Buscar 30 dias antes e 30 dias depois da data de envio
+        const sentDate = new Date(campaignInfo.sent_at);
+        const dataInicialDate = new Date(sentDate);
+        dataInicialDate.setDate(sentDate.getDate() - 30);
+        const dataFinalDate = new Date(sentDate);
+        dataFinalDate.setDate(sentDate.getDate() + 30);
+        
+        dataInicial = dataInicialDate.toISOString().slice(0, 10).replace(/-/g, '');
+        dataFinal = dataFinalDate.toISOString().slice(0, 10).replace(/-/g, '');
+        
+        console.log("OrderDetailsDialog: Buscando com período específico:", { dataInicial, dataFinal });
+      } else {
+        console.log("OrderDetailsDialog: Buscando com período padrão (últimos 60 dias)");
+      }
+
       // Buscar direto na API - o pedido sempre estará disponível
       const { data: cargasData, error: cargasError } = await supabase.functions.invoke("fetch-cargas", {
-        body: {}
+        body: dataInicial && dataFinal ? { dataInicial, dataFinal } : {}
       });
 
       if (cargasError) {
