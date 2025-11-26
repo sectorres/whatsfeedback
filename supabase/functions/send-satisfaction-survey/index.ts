@@ -315,7 +315,7 @@ Responda apenas com o número da sua avaliação.`;
         .from('campaign_sends')
         .select('id, customer_phone, campaign_id, status, customer_name, pedido_id, driver_name')
         .in('id', allowedIds)
-        .in('status', ['success', 'sent']);
+        .in('status', ['success', 'sent', 'confirmed', 'reschedule_requested']);
       if (selectedError) throw selectedError;
       console.log('campaign_sends encontrados:', selectedSends?.length || 0);
       if (selectedSends && selectedSends.length > 0) {
@@ -375,15 +375,15 @@ Responda apenas com o número da sua avaliação.`;
       const existingSurveyIds = existingSurveys?.map(s => s.campaign_send_id) || [];
       console.log(`Encontradas ${existingSurveys?.length || 0} pesquisas já enviadas, respondidas, expiradas ou canceladas (bloqueio por carga)`);
 
-      // Buscar envios elegíveis (status success ou sent)
+      // Buscar envios elegíveis (status success, sent, confirmed ou reschedule_requested)
       const { data: eligibleSends, error: sendsError } = await supabaseClient
         .from('campaign_sends')
         .select('*')
-        .in('status', ['success', 'sent']);
+        .in('status', ['success', 'sent', 'confirmed', 'reschedule_requested']);
 
       if (sendsError) throw sendsError;
 
-      console.log(`Encontrados ${eligibleSends?.length || 0} envios com status success/sent`);
+      console.log(`Encontrados ${eligibleSends?.length || 0} envios com status success/sent/confirmed/reschedule_requested`);
 
       // Filtrar envios que não têm pesquisa enviada/respondida para mesma carga
       let filteredSends = (eligibleSends || []).filter((s) => !existingSurveyIds.includes(s.id));
