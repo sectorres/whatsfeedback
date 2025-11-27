@@ -21,7 +21,7 @@ import { OrderDetailsDialog } from "@/components/OrderDetailsDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 interface Conversation {
   id: string;
   customer_phone: string;
@@ -32,6 +32,7 @@ interface Conversation {
   unread_count: number;
   last_read_at: string | null;
   tags: string[] | null;
+  profile_picture_url?: string | null;
 }
 interface Message {
   id: string;
@@ -213,12 +214,46 @@ export function ConversationsPanel({
       console.error('Error loading active conversations:', activeError);
       toast.error('Erro ao carregar conversas ativas');
     } else {
-      setConversations(activeData || []);
+      // Buscar fotos de perfil para as conversas ativas
+      const conversationsWithPhotos = await Promise.all(
+        (activeData || []).map(async (conv) => {
+          try {
+            const { data } = await supabase.functions.invoke('fetch-profile-picture', {
+              body: { phone: conv.customer_phone }
+            });
+            return {
+              ...conv,
+              profile_picture_url: data?.profilePictureUrl || null
+            };
+          } catch (error) {
+            console.error('Error fetching profile picture:', error);
+            return conv;
+          }
+        })
+      );
+      setConversations(conversationsWithPhotos);
     }
     if (archivedError) {
       console.error('Error loading archived conversations:', archivedError);
     } else {
-      setArchivedConversations(archivedData || []);
+      // Buscar fotos de perfil para as conversas arquivadas
+      const conversationsWithPhotos = await Promise.all(
+        (archivedData || []).map(async (conv) => {
+          try {
+            const { data } = await supabase.functions.invoke('fetch-profile-picture', {
+              body: { phone: conv.customer_phone }
+            });
+            return {
+              ...conv,
+              profile_picture_url: data?.profilePictureUrl || null
+            };
+          } catch (error) {
+            console.error('Error fetching profile picture:', error);
+            return conv;
+          }
+        })
+      );
+      setArchivedConversations(conversationsWithPhotos);
     }
   };
   const loadReschedules = async (conversationId: string) => {
@@ -624,6 +659,7 @@ export function ConversationsPanel({
                 }).map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
                     <div className="flex items-start gap-2">
                       <Avatar className="h-10 w-10 flex-shrink-0">
+                        {conv.profile_picture_url && <AvatarImage src={conv.profile_picture_url} alt={conv.customer_name || conv.customer_phone} />}
                         <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                           {conv.customer_name ? conv.customer_name.substring(0, 2).toUpperCase() : conv.customer_phone.substring(0, 2)}
                         </AvatarFallback>
@@ -678,6 +714,7 @@ export function ConversationsPanel({
                 }).map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
                     <div className="flex items-start gap-2">
                       <Avatar className="h-10 w-10 flex-shrink-0">
+                        {conv.profile_picture_url && <AvatarImage src={conv.profile_picture_url} alt={conv.customer_name || conv.customer_phone} />}
                         <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                           {conv.customer_name ? conv.customer_name.substring(0, 2).toUpperCase() : conv.customer_phone.substring(0, 2)}
                         </AvatarFallback>

@@ -271,6 +271,7 @@ export type Database = {
           id: string
           last_message_at: string
           last_read_at: string | null
+          profile_picture_url: string | null
           status: string
           tags: string[] | null
           unread_count: number | null
@@ -284,6 +285,7 @@ export type Database = {
           id?: string
           last_message_at?: string
           last_read_at?: string | null
+          profile_picture_url?: string | null
           status?: string
           tags?: string[] | null
           unread_count?: number | null
@@ -297,6 +299,7 @@ export type Database = {
           id?: string
           last_message_at?: string
           last_read_at?: string | null
+          profile_picture_url?: string | null
           status?: string
           tags?: string[] | null
           unread_count?: number | null

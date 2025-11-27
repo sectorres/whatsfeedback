@@ -72,8 +72,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error fetching profile picture:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ error: error.message, profilePictureUrl: null }),
+      JSON.stringify({ error: errorMessage, profilePictureUrl: null }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
