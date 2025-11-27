@@ -553,7 +553,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                     placeholder="Digite sua mensagem..."
                     value={messageTemplate}
                     onChange={(e) => setMessageTemplate(e.target.value)}
-                    rows={8}
+                    rows={15}
                     className="resize-none"
                   />
                   <div className="flex flex-wrap gap-2">
