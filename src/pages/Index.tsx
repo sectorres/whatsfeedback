@@ -98,16 +98,40 @@ const Index = () => {
             <OrderStatusTable />
           </TabsContent>
 
-          <TabsContent value="config" className="space-y-6">
-            <LogoManager />
-            <WhatsAppConnection onConnectionChange={setWhatsappConnected} />
-            <IpWhitelistManager />
-            <SendDelayConfig />
-            <SatisfactionSurveyConfig />
-            <ApiConfiguration />
-            <WebhookConfiguration />
-            <ChangePassword />
-            <DataClearConfig />
+          <TabsContent value="config" className="space-y-4">
+            <Tabs defaultValue="appearance" className="w-full">
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="appearance">Aparência</TabsTrigger>
+                <TabsTrigger value="integrations">Integrações</TabsTrigger>
+                <TabsTrigger value="communication">Comunicação</TabsTrigger>
+                <TabsTrigger value="security">Segurança</TabsTrigger>
+                <TabsTrigger value="system">Sistema</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="appearance" className="space-y-6 mt-4">
+                <LogoManager />
+              </TabsContent>
+
+              <TabsContent value="integrations" className="space-y-6 mt-4">
+                <WhatsAppConnection onConnectionChange={setWhatsappConnected} />
+                <ApiConfiguration />
+                <WebhookConfiguration />
+              </TabsContent>
+
+              <TabsContent value="communication" className="space-y-6 mt-4">
+                <SendDelayConfig />
+                <SatisfactionSurveyConfig />
+              </TabsContent>
+
+              <TabsContent value="security" className="space-y-6 mt-4">
+                <IpWhitelistManager />
+                <ChangePassword />
+              </TabsContent>
+
+              <TabsContent value="system" className="space-y-6 mt-4">
+                <DataClearConfig />
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
       </main>
