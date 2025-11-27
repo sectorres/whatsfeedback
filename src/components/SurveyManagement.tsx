@@ -46,75 +46,53 @@ export function SurveyManagement() {
   const { toast } = useToast();
   const sendingRef = useRef(false);
 
-  // Buscar pedidos quando searchTerm mudar
-  useEffect(() => {
-    if (searchTerm.trim()) {
-      loadSurveyStatus();
-    } else {
-      setItems([]);
-      setSelectedIds(new Set());
-    }
-  }, [searchTerm]);
-
-  const loadSurveyStatus = async () => {
-    if (!searchTerm.trim()) {
-      setItems([]);
-      return;
-    }
-
+  // Não usar useEffect para busca automática - apenas com Enter
+  const handleBarcodeSearch = async () => {
+    if (!searchTerm.trim()) return;
+    
     setLoading(true);
     try {
-      // Se houver busca por pedido específico, atualizar dados da API primeiro
-      if (searchTerm.trim()) {
-        console.log('Buscando dados atualizados da API para:', searchTerm);
-        
-        try {
-          // Buscar cargas da API para atualizar dados
-          const { data: apiData, error: apiError } = await supabase.functions.invoke('fetch-cargas', {
-            body: {}
-          });
+      // Buscar dados atualizados da API primeiro
+      console.log('Buscando dados da API para:', searchTerm);
+      
+      try {
+        const { data: apiData, error: apiError } = await supabase.functions.invoke('fetch-cargas', {
+          body: {}
+        });
 
-          if (!apiError && apiData?.retorno?.cargas) {
-            // Procurar o pedido específico em todas as cargas
-            for (const carga of apiData.retorno.cargas) {
-              if (carga.pedidos) {
-                for (const pedido of carga.pedidos) {
-                  const pedidoNumero = pedido.pedido;
+        if (!apiError && apiData?.retorno?.cargas) {
+          for (const carga of apiData.retorno.cargas) {
+            if (carga.pedidos) {
+              for (const pedido of carga.pedidos) {
+                const pedidoNumero = pedido.pedido;
+                
+                if (pedidoNumero && pedidoNumero.toLowerCase().includes(searchTerm.toLowerCase())) {
+                  console.log('Pedido encontrado na API:', pedidoNumero);
                   
-                  // Se o pedido corresponde à busca, atualizar no banco
-                  if (pedidoNumero && pedidoNumero.toLowerCase().includes(searchTerm.toLowerCase())) {
-                    console.log('Pedido encontrado na API, atualizando:', pedidoNumero);
-                    
-                    // Buscar o campaign_send existente
-                    const { data: existingSends } = await supabase
+                  const { data: existingSends } = await supabase
+                    .from('campaign_sends')
+                    .select('id')
+                    .eq('pedido_numero', pedidoNumero);
+                  
+                  if (existingSends && existingSends.length > 0) {
+                    await supabase
                       .from('campaign_sends')
-                      .select('id')
-                      .eq('pedido_numero', pedidoNumero);
-                    
-                    if (existingSends && existingSends.length > 0) {
-                      // Atualizar com dados da API
-                      await supabase
-                        .from('campaign_sends')
-                        .update({
-                          driver_name: carga.nomeMotorista || 'N/A',
-                          customer_name: pedido.cliente?.nome || 'N/A'
-                        })
-                        .eq('id', existingSends[0].id);
-                      
-                      console.log('Dados atualizados para pedido:', pedidoNumero);
-                    }
+                      .update({
+                        driver_name: carga.nomeMotorista || 'N/A',
+                        customer_name: pedido.cliente?.nome || 'N/A'
+                      })
+                      .eq('id', existingSends[0].id);
                   }
                 }
               }
             }
           }
-        } catch (apiErr) {
-          console.error('Erro ao buscar dados da API:', apiErr);
-          // Continuar mesmo se a API falhar
         }
+      } catch (apiErr) {
+        console.error('Erro ao buscar dados da API:', apiErr);
       }
 
-      // Construir query base
+      // Buscar no banco de dados
       const searchLower = searchTerm.toLowerCase();
       const query = supabase
         .from('campaign_sends')
@@ -129,11 +107,16 @@ export function SurveyManagement() {
       if (sendsError) throw sendsError;
 
       if (!sends || sends.length === 0) {
-        setItems([]);
+        toast({
+          title: "Pedido não encontrado",
+          description: `Nenhum pedido encontrado para: ${searchTerm}`,
+          variant: "destructive",
+        });
+        setSearchTerm('');
         return;
       }
 
-      // Buscar nome da campanha apenas uma vez se necessário
+      // Buscar nome da campanha
       const campaignIds = [...new Set(sends.map(s => s.campaign_id))];
       const { data: campaignsData } = await supabase
         .from('campaigns')
@@ -145,16 +128,13 @@ export function SurveyManagement() {
         return acc;
       }, {} as Record<string, string>);
 
-      // Buscar surveys existentes - sem filtrar por IDs para evitar URL muito longa
-      const { data: surveys, error: surveysError } = await supabase
+      // Buscar surveys existentes
+      const { data: surveys } = await supabase
         .from('satisfaction_surveys')
         .select('campaign_send_id, id, status, sent_at, responded_at, rating')
         .not('status', 'in', '("cancelled","not_sent")')
         .order('sent_at', { ascending: false });
 
-      if (surveysError) throw surveysError;
-
-      // Criar mapa de surveys e filtrar apenas as relevantes para os sends atuais
       const sendIdsSet = new Set(sends.map(s => s.id));
       const surveysMap = (surveys || [])
         .filter(survey => sendIdsSet.has(survey.campaign_send_id))
@@ -163,7 +143,7 @@ export function SurveyManagement() {
           return acc;
         }, {} as Record<string, any>);
 
-      // Combinar dados - mostrar TODOS os pedidos
+      // Combinar dados
       const combined = sends.map(send => {
         const survey = surveysMap[send.id];
         return {
@@ -181,23 +161,50 @@ export function SurveyManagement() {
         };
       });
 
-      setItems(combined);
+      // Adicionar novos itens à lista existente (sem duplicar)
+      setItems(prevItems => {
+        const existingIds = new Set(prevItems.map(item => item.campaign_send_id));
+        const newItems = combined.filter(item => !existingIds.has(item.campaign_send_id));
+        return [...prevItems, ...newItems];
+      });
       
-      // Selecionar automaticamente os pedidos que podem ser enviados
+      // Adicionar automaticamente pedidos elegíveis à seleção
       const selectableIds = combined
         .filter(item => item.status === 'not_sent' || item.status === 'pending' || item.status === 'failed')
         .map(item => item.campaign_send_id);
-      setSelectedIds(new Set(selectableIds));
-    } catch (error) {
-      console.error('Erro ao carregar status das pesquisas:', error);
+      
+      setSelectedIds(prev => {
+        const newSet = new Set(prev);
+        selectableIds.forEach(id => newSet.add(id));
+        return newSet;
+      });
+
       toast({
-        title: "Erro ao carregar dados",
+        title: "Pedido adicionado",
+        description: `${combined.length} pedido(s) encontrado(s) e adicionado(s)`,
+      });
+
+      // Limpar campo para próxima leitura
+      setSearchTerm('');
+    } catch (error) {
+      console.error('Erro ao buscar pedido:', error);
+      toast({
+        title: "Erro ao buscar pedido",
         description: error.message,
         variant: "destructive",
       });
+      setSearchTerm('');
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadSurveyStatus = async () => {
+    // Função mantida para o botão Atualizar, mas agora recarrega toda a lista
+    setLoading(true);
+    setItems([]);
+    setSelectedIds(new Set());
+    setLoading(false);
   };
 
   const sendSelectedSurveys = async () => {
@@ -453,10 +460,17 @@ export function SurveyManagement() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Código do pedido ou cliente..."
+                  placeholder="Bipe o código de barras do pedido..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleBarcodeSearch();
+                    }
+                  }}
                   className="pl-9"
+                  disabled={loading}
                 />
               </div>
             </div>
