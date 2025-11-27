@@ -144,7 +144,11 @@ export function CargaSelectionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh]" onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent 
+        className="max-w-3xl max-h-[80vh]" 
+        onInteractOutside={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
