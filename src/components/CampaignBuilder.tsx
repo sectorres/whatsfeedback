@@ -611,67 +611,11 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
 
             <ResizableHandle withHandle />
 
-            {/* Coluna Direita - Templates e Seleções */}
+            {/* Coluna Direita - Seleções e Templates */}
             <ResizablePanel defaultSize={50} minSize={35}>
               <div className="h-full p-6 space-y-6 overflow-auto border-l">
-                {/* Templates de Mensagem */}
-                <div className="space-y-4 pb-6 border-b">
-                  <Label className="text-base font-semibold">Templates de Mensagem</Label>
-
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label>Selecionar Template</Label>
-                      <Select value={selectedTemplateId} onValueChange={handleTemplateChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Escolha um template" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {savedTemplates.map((template) => (
-                            <SelectItem key={template.id} value={template.id}>
-                              {template.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Salvar Novo Template</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Nome do template"
-                          value={newTemplateName}
-                          onChange={(e) => setNewTemplateName(e.target.value)}
-                        />
-                        <Button onClick={handleSaveTemplate} variant="outline">
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleUpdateTemplate}
-                        variant="outline"
-                        size="sm"
-                        disabled={selectedTemplateId === "default"}
-                      >
-                        Atualizar Template Atual
-                      </Button>
-                      <Button
-                        onClick={handleDeleteTemplate}
-                        variant="outline"
-                        size="sm"
-                        disabled={selectedTemplateId === "default"}
-                      >
-                        Deletar Template
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Filtros de Carga */}
-                <div className="space-y-4">
+                <div className="space-y-4 pb-6 border-b">
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
                       <Filter className="h-4 w-4" />
@@ -754,6 +698,62 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                         )}
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                {/* Templates de Mensagem */}
+                <div className="space-y-4 pb-6 border-b">
+                  <Label className="text-base font-semibold">Templates de Mensagem</Label>
+
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>Selecionar Template</Label>
+                      <Select value={selectedTemplateId} onValueChange={handleTemplateChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Escolha um template" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {savedTemplates.map((template) => (
+                            <SelectItem key={template.id} value={template.id}>
+                              {template.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Salvar Novo Template</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Nome do template"
+                          value={newTemplateName}
+                          onChange={(e) => setNewTemplateName(e.target.value)}
+                        />
+                        <Button onClick={handleSaveTemplate} variant="outline">
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleUpdateTemplate}
+                        variant="outline"
+                        size="sm"
+                        disabled={selectedTemplateId === "default"}
+                      >
+                        Atualizar Template Atual
+                      </Button>
+                      <Button
+                        onClick={handleDeleteTemplate}
+                        variant="outline"
+                        size="sm"
+                        disabled={selectedTemplateId === "default"}
+                      >
+                        Deletar Template
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
