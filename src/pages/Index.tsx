@@ -93,7 +93,7 @@ const Index = () => {
             <DashboardStats />
           </TabsContent>
 
-          <TabsContent value="atendimento" className="space-y-2 min-h-[calc(100vh-100px)]">
+          <TabsContent value="atendimento" className="space-y-2 min-h-[calc(100vh-80px)]">
             <div>
               
               
