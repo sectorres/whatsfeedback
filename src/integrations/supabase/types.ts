@@ -311,39 +311,48 @@ export type Database = {
         Row: {
           conversation_id: string
           created_at: string
+          edited_at: string | null
           id: string
+          is_deleted: boolean | null
           media_description: string | null
           media_transcription: string | null
           media_type: string | null
           media_url: string | null
           message_status: string | null
           message_text: string
+          replied_to_id: string | null
           sender_name: string | null
           sender_type: string
         }
         Insert: {
           conversation_id: string
           created_at?: string
+          edited_at?: string | null
           id?: string
+          is_deleted?: boolean | null
           media_description?: string | null
           media_transcription?: string | null
           media_type?: string | null
           media_url?: string | null
           message_status?: string | null
           message_text: string
+          replied_to_id?: string | null
           sender_name?: string | null
           sender_type: string
         }
         Update: {
           conversation_id?: string
           created_at?: string
+          edited_at?: string | null
           id?: string
+          is_deleted?: boolean | null
           media_description?: string | null
           media_transcription?: string | null
           media_type?: string | null
           media_url?: string | null
           message_status?: string | null
           message_text?: string
+          replied_to_id?: string | null
           sender_name?: string | null
           sender_type?: string
         }
@@ -353,6 +362,13 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_replied_to_id_fkey"
+            columns: ["replied_to_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
         ]

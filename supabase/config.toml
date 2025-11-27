@@ -38,3 +38,9 @@ verify_jwt = true
 
 [functions.expire-pending-surveys]
 verify_jwt = false
+
+[functions.whatsapp-edit-message]
+verify_jwt = true
+
+[functions.whatsapp-delete-message]
+verify_jwt = true
