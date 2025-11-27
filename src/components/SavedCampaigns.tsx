@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Loader2, ChevronDown, ChevronUp, RefreshCw, Edit2, Check, X } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { normalizePhone } from "@/lib/phone-utils";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 
 interface Campaign {
   id: string;
@@ -41,6 +42,9 @@ export function SavedCampaigns() {
   const [resending, setResending] = useState<Record<string, boolean>>({});
   const [editingPhone, setEditingPhone] = useState<string | null>(null);
   const [editedPhone, setEditedPhone] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchCampaigns();
@@ -89,15 +93,28 @@ export function SavedCampaigns() {
       supabase.removeChannel(campaignsChannel);
       supabase.removeChannel(sendsChannel);
     };
-  }, [expandedId]);
+  }, [expandedId, currentPage]);
 
   const fetchCampaigns = async () => {
     try {
+      // Get total count
+      const { count } = await supabase
+        .from('campaigns')
+        .select('*', { count: 'exact', head: true });
+
+      if (count) {
+        setTotalPages(Math.ceil(count / itemsPerPage));
+      }
+
+      // Get paginated data
+      const from = (currentPage - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+
       const { data, error } = await supabase
         .from('campaigns')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(10);
+        .range(from, to);
 
       if (error) throw error;
       setCampaigns(data || []);
@@ -272,7 +289,7 @@ export function SavedCampaigns() {
       <CardHeader>
         <CardTitle>Campanhas Salvas</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         {loading ? (
           <div className="flex justify-center p-8">
             <Loader2 className="h-6 w-6 animate-spin" />
@@ -282,168 +299,229 @@ export function SavedCampaigns() {
             Nenhuma campanha criada ainda
           </p>
         ) : (
-          <div className="space-y-3">
-            {campaigns.map((campaign) => (
-              <Collapsible
-                key={campaign.id}
-                open={expandedId === campaign.id}
-                onOpenChange={(open) => handleExpandChange(campaign.id, open)}
-              >
-                <div className="bg-muted rounded-lg">
-                  <CollapsibleTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="w-full flex items-center justify-between p-3 hover:bg-muted/80"
-                    >
-                      <div className="flex-1 text-left">
-                        <p className="font-medium">{campaign.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {campaign.sent_count} mensagens enviadas
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {formatDistanceToNow(new Date(campaign.created_at), {
-                            addSuffix: true,
-                            locale: ptBR
-                          })}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={statusMap[campaign.status]?.variant || "secondary"}>
-                          {statusMap[campaign.status]?.label || campaign.status}
-                        </Badge>
-                        {expandedId === campaign.id ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                      </div>
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="px-3 pb-3">
-                    <div className="pt-2 border-t space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium">Envios ({campaign.sent_count} total):</p>
-                        {campaignSends[campaign.id]?.some(send => send.status === 'failed') && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleResendFailed(campaign.id)}
-                            disabled={resending[campaign.id]}
-                            className="gap-2"
-                          >
-                            {resending[campaign.id] ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <RefreshCw className="h-3 w-3" />
+          <>
+            <div className="space-y-3">
+              {campaigns.map((campaign) => (
+                <Collapsible
+                  key={campaign.id}
+                  open={expandedId === campaign.id}
+                  onOpenChange={(open) => handleExpandChange(campaign.id, open)}
+                >
+                  <div className="border rounded-lg bg-card hover:bg-accent/5 transition-colors">
+                    <CollapsibleTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="w-full flex items-start justify-between p-4 hover:bg-transparent h-auto"
+                      >
+                        <div className="flex-1 text-left space-y-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-base truncate">{campaign.name}</h3>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {format(new Date(campaign.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                              </p>
+                            </div>
+                            <Badge variant={statusMap[campaign.status]?.variant || "secondary"}>
+                              {statusMap[campaign.status]?.label || campaign.status}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm">
+                            <span className="text-muted-foreground">
+                              <span className="font-medium text-foreground">{campaign.sent_count}</span> envios
+                            </span>
+                            {campaignSends[campaign.id] && (
+                              <>
+                                <span className="text-green-600 dark:text-green-400">
+                                  ✓ {campaignSends[campaign.id].filter(s => s.status === 'success').length}
+                                </span>
+                                <span className="text-destructive">
+                                  ✗ {campaignSends[campaign.id].filter(s => s.status === 'failed').length}
+                                </span>
+                              </>
                             )}
-                            Reenviar Falhados
-                          </Button>
-                        )}
-                      </div>
-                      <div>
-                        {loadingSends[campaign.id] ? (
-                          <div className="flex justify-center p-4">
-                            <Loader2 className="h-4 w-4 animate-spin" />
                           </div>
-                        ) : campaignSends[campaign.id]?.length > 0 ? (
-                          <div className="space-y-2 max-h-60 overflow-y-auto">
-                            {campaignSends[campaign.id].map((send) => (
-                                <div
-                                key={send.id}
-                                className={`p-2 rounded text-sm ${
-                                  send.status === 'success'
-                                    ? 'bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800'
-                                    : send.status === 'blocked'
-                                    ? 'bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800'
-                                    : 'bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800'
-                                }`}
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-medium truncate">
-                                      {send.customer_name || 'Cliente sem nome'}
-                                    </p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      {editingPhone === send.id ? (
-                                        <div className="flex items-center gap-1">
-                                          <Input
-                                            value={editedPhone}
-                                            onChange={(e) => setEditedPhone(e.target.value)}
-                                            className="h-6 text-xs w-32"
-                                            autoFocus
-                                          />
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-6 w-6 p-0"
-                                            onClick={() => saveEditedPhone(send.id, campaign.id)}
-                                          >
-                                            <Check className="h-3 w-3 text-green-600" />
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-6 w-6 p-0"
-                                            onClick={cancelEditPhone}
-                                          >
-                                            <X className="h-3 w-3 text-red-600" />
-                                          </Button>
-                                        </div>
-                                      ) : (
-                                        <>
-                                          <p className="text-xs text-muted-foreground">
-                                            {send.customer_phone}
-                                          </p>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="h-5 w-5 p-0"
-                                            onClick={() => startEditPhone(send.id, send.customer_phone)}
-                                          >
-                                            <Edit2 className="h-3 w-3" />
-                                          </Button>
-                                        </>
-                                      )}
-                                    </div>
-                                    {send.driver_name && (
-                                      <p className="text-xs text-muted-foreground mt-1">
-                                        <span className="font-medium">Motorista:</span> {send.driver_name}
-                                      </p>
-                                    )}
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      {formatDistanceToNow(new Date(send.sent_at), {
-                                        addSuffix: true,
-                                        locale: ptBR
-                                      })}
-                                    </p>
-                                  </div>
-                                  <Badge
-                                    variant={sendStatusMap[send.status]?.variant || 'secondary'}
-                                    className="shrink-0"
-                                  >
-                                    {sendStatusMap[send.status]?.label || send.status}
-                                  </Badge>
-                                </div>
-                                {(send.status === 'failed' || send.status === 'blocked') && send.error_message && (
-                                  <p className={`text-xs mt-2 ${send.status === 'blocked' ? 'text-yellow-700 dark:text-yellow-500' : 'text-destructive'}`}>
-                                    {send.status === 'blocked' ? '⊘ ' : 'Erro: '}{send.error_message}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
-                          </div>
+                        </div>
+                        {expandedId === campaign.id ? (
+                          <ChevronUp className="h-5 w-5 ml-2 shrink-0 text-muted-foreground" />
                         ) : (
-                          <p className="text-sm text-muted-foreground text-center p-4">
-                            Nenhum envio registrado
-                          </p>
+                          <ChevronDown className="h-5 w-5 ml-2 shrink-0 text-muted-foreground" />
                         )}
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="px-4 pb-4 pt-2 border-t space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium">Detalhes dos Envios</p>
+                          {campaignSends[campaign.id]?.some(send => send.status === 'failed') && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleResendFailed(campaign.id)}
+                              disabled={resending[campaign.id]}
+                              className="gap-2"
+                            >
+                              {resending[campaign.id] ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-3 w-3" />
+                              )}
+                              Reenviar Falhados
+                            </Button>
+                          )}
+                        </div>
+                        <div>
+                          {loadingSends[campaign.id] ? (
+                            <div className="flex justify-center p-4">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            </div>
+                          ) : campaignSends[campaign.id]?.length > 0 ? (
+                            <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                              {campaignSends[campaign.id].map((send) => (
+                                <div
+                                  key={send.id}
+                                  className={`p-3 rounded-lg border ${
+                                    send.status === 'success'
+                                      ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
+                                      : send.status === 'blocked'
+                                      ? 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800'
+                                      : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1 min-w-0 space-y-1">
+                                      <p className="font-medium truncate">
+                                        {send.customer_name || 'Cliente sem nome'}
+                                      </p>
+                                      <div className="flex items-center gap-2">
+                                        {editingPhone === send.id ? (
+                                          <div className="flex items-center gap-1">
+                                            <Input
+                                              value={editedPhone}
+                                              onChange={(e) => setEditedPhone(e.target.value)}
+                                              className="h-7 text-xs w-36"
+                                              autoFocus
+                                            />
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-7 w-7 p-0"
+                                              onClick={() => saveEditedPhone(send.id, campaign.id)}
+                                            >
+                                              <Check className="h-3.5 w-3.5 text-green-600" />
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-7 w-7 p-0"
+                                              onClick={cancelEditPhone}
+                                            >
+                                              <X className="h-3.5 w-3.5 text-red-600" />
+                                            </Button>
+                                          </div>
+                                        ) : (
+                                          <>
+                                            <p className="text-xs text-muted-foreground font-mono">
+                                              {send.customer_phone}
+                                            </p>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 w-6 p-0"
+                                              onClick={() => startEditPhone(send.id, send.customer_phone)}
+                                            >
+                                              <Edit2 className="h-3 w-3" />
+                                            </Button>
+                                          </>
+                                        )}
+                                      </div>
+                                      {send.driver_name && (
+                                        <p className="text-xs text-muted-foreground">
+                                          <span className="font-medium">Motorista:</span> {send.driver_name}
+                                        </p>
+                                      )}
+                                      <p className="text-xs text-muted-foreground">
+                                        {format(new Date(send.sent_at), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
+                                      </p>
+                                    </div>
+                                    <Badge
+                                      variant={sendStatusMap[send.status]?.variant || 'secondary'}
+                                      className="shrink-0"
+                                    >
+                                      {sendStatusMap[send.status]?.label || send.status}
+                                    </Badge>
+                                  </div>
+                                  {(send.status === 'failed' || send.status === 'blocked') && send.error_message && (
+                                    <p className={`text-xs mt-2 ${send.status === 'blocked' ? 'text-yellow-700 dark:text-yellow-500' : 'text-destructive'}`}>
+                                      {send.status === 'blocked' ? '⊘ ' : 'Erro: '}{send.error_message}
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground text-center p-4">
+                              Nenhum envio registrado
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </CollapsibleContent>
-                </div>
-              </Collapsible>
-            ))}
-          </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                    // Show first page, last page, current page, and pages around current
+                    const showPage = page === 1 || 
+                                    page === totalPages || 
+                                    (page >= currentPage - 1 && page <= currentPage + 1);
+                    
+                    if (!showPage) {
+                      // Show ellipsis
+                      if (page === currentPage - 2 || page === currentPage + 2) {
+                        return (
+                          <PaginationItem key={page}>
+                            <span className="px-2">...</span>
+                          </PaginationItem>
+                        );
+                      }
+                      return null;
+                    }
+
+                    return (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(page)}
+                          isActive={currentPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
+                  })}
+
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
