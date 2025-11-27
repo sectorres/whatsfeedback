@@ -323,6 +323,7 @@ export type Database = {
           replied_to_id: string | null
           sender_name: string | null
           sender_type: string
+          whatsapp_message_id: string | null
         }
         Insert: {
           conversation_id: string
@@ -339,6 +340,7 @@ export type Database = {
           replied_to_id?: string | null
           sender_name?: string | null
           sender_type: string
+          whatsapp_message_id?: string | null
         }
         Update: {
           conversation_id?: string
@@ -355,6 +357,7 @@ export type Database = {
           replied_to_id?: string | null
           sender_name?: string | null
           sender_type?: string
+          whatsapp_message_id?: string | null
         }
         Relationships: [
           {

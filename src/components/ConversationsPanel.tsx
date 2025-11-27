@@ -49,6 +49,7 @@ interface Message {
   replied_to_id?: string | null;
   edited_at?: string | null;
   is_deleted?: boolean | null;
+  whatsapp_message_id?: string | null;
 }
 interface Reschedule {
   id: string;
@@ -363,7 +364,7 @@ export function ConversationsPanel({
 
       // Adicionar replied_to_id se for uma resposta
       if (replyingTo) {
-        sendPayload.replied_to_id = replyingTo.id;
+        sendPayload.replied_to_id = replyingTo.whatsapp_message_id || replyingTo.id;
       }
 
       // Enviar via Evolution API (não cria mensagem no banco)
@@ -379,9 +380,13 @@ export function ConversationsPanel({
         throw response.error;
       }
 
-      // Atualizar status para enviada
+      // Atualizar status para enviada e salvar whatsapp_message_id
+      const responseData = response.data as any;
       await supabase.from('messages')
-        .update({ message_status: 'sent' })
+        .update({ 
+          message_status: 'sent',
+          whatsapp_message_id: responseData?.key?.id
+        })
         .eq('id', messageId);
 
       // Atualizar última mensagem da conversa
@@ -553,17 +558,16 @@ export function ConversationsPanel({
         throw sendError;
       }
 
-      // Salvar mensagem no banco
-      const {
-        error: dbError
-      } = await supabase.from('messages').insert({
+      // Salvar mensagem no banco com whatsapp_message_id
+      const { error: dbError } = await supabase.from('messages').insert({
         conversation_id: selectedConversation.id,
         sender_type: 'operator',
         sender_name: 'Operador',
         message_text: mediaType === 'image' ? '[Imagem]' : mediaType === 'audio' ? '[Áudio]' : `[${file.name}]`,
         message_status: 'sent',
         media_type: mediaType,
-        media_url: publicUrl
+        media_url: publicUrl,
+        whatsapp_message_id: sendData?.data?.key?.id
       });
       if (dbError) throw dbError;
 
