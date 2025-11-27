@@ -21,18 +21,27 @@ serve(async (req) => {
       throw new Error('API credentials not configured');
     }
 
-    // Se não foram fornecidas datas, usar um período amplo (90 dias no passado e 30 no futuro)
+    // Otimização: Se há um pedido específico, buscar apenas últimos 7 dias
     const hoje = new Date();
     
     const dataFinalDate = new Date();
-    dataFinalDate.setDate(hoje.getDate() + 30); // 30 dias no futuro
-    const dataFinalFormatted = dataFinal || dataFinalDate.toISOString().slice(0, 10).replace(/-/g, '');
-    
     const dataInicialDate = new Date();
-    dataInicialDate.setDate(hoje.getDate() - 90); // 90 dias no passado
+    
+    if (pedidoNumero) {
+      // Para busca de pedido específico: apenas últimos 7 dias
+      dataFinalDate.setDate(hoje.getDate() + 1);
+      dataInicialDate.setDate(hoje.getDate() - 7);
+      console.log('Busca otimizada por pedido:', pedidoNumero);
+    } else {
+      // Para busca geral: 90 dias no passado e 30 no futuro
+      dataFinalDate.setDate(hoje.getDate() + 30);
+      dataInicialDate.setDate(hoje.getDate() - 90);
+    }
+    
+    const dataFinalFormatted = dataFinal || dataFinalDate.toISOString().slice(0, 10).replace(/-/g, '');
     const dataInicialFormatted = dataInicial || dataInicialDate.toISOString().slice(0, 10).replace(/-/g, '');
 
-    console.log('Fetching cargas from API...', { dataInicial: dataInicialFormatted, dataFinal: dataFinalFormatted });
+    console.log('Fetching cargas from API...', { dataInicial: dataInicialFormatted, dataFinal: dataFinalFormatted, pedidoNumero });
 
     // Create Basic Auth header
     const credentials = btoa(`${API_USERNAME}:${API_PASSWORD}`);
