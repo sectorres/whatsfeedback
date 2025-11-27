@@ -507,7 +507,7 @@ export const CampaignBuilder = ({
         <CardContent className="p-0">
           <ResizablePanelGroup direction="horizontal" className="min-h-[600px]">
             {/* Coluna Esquerda - Mensagem */}
-            <ResizablePanel defaultSize={45} minSize={25}>
+            <ResizablePanel defaultSize={25} minSize={20}>
               <div className="h-full p-6 space-y-6 overflow-auto">
                 {/* Mensagem da Campanha */}
                 <div className="space-y-2">
@@ -543,7 +543,7 @@ export const CampaignBuilder = ({
             <ResizableHandle withHandle />
 
             {/* Coluna Direita - Seleções e Templates */}
-            <ResizablePanel defaultSize={55} minSize={35}>
+            <ResizablePanel defaultSize={75} minSize={35}>
               <div className="h-full p-6 space-y-6 overflow-auto border-l">
                 {/* Filtros de Carga */}
                 <div className="space-y-4 pb-6 border-b">
