@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Phone, MessageCircle, Calendar as CalendarIcon, Send, X, Package, Plus, Search, MoreVertical, Archive, Clock, Paperclip, Loader2, Edit, Reply, Trash2, Edit3, Calendar, CheckCircle2 } from 'lucide-react';
+import { Phone, MessageCircle, Calendar as CalendarIcon, Send, X, Package, Plus, Search, MoreVertical, Archive, Clock, Paperclip, Loader2, Edit, Calendar, CheckCircle2 } from 'lucide-react';
 import { toast } from "sonner";
 import { formatDistanceToNow, format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -46,10 +46,6 @@ interface Message {
   media_url?: string | null;
   media_transcription?: string | null;
   media_description?: string | null;
-  replied_to_id?: string | null;
-  edited_at?: string | null;
-  is_deleted?: boolean | null;
-  whatsapp_message_id?: string | null;
 }
 interface Reschedule {
   id: string;
@@ -111,10 +107,10 @@ export function ConversationsPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  
   useEffect(() => {
     audioRef.current = new Audio('/notification.mp3');
     audioRef.current.volume = 0.5;
-    // Preparar o áudio para evitar bloqueio do navegador
     audioRef.current.load();
   }, []);
   const scrollToBottom = () => {
@@ -931,18 +927,7 @@ export function ConversationsPanel({
             <ScrollArea className="flex-1 min-h-0 pr-4">
               <div className="space-y-4 pb-4">
                 {messages.map(msg => <div key={msg.id} className={`mb-4 group ${msg.sender_type === 'operator' ? 'text-right' : 'text-left'}`}>
-                    <div className={`inline-block p-3 rounded-lg max-w-[70%] break-words relative ${msg.sender_type === 'operator' ? 'bg-primary text-primary-foreground' : 'bg-muted'} ${msg.is_deleted ? 'opacity-60 italic' : ''}`}>
-                      {/* Mensagem respondida */}
-                      {msg.replied_to_id && (() => {
-                        const repliedMsg = messages.find(m => m.id === msg.replied_to_id);
-                        return repliedMsg ? (
-                          <div className="mb-2 p-2 rounded bg-black/10 dark:bg-white/10 border-l-2 border-black/30 dark:border-white/30">
-                            <p className="text-xs opacity-70 mb-1">Respondendo a:</p>
-                            <p className="text-xs truncate">{repliedMsg.message_text}</p>
-                          </div>
-                        ) : null;
-                      })()}
-
+                    <div className={`inline-block p-3 rounded-lg max-w-[70%] break-words relative ${msg.sender_type === 'operator' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                       {/* Imagem */}
                       {msg.media_type === 'image' && msg.media_url && <div className="mb-2">
                           <img src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`} alt="Imagem enviada" loading="lazy" className="rounded max-w-full max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity" onClick={() => handleImageClick(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`)} onError={e => {
@@ -950,7 +935,7 @@ export function ConversationsPanel({
                     e.currentTarget.style.display = 'none';
                   }} />
                         </div>}
-
+                      
                       {/* Sticker */}
                       {msg.media_type === 'sticker' && msg.media_url && <div className="mb-2">
                           <img src={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`} alt="Sticker" loading="lazy" className="rounded max-w-[200px] max-h-[200px] object-contain cursor-pointer hover:opacity-90 transition-opacity bg-transparent" onClick={() => handleImageClick(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-media-proxy?url=${encodeURIComponent(msg.media_url)}`)} onError={e => {
@@ -982,71 +967,10 @@ export function ConversationsPanel({
                           </a>
                         </div>}
                       
-                      {editingMessage?.id === msg.id ? (
-                        <div className="space-y-2">
-                          <Input 
-                            value={editText}
-                            onChange={(e) => setEditText(e.target.value)}
-                            className="text-sm"
-                            autoFocus
-                          />
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={() => handleEditMessage(msg)}>Salvar</Button>
-                            <Button size="sm" variant="outline" onClick={() => {
-                              setEditingMessage(null);
-                              setEditText("");
-                            }}>Cancelar</Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          {msg.message_text && msg.message_text !== '[Audio]' && msg.message_text !== '[Áudio]' && msg.message_text !== '[Imagem]' && msg.message_text !== '[Image]' && <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>}
-                          <p className="text-xs opacity-70 mt-1">
-                            {formatMessageTimestamp(msg.created_at)}
-                            {msg.edited_at && <span className="ml-1">(editada)</span>}
-                          </p>
-                        </>
-                      )}
-
-                      {/* Botões de ação - apenas para mensagens do operador */}
-                      {msg.sender_type === 'operator' && !msg.is_deleted && editingMessage?.id !== msg.id && (
-                        <div className="absolute -right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6 bg-background border"
-                            onClick={() => {
-                              setEditingMessage(msg);
-                              setEditText(msg.message_text);
-                            }}
-                            title="Editar mensagem"
-                          >
-                            <Edit3 className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6 bg-background border"
-                            onClick={() => handleDeleteMessage(msg)}
-                            title="Apagar mensagem"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      )}
-                      
-                      {/* Botão de responder - para todas as mensagens */}
-                      {!msg.is_deleted && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className={`absolute ${msg.sender_type === 'operator' ? '-left-2' : '-right-2'} top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 bg-background border`}
-                          onClick={() => setReplyingTo(msg)}
-                          title="Responder mensagem"
-                        >
-                          <Reply className="h-3 w-3" />
-                        </Button>
-                      )}
+                      {msg.message_text && msg.message_text !== '[Audio]' && msg.message_text !== '[Áudio]' && msg.message_text !== '[Imagem]' && msg.message_text !== '[Image]' && <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>}
+                      <p className="text-xs opacity-70 mt-1">
+                        {formatMessageTimestamp(msg.created_at)}
+                      </p>
                     </div>
                   </div>)}
                 <div ref={messagesEndRef} />
@@ -1054,25 +978,6 @@ export function ConversationsPanel({
             </ScrollArea>
 
             <div className="mt-4 space-y-2">
-              {/* Indicador de resposta */}
-              {replyingTo && (
-                <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-                  <Reply className="h-4 w-4" />
-                  <div className="flex-1">
-                    <p className="text-xs text-muted-foreground">Respondendo a:</p>
-                    <p className="text-sm truncate">{replyingTo.message_text}</p>
-                  </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-6 w-6"
-                    onClick={() => setReplyingTo(null)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-
               <div className="flex gap-2">
                 <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
                 <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile || sending} title="Anexar arquivo">
