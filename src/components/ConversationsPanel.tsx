@@ -21,6 +21,7 @@ import { OrderDetailsDialog } from "@/components/OrderDetailsDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 interface Conversation {
   id: string;
   customer_phone: string;
@@ -621,10 +622,15 @@ export function ConversationsPanel({
                     conv.customer_phone.includes(query)
                   );
                 }).map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
+                    <div className="flex items-start gap-2">
+                      <Avatar className="h-10 w-10 flex-shrink-0">
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                          {conv.customer_name ? conv.customer_name.substring(0, 2).toUpperCase() : conv.customer_phone.substring(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <div className="font-medium text-sm">{conv.customer_name || conv.customer_phone}</div>
+                          <div className="font-medium text-sm truncate">{conv.customer_name || conv.customer_phone}</div>
                           {conv.unread_count > 0 && <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center px-1">
                               {conv.unread_count}
                             </Badge>}
@@ -643,7 +649,7 @@ export function ConversationsPanel({
                     })}
                         </div>
                       </div>
-                      {conv.unread_count > 0 && <div className="w-2 h-2 rounded-full bg-destructive" />}
+                      {conv.unread_count > 0 && <div className="w-2 h-2 rounded-full bg-destructive flex-shrink-0" />}
                     </div>
                   </div>)}
             </ScrollArea>
@@ -670,21 +676,28 @@ export function ConversationsPanel({
                     conv.customer_phone.includes(query)
                   );
                 }).map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <div className="font-medium text-sm">{conv.customer_name || conv.customer_phone}</div>
+                    <div className="flex items-start gap-2">
+                      <Avatar className="h-10 w-10 flex-shrink-0">
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                          {conv.customer_name ? conv.customer_name.substring(0, 2).toUpperCase() : conv.customer_phone.substring(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="font-medium text-sm truncate">{conv.customer_name || conv.customer_phone}</div>
                         {conv.tags?.includes('reagendado') && <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs h-5">
                             Reagendado
                           </Badge>}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {conv.customer_phone}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {formatDistanceToNow(new Date(conv.last_message_at), {
-                    addSuffix: true,
-                    locale: ptBR
-                  })}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {conv.customer_phone}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {formatDistanceToNow(new Date(conv.last_message_at), {
+                        addSuffix: true,
+                        locale: ptBR
+                      })}
+                        </div>
                       </div>
                     </div>
                   </div>)}
