@@ -3,32 +3,32 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizePhone, comparePhones } from "../_shared/phone-utils.ts";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
+  if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const payload = await req.json();
-    console.log("Webhook received:", JSON.stringify(payload, null, 2));
+    console.log('Webhook received:', JSON.stringify(payload, null, 2));
 
     // Detectar evento (corpo ou sufixo da URL quando "Webhook by Event" estiver ativo)
     const url = new URL(req.url);
-    const pathEvent = url.pathname.split("/").pop()?.toLowerCase();
-    const rawEvent = (payload?.event || pathEvent || "").toLowerCase();
-    const isMessageEvent = rawEvent.includes("message") && rawEvent.includes("upsert");
+    const pathEvent = url.pathname.split('/').pop()?.toLowerCase();
+    const rawEvent = (payload?.event || pathEvent || '').toLowerCase();
+    const isMessageEvent = rawEvent.includes('message') && rawEvent.includes('upsert');
 
     // Normalizar estrutura de mensagens
     let incoming: any[] = [];
-
+    
     // Caso 1: payload.data.messages (array)
     if (Array.isArray(payload?.data?.messages)) {
       incoming = payload.data.messages;
@@ -46,20 +46,21 @@ serve(async (req) => {
       incoming = [payload.data];
     }
 
-    console.log("Parsed event:", rawEvent, "messages count:", incoming.length);
+    console.log('Parsed event:', rawEvent, 'messages count:', incoming.length);
 
     if (!isMessageEvent && incoming.length === 0) {
       // Ignorar eventos não relacionados a mensagens
-      return new Response(JSON.stringify({ success: true, ignored: rawEvent || "no-event" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ success: true, ignored: rawEvent || 'no-event' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     for (const msg of incoming) {
       try {
         // Ignorar mensagens enviadas pelo próprio bot
         if (msg.key?.fromMe) {
-          console.log("Ignoring message from bot (fromMe=true)");
+          console.log('Ignoring message from bot (fromMe=true)');
           continue;
         }
 
@@ -67,16 +68,14 @@ serve(async (req) => {
         const msgId = msg.key?.id || crypto.randomUUID();
 
         // Extrair telefone: usar remoteJidAlt quando addressingMode=LID; evitar payload.sender (número da instância)
-        let rawPhone = "";
-        const remoteJid = msg.key?.remoteJid || msg.remoteJid || "";
-        const remoteJidAlt = msg.key?.remoteJidAlt || msg.remoteJidAlt || "";
-        const addressingMode = msg.key?.addressingMode || msg.addressingMode || "";
-
-        console.log(
-          `[${msgId}] 📥 Extracting phone - remoteJid: ${remoteJid}, remoteJidAlt: ${remoteJidAlt || "N/A"}, addressingMode: ${addressingMode || "N/A"}`,
-        );
-
-        if (remoteJid.endsWith("@lid")) {
+        let rawPhone = '';
+        const remoteJid = msg.key?.remoteJid || msg.remoteJid || '';
+        const remoteJidAlt = msg.key?.remoteJidAlt || msg.remoteJidAlt || '';
+        const addressingMode = msg.key?.addressingMode || msg.addressingMode || '';
+        
+        console.log(`[${msgId}] 📥 Extracting phone - remoteJid: ${remoteJid}, remoteJidAlt: ${remoteJidAlt || 'N/A'}, addressingMode: ${addressingMode || 'N/A'}`);
+        
+        if (remoteJid.endsWith('@lid')) {
           if (remoteJidAlt) {
             console.log(`[${msgId}] 🆔 LID detected, using remoteJidAlt as phone source`);
             rawPhone = remoteJidAlt;
@@ -89,162 +88,160 @@ serve(async (req) => {
           }
         } else {
           // Caso comum: usar remoteJid (s.whatsapp.net) ou outros campos
-          rawPhone = remoteJid || msg.from || msg.key?.participant || payload?.sender || "";
+          rawPhone = remoteJid || msg.from || msg.key?.participant || payload?.sender || '';
         }
-
+        
         if (!rawPhone) {
           console.log(`[${msgId}] ❌ No phone source found, skipping message`);
           continue;
         }
-
+        
         // Limpar sufixos do WhatsApp
-        rawPhone = rawPhone
-          .replace("@s.whatsapp.net", "")
-          .replace("@g.us", "")
-          .replace("@c.us", "")
-          .replace("@lid", "");
-
+        rawPhone = rawPhone.replace('@s.whatsapp.net', '').replace('@g.us', '').replace('@c.us', '').replace('@lid', '');
+        
         console.log(`[${msgId}] 🧹 Cleaned phone: ${rawPhone}`);
-
+        
         // Normalizar telefone (remove código do país 55 e zeros à esquerda)
         const customerPhone = normalizePhone(rawPhone);
-
+        
         if (!customerPhone || customerPhone.length < 10) {
           console.log(`[${msgId}] ❌ Invalid normalized phone: ${customerPhone}, skipping`);
           continue;
         }
-
+        
         console.log(`[${msgId}] ✅ Valid phone extracted - Raw: ${rawPhone} -> Normalized: ${customerPhone}`);
 
         // Detectar tipo de mídia e URL
-        let mediaType = "text";
+        let mediaType = 'text';
         let mediaUrl = null;
 
         // Verificar tipos de mídia
         if (msg.message?.audioMessage) {
-          mediaType = "audio";
+          mediaType = 'audio';
           mediaUrl = msg.message.audioMessage.url;
-          console.log("Audio detected:", mediaUrl);
+          console.log('Audio detected:', mediaUrl);
         } else if (msg.message?.imageMessage) {
-          mediaType = "image";
+          mediaType = 'image';
           mediaUrl = msg.message.imageMessage.url;
-          console.log("Image detected:", mediaUrl);
+          console.log('Image detected:', mediaUrl);
         } else if (msg.message?.videoMessage) {
-          mediaType = "video";
+          mediaType = 'video';
           mediaUrl = msg.message.videoMessage.url;
-          console.log("Video detected:", mediaUrl);
+          console.log('Video detected:', mediaUrl);
         } else if (msg.message?.documentMessage) {
-          mediaType = "document";
+          mediaType = 'document';
           mediaUrl = msg.message.documentMessage.url;
-          console.log("Document detected:", mediaUrl);
+          console.log('Document detected:', mediaUrl);
         } else if (msg.message?.stickerMessage) {
-          mediaType = "sticker";
+          mediaType = 'sticker';
           mediaUrl = msg.message.stickerMessage.url;
-          console.log("Sticker detected:", mediaUrl);
+          console.log('Sticker detected:', mediaUrl);
         }
 
         // Extrair texto da mensagem
-        let messageText = "";
-        if (mediaType === "image") {
-          const caption = msg.message?.imageMessage?.caption || "";
-          messageText = caption || "[Imagem]";
-        } else if (mediaType === "audio") {
-          messageText = "[Áudio]";
-        } else if (mediaType === "video") {
-          messageText = msg.message?.videoMessage?.caption || "[Vídeo]";
-        } else if (mediaType === "document") {
-          const fileName = msg.message?.documentMessage?.fileName || "documento";
+        let messageText = '';
+        if (mediaType === 'image') {
+          const caption = msg.message?.imageMessage?.caption || '';
+          messageText = caption || '[Imagem]';
+        } else if (mediaType === 'audio') {
+          messageText = '[Áudio]';
+        } else if (mediaType === 'video') {
+          messageText = msg.message?.videoMessage?.caption || '[Vídeo]';
+        } else if (mediaType === 'document') {
+          const fileName = msg.message?.documentMessage?.fileName || 'documento';
           messageText = msg.message?.documentMessage?.caption || fileName;
-        } else if (mediaType === "sticker") {
-          messageText = "[Sticker]";
+        } else if (mediaType === 'sticker') {
+          messageText = '[Sticker]';
         } else {
           messageText =
-            msg.message?.conversation || msg.message?.extendedTextMessage?.text || msg.body?.text || msg.body || "";
+            msg.message?.conversation ||
+            msg.message?.extendedTextMessage?.text ||
+            msg.body?.text ||
+            msg.body ||
+            '';
         }
 
         // Extrair nome do remetente do WhatsApp
-        const customerName = msg.pushName || msg.senderName || "Cliente";
+        const customerName = msg.pushName || msg.senderName || 'Cliente';
 
         console.log(`Processing message from ${customerPhone} (${customerName}): ${messageText}`);
 
         // Verificar se há pesquisa pendente para este cliente
         const { data: surveys, error: surveyError } = await supabase
-          .from("satisfaction_surveys")
-          .select("*")
-          .eq("status", "sent")
-          .is("rating", null)
-          .order("sent_at", { ascending: false });
+          .from('satisfaction_surveys')
+          .select('*')
+          .eq('status', 'sent')
+          .is('rating', null)
+          .order('sent_at', { ascending: false });
 
         console.log(`Found ${surveys?.length || 0} pending surveys`);
 
         // Encontrar a pesquisa que corresponde ao telefone usando comparação normalizada
-        const pendingSurvey = surveys?.find((s) => {
-          const match = comparePhones(s.customer_phone || "", customerPhone);
-          console.log(
-            `Comparing DB phone: ${s.customer_phone} with remote: ${customerPhone} -> ${match ? "MATCH" : "NO MATCH"}`,
-          );
+        const pendingSurvey = surveys?.find(s => {
+          const match = comparePhones(s.customer_phone || '', customerPhone);
+          console.log(`Comparing DB phone: ${s.customer_phone} with remote: ${customerPhone} -> ${match ? 'MATCH' : 'NO MATCH'}`);
           return match;
         });
 
         // Se há pesquisa pendente, validar se é uma nota de 1 a 5
         let isSurveyRatingOnly = false;
-
+        
         if (pendingSurvey) {
           const ratingMatch = messageText.trim().match(/^[1-5]$/);
-
+          
           if (ratingMatch) {
             const rating = parseInt(ratingMatch[0]);
-
+            
             console.log(`Detected rating ${rating} from ${customerPhone} (remoteJid: ${remoteJid})`);
             console.log(`Updating survey ${pendingSurvey.id} with rating ${rating}`);
-
+            
             // Marcar que é apenas nota de pesquisa (não deve criar conversa)
             isSurveyRatingOnly = true;
-
+            
             // Atualizar a pesquisa com a nota e marcar como aguardando feedback
             const { error: updateError } = await supabase
-              .from("satisfaction_surveys")
+              .from('satisfaction_surveys')
               .update({
                 rating: rating,
-                status: "awaiting_feedback",
-                responded_at: new Date().toISOString(),
+                status: 'awaiting_feedback',
+                responded_at: new Date().toISOString()
               })
-              .eq("id", pendingSurvey.id);
+              .eq('id', pendingSurvey.id);
 
             if (updateError) {
-              console.error("Error updating survey:", updateError);
+              console.error('Error updating survey:', updateError);
             } else {
               console.log(`Survey rating recorded: ${customerPhone} rated ${rating}`);
-
+              
               // Pedir feedback opcional
               try {
-                await supabase.functions.invoke("whatsapp-send", {
+                await supabase.functions.invoke('whatsapp-send', {
                   body: {
                     phone: customerPhone,
-                    message: `Obrigado pela sua nota! 🙏\n\nGostaria de deixar uma avaliação ou comentário adicional? Se sim, por favor escreva abaixo. Caso contrário, pode ignorar esta mensagem.`,
-                  },
+                    message: `Obrigado pela sua nota! 🙏\n\nGostaria de deixar uma avaliação ou comentário adicional? Se sim, por favor escreva abaixo. Caso contrário, pode ignorar esta mensagem.`
+                  }
                 });
               } catch (feedbackError) {
-                console.error("Error sending feedback request:", feedbackError);
+                console.error('Error sending feedback request:', feedbackError);
               }
             }
-
+            
             // Pular criação de conversa/mensagem quando for apenas nota
             continue;
           } else {
             // Mensagem não é uma nota válida, informar o cliente
             console.log(`Invalid rating received from ${customerPhone}: "${messageText}"`);
             try {
-              await supabase.functions.invoke("whatsapp-send", {
+              await supabase.functions.invoke('whatsapp-send', {
                 body: {
                   phone: customerPhone,
-                  message: `Por favor, responda apenas com um número de 1 a 5 para avaliar sua entrega:\n\n1️⃣ - Muito insatisfeito\n2️⃣ - Insatisfeito\n3️⃣ - Neutro\n4️⃣ - Satisfeito\n5️⃣ - Muito satisfeito`,
-                },
+                  message: `Por favor, responda apenas com um número de 1 a 5 para avaliar sua entrega:\n\n1️⃣ - Muito insatisfeito\n2️⃣ - Insatisfeito\n3️⃣ - Neutro\n4️⃣ - Satisfeito\n5️⃣ - Muito satisfeito`
+                }
               });
             } catch (sendError) {
-              console.error("Error sending invalid rating message:", sendError);
+              console.error('Error sending invalid rating message:', sendError);
             }
-
+            
             // Pular criação de conversa quando for resposta inválida à pesquisa
             continue;
           }
@@ -252,31 +249,31 @@ serve(async (req) => {
 
         // Verificar se há campanha pendente para este cliente (aguardando resposta 1, 2 ou 3)
         const { data: pendingCampaign } = await supabase
-          .from("campaign_sends")
-          .select("*, campaign_responses(id)")
-          .eq("customer_phone", customerPhone)
-          .eq("status", "success")
-          .is("campaign_responses.id", null)
-          .order("sent_at", { ascending: false })
+          .from('campaign_sends')
+          .select('*, campaign_responses(id)')
+          .eq('customer_phone', customerPhone)
+          .eq('status', 'success')
+          .is('campaign_responses.id', null)
+          .order('sent_at', { ascending: false })
           .limit(1)
           .maybeSingle();
 
         // Se há campanha pendente, só aceitar 1, 2 ou 3
         if (pendingCampaign) {
           const confirmationMatch = messageText.trim().match(/^[123]$/);
-
+          
           if (!confirmationMatch) {
             // Resposta inválida - pedir novamente
             console.log(`[${msgId}] ⚠️ Invalid campaign response: "${messageText}", expecting 1, 2 or 3`);
             try {
-              await supabase.functions.invoke("whatsapp-send", {
+              await supabase.functions.invoke('whatsapp-send', {
                 body: {
                   phone: customerPhone,
-                  message: `Por favor, responda apenas com número:\n\n1️⃣ - Confirmar\n2️⃣ - Reagendar\n3️⃣ - Parar de enviar notificação`,
-                },
+                  message: `Por favor, responda com:\n\n1️⃣ - Confirmar\n2️⃣ - Reagendar\n3️⃣ - Parar de enviar notificação`
+                }
               });
             } catch (sendError) {
-              console.error("Error sending reminder:", sendError);
+              console.error('Error sending reminder:', sendError);
             }
             continue; // Ignorar a mensagem
           }
@@ -286,9 +283,9 @@ serve(async (req) => {
 
           // Buscar conversa existente pelo telefone normalizado
           const { data: existingConv } = await supabase
-            .from("conversations")
-            .select("*")
-            .eq("customer_phone", customerPhone)
+            .from('conversations')
+            .select('*')
+            .eq('customer_phone', customerPhone)
             .maybeSingle();
 
           if (!existingConv) {
@@ -296,158 +293,163 @@ serve(async (req) => {
             continue;
           }
 
-          if (choice === "1") {
+          if (choice === '1') {
             // Confirmado - registrar mensagem do cliente no chat
-            await supabase.from("messages").insert({
+            await supabase.from('messages').insert({
               conversation_id: existingConv.id,
-              sender_type: "customer",
+              sender_type: 'customer',
               sender_name: customerName,
-              message_text: "1",
-              media_type: "text",
+              message_text: '1',
+              media_type: 'text',
               media_url: null,
-              whatsapp_message_id: msg.key?.id,
+              whatsapp_message_id: msg.key?.id
             });
-
+            
             // Atualizar status do campaign_send para 'confirmed'
-            await supabase.from("campaign_sends").update({ status: "confirmed" }).eq("id", pendingCampaign.id);
-
+            await supabase
+              .from('campaign_sends')
+              .update({ status: 'confirmed' })
+              .eq('id', pendingCampaign.id);
+            
             // Registrar resposta e adicionar tag
-            await supabase.from("campaign_responses").insert({
+            await supabase.from('campaign_responses').insert({
               conversation_id: existingConv.id,
               campaign_send_id: pendingCampaign.id,
-              response_type: "confirmed",
+              response_type: 'confirmed'
             });
 
             const currentTags = existingConv.tags || [];
-            if (!currentTags.includes("confirmado")) {
+            if (!currentTags.includes('confirmado')) {
               await supabase
-                .from("conversations")
-                .update({
-                  tags: [...currentTags, "confirmado"],
-                  last_message_at: new Date().toISOString(),
+                .from('conversations')
+                .update({ 
+                  tags: [...currentTags, 'confirmado'],
+                  last_message_at: new Date().toISOString()
                 })
-                .eq("id", existingConv.id);
+                .eq('id', existingConv.id);
             }
 
             // Registrar mensagem do cliente primeiro
-            await supabase.from("messages").insert({
+            await supabase.from('messages').insert({
               conversation_id: existingConv.id,
-              sender_type: "agent",
-              sender_name: "Bot",
-              message_text: "Obrigado pela confirmação!",
-              media_type: "text",
+              sender_type: 'agent',
+              sender_name: 'Bot',
+              message_text: 'Obrigado pela confirmação!',
+              media_type: 'text',
               media_url: null,
-              whatsapp_message_id: msg.key?.id,
+              whatsapp_message_id: msg.key?.id
             });
-
+            
             // Enviar resposta do bot (sem salvar novamente no banco)
-            await supabase.functions.invoke("whatsapp-send", {
+            await supabase.functions.invoke('whatsapp-send', {
               body: {
                 phone: customerPhone,
-                message: "Obrigado pela confirmação!",
-                skip_message_save: true,
-              },
+                message: 'Obrigado pela confirmação!',
+                skip_message_save: true
+              }
             });
-
+            
             console.log(`[${msgId}] ✅ Delivery confirmed, campaign_send status updated`);
             continue;
-          } else if (choice === "2") {
+          } else if (choice === '2') {
             // Reagendar - registrar mensagem do cliente no chat
-            await supabase.from("messages").insert({
+            await supabase.from('messages').insert({
               conversation_id: existingConv.id,
-              sender_type: "customer",
+              sender_type: 'customer',
               sender_name: customerName,
-              message_text: "2",
-              media_type: "text",
+              message_text: '2',
+              media_type: 'text',
               media_url: null,
-              whatsapp_message_id: msg.key?.id,
+              whatsapp_message_id: msg.key?.id
             });
-
+            
             // Atualizar status do campaign_send para 'reschedule_requested'
             await supabase
-              .from("campaign_sends")
-              .update({ status: "reschedule_requested" })
-              .eq("id", pendingCampaign.id);
-
+              .from('campaign_sends')
+              .update({ status: 'reschedule_requested' })
+              .eq('id', pendingCampaign.id);
+            
             // Registrar resposta
-            await supabase.from("campaign_responses").insert({
+            await supabase.from('campaign_responses').insert({
               conversation_id: existingConv.id,
               campaign_send_id: pendingCampaign.id,
-              response_type: "reschedule",
+              response_type: 'reschedule'
             });
 
             // Registrar mensagem do bot primeiro
-            await supabase.from("messages").insert({
+            await supabase.from('messages').insert({
               conversation_id: existingConv.id,
-              sender_type: "agent",
-              sender_name: "Bot",
-              message_text: "Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.",
-              media_type: "text",
+              sender_type: 'agent',
+              sender_name: 'Bot',
+              message_text: 'Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.',
+              media_type: 'text',
               media_url: null,
-              whatsapp_message_id: msg.key?.id,
+              whatsapp_message_id: msg.key?.id
             });
-
+            
             // Enviar mensagem com o número para reagendar (sem salvar novamente no banco)
-            await supabase.functions.invoke("whatsapp-send", {
+            await supabase.functions.invoke('whatsapp-send', {
               body: {
                 phone: customerPhone,
-                message: "Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.",
-                skip_message_save: true,
-              },
+                message: 'Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.',
+                skip_message_save: true
+              }
             });
-
+            
             console.log(`[${msgId}] 📅 Reschedule request recorded, customer directed to call`);
             continue;
-          } else if (choice === "3") {
+          } else if (choice === '3') {
             // Não é meu número - registrar mensagem do cliente no chat
-            await supabase.from("messages").insert({
+            await supabase.from('messages').insert({
               conversation_id: existingConv.id,
-              sender_type: "customer",
+              sender_type: 'customer',
               sender_name: customerName,
-              message_text: "3",
-              media_type: "text",
+              message_text: '3',
+              media_type: 'text',
               media_url: null,
-              whatsapp_message_id: msg.key?.id,
+              whatsapp_message_id: msg.key?.id
             });
-
+            
             // Registrar resposta e adicionar à blacklist
-            await supabase.from("campaign_responses").insert({
+            await supabase.from('campaign_responses').insert({
               conversation_id: existingConv.id,
               campaign_send_id: pendingCampaign.id,
-              response_type: "wrong_number",
+              response_type: 'wrong_number'
             });
 
-            const { error: blacklistError } = await supabase.from("blacklist").insert({
-              phone: customerPhone,
-              reason: "Cliente informou que não é o número dele (resposta campanha)",
-            });
-
-            if (blacklistError && !blacklistError.message?.includes("duplicate")) {
+            const { error: blacklistError } = await supabase
+              .from('blacklist')
+              .insert({
+                phone: customerPhone,
+                reason: 'Cliente informou que não é o número dele (resposta campanha)'
+              });
+            
+            if (blacklistError && !blacklistError.message?.includes('duplicate')) {
               console.error(`[${msgId}] ❌ Error adding to blacklist:`, blacklistError);
             } else {
               console.log(`[${msgId}] 🚫 Added to blacklist`);
             }
-
+            
             // Enviar mensagem de confirmação
-            const botMessage = "Entendido. Seu número foi removido da nossa lista de contatos.";
-            await supabase.functions.invoke("whatsapp-send", {
+            const botMessage = 'Entendido. Seu número foi removido da nossa lista de contatos.';
+            await supabase.functions.invoke('whatsapp-send', {
               body: {
                 phone: customerPhone,
-                message: botMessage,
-              },
+                message: botMessage
+              }
             });
-
+            
             // Registrar mensagem do bot no chat
-            await supabase.from("messages").insert({
+            await supabase.from('messages').insert({
               conversation_id: existingConv.id,
-              sender_type: "agent",
-              sender_name: "Bot",
+              sender_type: 'agent',
+              sender_name: 'Bot',
               message_text: botMessage,
-              media_type: "text",
+              media_type: 'text',
               media_url: null,
-              whatsapp_message_id: msg.key?.id,
+              whatsapp_message_id: msg.key?.id
             });
-
+            
             continue;
           }
         }
@@ -455,14 +457,14 @@ serve(async (req) => {
         // Verificar se é um feedback para pesquisa que já tem nota
         let isSurveyFeedback = false;
         const { data: surveyAwaitingFeedback } = await supabase
-          .from("satisfaction_surveys")
-          .select("*")
-          .eq("status", "awaiting_feedback")
-          .order("responded_at", { ascending: false })
+          .from('satisfaction_surveys')
+          .select('*')
+          .eq('status', 'awaiting_feedback')
+          .order('responded_at', { ascending: false })
           .limit(100);
 
-        const feedbackSurvey = surveyAwaitingFeedback?.find((s) =>
-          comparePhones(s.customer_phone || "", customerPhone),
+        const feedbackSurvey = surveyAwaitingFeedback?.find(s => 
+          comparePhones(s.customer_phone || '', customerPhone)
         );
 
         // Verificar se não é uma nota (1-5) antes de processar como feedback
@@ -471,60 +473,62 @@ serve(async (req) => {
         if (feedbackSurvey && !isRating) {
           console.log(`Processing feedback for survey ${feedbackSurvey.id}`);
           isSurveyFeedback = true;
-
+          
           // Atualizar com o feedback
           const { error: feedbackError } = await supabase
-            .from("satisfaction_surveys")
+            .from('satisfaction_surveys')
             .update({
               feedback: messageText,
-              status: "responded",
+              status: 'responded'
             })
-            .eq("id", feedbackSurvey.id);
+            .eq('id', feedbackSurvey.id);
 
           if (!feedbackError) {
             console.log(`Feedback recorded for survey ${feedbackSurvey.id}`);
-
+            
             // Agradecer pelo feedback
             try {
-              await supabase.functions.invoke("whatsapp-send", {
+              await supabase.functions.invoke('whatsapp-send', {
                 body: {
                   phone: customerPhone,
-                  message: `Muito obrigado pela sua avaliação! Sua opinião é muito importante para nós. 🙏✨`,
-                },
+                  message: `Muito obrigado pela sua avaliação! Sua opinião é muito importante para nós. 🙏✨`
+                }
               });
             } catch (thankError) {
-              console.error("Error sending thank you message:", thankError);
+              console.error('Error sending thank you message:', thankError);
             }
           }
-
+          
           // Pular criação de conversa quando for feedback de pesquisa
           continue;
         }
-
+        
+        
         // Apenas criar conversa se NÃO for nota de pesquisa
         if (!isSurveyRatingOnly) {
+
           // Buscar conversa existente pelo telefone normalizado
           let { data: conversation } = await supabase
-            .from("conversations")
-            .select("*")
-            .eq("customer_phone", customerPhone)
+            .from('conversations')
+            .select('*')
+            .eq('customer_phone', customerPhone)
             .maybeSingle();
 
           if (!conversation) {
             const { data: newConv, error: convError } = await supabase
-              .from("conversations")
+              .from('conversations')
               .insert({
                 customer_phone: customerPhone,
                 customer_name: customerName,
-                status: "active",
+                status: 'active',
                 last_message_at: new Date().toISOString(),
-                unread_count: 1,
+                unread_count: 1
               })
               .select()
               .single();
 
             if (convError) {
-              console.error("Error creating conversation:", convError);
+              console.error('Error creating conversation:', convError);
               continue;
             }
             conversation = newConv;
@@ -532,67 +536,60 @@ serve(async (req) => {
             // Atualizar última mensagem, incrementar contador de não lidas e atualizar nome se necessário
             const updates: any = {
               last_message_at: new Date().toISOString(),
-              status: "active",
-              unread_count: (conversation.unread_count || 0) + 1,
+              status: 'active',
+              unread_count: (conversation.unread_count || 0) + 1
             };
-
+            
             // Atualizar nome se o novo for melhor que o atual
-            if (
-              customerName &&
-              customerName !== "Cliente" &&
-              (!conversation.customer_name || conversation.customer_name === "Cliente")
-            ) {
+            if (customerName && customerName !== 'Cliente' && (!conversation.customer_name || conversation.customer_name === 'Cliente')) {
               updates.customer_name = customerName;
             }
 
-            await supabase.from("conversations").update(updates).eq("id", conversation.id);
+            await supabase
+              .from('conversations')
+              .update(updates)
+              .eq('id', conversation.id);
           }
 
           // Tentar baixar e armazenar mídia (quando houver)
           let finalMediaUrl = mediaUrl;
-          if (mediaType !== "text") {
+          if (mediaType !== 'text') {
             try {
-              const EVOLUTION_API_URL = Deno.env.get("EVOLUTION_API_URL");
-              const EVOLUTION_API_KEY = Deno.env.get("EVOLUTION_API_KEY");
-              const EVOLUTION_INSTANCE_NAME = Deno.env.get("EVOLUTION_INSTANCE_NAME");
+              const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
+              const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
+              const EVOLUTION_INSTANCE_NAME = Deno.env.get('EVOLUTION_INSTANCE_NAME');
               if (EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE_NAME) {
                 // Tentativas de endpoints conhecidos para obter a mídia como base64
                 let evoResp: Response | null = null;
                 // Tentativa 1: downloadMediaMessage com a mensagem completa
                 try {
-                  evoResp = await fetch(
-                    `${EVOLUTION_API_URL}/message/downloadMediaMessage/${EVOLUTION_INSTANCE_NAME}`,
-                    {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
-                      body: JSON.stringify({ message: msg }),
-                    },
-                  );
+                  evoResp = await fetch(`${EVOLUTION_API_URL}/message/downloadMediaMessage/${EVOLUTION_INSTANCE_NAME}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_API_KEY },
+                    body: JSON.stringify({ message: msg })
+                  });
                 } catch (_) {}
 
                 if (!evoResp || !evoResp.ok) {
                   // Tentativa 2: getBase64FromMediaMessage
                   try {
-                    evoResp = await fetch(
-                      `${EVOLUTION_API_URL}/chat/getBase64FromMediaMessage/${EVOLUTION_INSTANCE_NAME}`,
-                      {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json", apikey: EVOLUTION_API_KEY },
-                        body: JSON.stringify({ message: msg }),
-                      },
-                    );
+                    evoResp = await fetch(`${EVOLUTION_API_URL}/chat/getBase64FromMediaMessage/${EVOLUTION_INSTANCE_NAME}`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'apikey': EVOLUTION_API_KEY },
+                      body: JSON.stringify({ message: msg })
+                    });
                   } catch (_) {}
                 }
 
                 if (evoResp && evoResp.ok) {
                   const evoData = await evoResp.json();
                   // Normaliza possíveis formatos: {base64, mimetype} ou {mimetype, data: 'data:<mimetype>;base64,<...>'}
-                  let base64Data = "";
-                  let mime = "";
+                  let base64Data = '';
+                  let mime = '';
                   if (evoData?.base64 && evoData?.mimetype) {
                     base64Data = evoData.base64;
                     mime = evoData.mimetype;
-                  } else if (typeof evoData?.data === "string") {
+                  } else if (typeof evoData?.data === 'string') {
                     const dataUrl: string = evoData.data;
                     const match = dataUrl.match(/^data:(.*?);base64,(.*)$/);
                     if (match) {
@@ -602,71 +599,78 @@ serve(async (req) => {
                   }
                   if (base64Data && mime) {
                     // Upload para bucket público
-                    const bytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
-                    const ext = mime.split("/")[1] || "bin";
+                    const bytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+                    const ext = mime.split('/')[1] || 'bin';
                     const filePath = `incoming/${Date.now()}_${msg.key?.id || crypto.randomUUID()}.${ext}`;
-                    const uploadRes = await supabase.storage.from("whatsapp-media").upload(filePath, bytes, {
+                    const uploadRes = await supabase.storage.from('whatsapp-media').upload(filePath, bytes, {
                       contentType: mime,
-                      upsert: true,
+                      upsert: true
                     });
                     if (!uploadRes.error) {
-                      const pub = supabase.storage.from("whatsapp-media").getPublicUrl(filePath);
+                      const pub = supabase.storage.from('whatsapp-media').getPublicUrl(filePath);
                       finalMediaUrl = pub.data.publicUrl;
-                      console.log("Media stored to bucket:", finalMediaUrl);
+                      console.log('Media stored to bucket:', finalMediaUrl);
                     } else {
-                      console.error("Upload error:", uploadRes.error);
+                      console.error('Upload error:', uploadRes.error);
                     }
                   } else {
-                    console.error("Evolution download returned no base64/mimetype");
+                    console.error('Evolution download returned no base64/mimetype');
                   }
                 } else {
                   try {
                     const txt = await evoResp?.text();
-                    console.error("Evolution download failed", evoResp?.status, txt);
+                    console.error('Evolution download failed', evoResp?.status, txt);
                   } catch (_) {
-                    console.error("Evolution download failed with unknown error");
+                    console.error('Evolution download failed with unknown error');
                   }
                 }
               } else {
-                console.warn("Evolution API env vars not set; skipping media download");
+                console.warn('Evolution API env vars not set; skipping media download');
               }
             } catch (err) {
-              console.error("Error downloading media via Evolution:", err);
+              console.error('Error downloading media via Evolution:', err);
             }
           }
 
           // Inserir mensagem com dados de mídia
-          const { error: msgError } = await supabase.from("messages").insert({
-            conversation_id: conversation.id,
-            sender_type: "customer",
-            sender_name: customerName,
-            message_text: messageText,
-            message_status: "received",
-            media_type: mediaType,
-            media_url: finalMediaUrl,
-            whatsapp_message_id: msg.key?.id,
-          });
+          const { error: msgError } = await supabase
+            .from('messages')
+            .insert({
+              conversation_id: conversation.id,
+              sender_type: 'customer',
+              sender_name: customerName,
+              message_text: messageText,
+              message_status: 'received',
+              media_type: mediaType,
+              media_url: finalMediaUrl,
+              whatsapp_message_id: msg.key?.id
+            });
 
           if (msgError) {
-            console.error("Error inserting message:", msgError);
+            console.error('Error inserting message:', msgError);
           } else {
-            console.log("Message inserted successfully with media:", { mediaType, mediaUrl });
+            console.log('Message inserted successfully with media:', { mediaType, mediaUrl });
           }
         }
       } catch (err) {
-        console.error("Error processing single message:", err);
+        console.error('Error processing single message:', err);
       }
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ success: true }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
   } catch (error) {
-    console.error("Webhook error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error('Webhook error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
   }
 });
