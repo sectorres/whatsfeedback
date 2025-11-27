@@ -10,7 +10,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { SurveyManagement } from "@/components/SurveyManagement";
-import { getProgressiveDelay } from "./SendDelayConfig";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -390,7 +389,7 @@ export function SatisfactionSurveys() {
         const current = Math.min(success + failed, plannedIdsRef.current.length);
         setSendProgress(prev => {
           if (current > prev.current && current < plannedIdsRef.current.length) {
-            const nextDelaySeconds = getProgressiveDelay(current);
+            const nextDelaySeconds = 5;
             setSurveyCountdown(nextDelaySeconds);
           }
           return {
