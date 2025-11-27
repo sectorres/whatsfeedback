@@ -42,40 +42,7 @@ export function SurveyManagement() {
     if (!searchTerm.trim()) return;
     setLoading(true);
     try {
-      // Buscar dados atualizados da API com filtro direto por pedido
-      console.log('Buscando pedido na API:', searchTerm);
-      try {
-        const {
-          data: apiData,
-          error: apiError
-        } = await supabase.functions.invoke('fetch-cargas', {
-          body: { pedidoNumero: searchTerm }
-        });
-        if (!apiError && apiData?.retorno?.cargas) {
-          // Atualizar dados dos pedidos encontrados no banco
-          for (const carga of apiData.retorno.cargas) {
-            if (carga.pedidos) {
-              for (const pedido of carga.pedidos) {
-                const pedidoNumero = pedido.pedido;
-                console.log('Pedido encontrado na API:', pedidoNumero);
-                const {
-                  data: existingSends
-                } = await supabase.from('campaign_sends').select('id').eq('pedido_numero', pedidoNumero);
-                if (existingSends && existingSends.length > 0) {
-                  await supabase.from('campaign_sends').update({
-                    driver_name: carga.nomeMotorista || 'N/A',
-                    customer_name: pedido.cliente?.nome || 'N/A'
-                  }).eq('id', existingSends[0].id);
-                }
-              }
-            }
-          }
-        }
-      } catch (apiErr) {
-        console.error('Erro ao buscar dados da API:', apiErr);
-      }
-
-      // Buscar no banco de dados
+      // Primeiro buscar no banco de dados (mais rápido)
       const searchLower = searchTerm.toLowerCase();
       const query = supabase.from('campaign_sends').select('id, customer_name, customer_phone, sent_at, pedido_numero, driver_name, campaign_id').in('status', ['success', 'sent', 'confirmed', 'reschedule_requested']).or(`pedido_numero.ilike.%${searchLower}%,customer_name.ilike.%${searchLower}%`).order('sent_at', {
         ascending: false
@@ -85,14 +52,57 @@ export function SurveyManagement() {
         error: sendsError
       } = await query;
       if (sendsError) throw sendsError;
+      
+      // Se não encontrou no banco, buscar na API
       if (!sends || sends.length === 0) {
-        toast({
-          title: "Pedido não encontrado",
-          description: `Nenhum pedido encontrado para: ${searchTerm}`,
-          variant: "destructive"
-        });
-        setSearchTerm('');
-        return;
+        console.log('Pedido não encontrado no banco, buscando na API...');
+        try {
+          const {
+            data: apiData,
+            error: apiError
+          } = await supabase.functions.invoke('fetch-cargas', {
+            body: { pedidoNumero: searchTerm }
+          });
+          
+          if (!apiError && apiData?.retorno?.cargas?.length > 0) {
+            // Atualizar dados dos pedidos encontrados na API
+            for (const carga of apiData.retorno.cargas) {
+              if (carga.pedidos) {
+                for (const pedido of carga.pedidos) {
+                  const pedidoNumero = pedido.pedido;
+                  console.log('Atualizando pedido da API:', pedidoNumero);
+                  const {
+                    data: existingSends
+                  } = await supabase.from('campaign_sends').select('id').eq('pedido_numero', pedidoNumero);
+                  if (existingSends && existingSends.length > 0) {
+                    await supabase.from('campaign_sends').update({
+                      driver_name: carga.nomeMotorista || 'N/A',
+                      customer_name: pedido.cliente?.nome || 'N/A'
+                    }).eq('id', existingSends[0].id);
+                  }
+                }
+              }
+            }
+            
+            // Buscar novamente no banco após atualização
+            const { data: updatedSends } = await query;
+            if (updatedSends && updatedSends.length > 0) {
+              sends.push(...updatedSends);
+            }
+          }
+        } catch (apiErr) {
+          console.error('Erro ao buscar dados da API:', apiErr);
+        }
+        
+        if (!sends || sends.length === 0) {
+          toast({
+            title: "Pedido não encontrado",
+            description: `Nenhum pedido encontrado para: ${searchTerm}`,
+            variant: "destructive"
+          });
+          setSearchTerm('');
+          return;
+        }
       }
 
       // Buscar nome da campanha
