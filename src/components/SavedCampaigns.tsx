@@ -300,34 +300,31 @@ export function SavedCampaigns() {
           </p>
         ) : (
           <>
-            <div className="space-y-3">
+            <div className="space-y-1.5">
               {campaigns.map((campaign) => (
                 <Collapsible
                   key={campaign.id}
                   open={expandedId === campaign.id}
                   onOpenChange={(open) => handleExpandChange(campaign.id, open)}
                 >
-                  <div className="border rounded-lg bg-card hover:bg-accent/5 transition-colors">
+                  <div className="border rounded bg-card hover:bg-accent/5 transition-colors">
                     <CollapsibleTrigger asChild>
                       <Button
                         variant="ghost"
-                        className="w-full flex items-start justify-between p-4 hover:bg-transparent h-auto"
+                        className="w-full flex items-center justify-between px-3 py-2 hover:bg-transparent h-auto"
                       >
-                        <div className="flex-1 text-left space-y-2">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-base truncate">{campaign.name}</h3>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {format(new Date(campaign.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                              </p>
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline gap-2">
+                              <h3 className="font-medium text-sm truncate">{campaign.name}</h3>
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                {format(new Date(campaign.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                              </span>
                             </div>
-                            <Badge variant={statusMap[campaign.status]?.variant || "secondary"}>
-                              {statusMap[campaign.status]?.label || campaign.status}
-                            </Badge>
                           </div>
-                          <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-2 text-xs shrink-0">
                             <span className="text-muted-foreground">
-                              <span className="font-medium text-foreground">{campaign.sent_count}</span> envios
+                              {campaign.sent_count} envios
                             </span>
                             {campaignSends[campaign.id] && (
                               <>
@@ -340,25 +337,28 @@ export function SavedCampaigns() {
                               </>
                             )}
                           </div>
+                          <Badge variant={statusMap[campaign.status]?.variant || "secondary"} className="text-xs px-2 py-0">
+                            {statusMap[campaign.status]?.label || campaign.status}
+                          </Badge>
                         </div>
                         {expandedId === campaign.id ? (
-                          <ChevronUp className="h-5 w-5 ml-2 shrink-0 text-muted-foreground" />
+                          <ChevronUp className="h-4 w-4 ml-2 shrink-0 text-muted-foreground" />
                         ) : (
-                          <ChevronDown className="h-5 w-5 ml-2 shrink-0 text-muted-foreground" />
+                          <ChevronDown className="h-4 w-4 ml-2 shrink-0 text-muted-foreground" />
                         )}
                       </Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <div className="px-4 pb-4 pt-2 border-t space-y-3">
+                      <div className="px-3 pb-2 pt-1.5 border-t space-y-2">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">Detalhes dos Envios</p>
+                          <p className="text-xs font-medium text-muted-foreground">Detalhes dos Envios</p>
                           {campaignSends[campaign.id]?.some(send => send.status === 'failed') && (
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => handleResendFailed(campaign.id)}
                               disabled={resending[campaign.id]}
-                              className="gap-2"
+                              className="gap-1.5 h-7 text-xs"
                             >
                               {resending[campaign.id] ? (
                                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -375,11 +375,11 @@ export function SavedCampaigns() {
                               <Loader2 className="h-4 w-4 animate-spin" />
                             </div>
                           ) : campaignSends[campaign.id]?.length > 0 ? (
-                            <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                            <div className="space-y-1 max-h-96 overflow-y-auto pr-1">
                               {campaignSends[campaign.id].map((send) => (
                                 <div
                                   key={send.id}
-                                  className={`p-3 rounded-lg border ${
+                                  className={`p-2 rounded border ${
                                     send.status === 'success'
                                       ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
                                       : send.status === 'blocked'
@@ -387,71 +387,73 @@ export function SavedCampaigns() {
                                       : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
                                   }`}
                                 >
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="flex-1 min-w-0 space-y-1">
-                                      <p className="font-medium truncate">
-                                        {send.customer_name || 'Cliente sem nome'}
-                                      </p>
-                                      <div className="flex items-center gap-2">
-                                        {editingPhone === send.id ? (
-                                          <div className="flex items-center gap-1">
-                                            <Input
-                                              value={editedPhone}
-                                              onChange={(e) => setEditedPhone(e.target.value)}
-                                              className="h-7 text-xs w-36"
-                                              autoFocus
-                                            />
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              className="h-7 w-7 p-0"
-                                              onClick={() => saveEditedPhone(send.id, campaign.id)}
-                                            >
-                                              <Check className="h-3.5 w-3.5 text-green-600" />
-                                            </Button>
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              className="h-7 w-7 p-0"
-                                              onClick={cancelEditPhone}
-                                            >
-                                              <X className="h-3.5 w-3.5 text-red-600" />
-                                            </Button>
-                                          </div>
-                                        ) : (
-                                          <>
-                                            <p className="text-xs text-muted-foreground font-mono">
-                                              {send.customer_phone}
-                                            </p>
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              className="h-6 w-6 p-0"
-                                              onClick={() => startEditPhone(send.id, send.customer_phone)}
-                                            >
-                                              <Edit2 className="h-3 w-3" />
-                                            </Button>
-                                          </>
-                                        )}
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                          <p className="font-medium text-sm truncate">
+                                            {send.customer_name || 'Cliente sem nome'}
+                                          </p>
+                                          {editingPhone === send.id ? (
+                                            <div className="flex items-center gap-0.5">
+                                              <Input
+                                                value={editedPhone}
+                                                onChange={(e) => setEditedPhone(e.target.value)}
+                                                className="h-6 text-xs w-28"
+                                                autoFocus
+                                              />
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-6 w-6 p-0"
+                                                onClick={() => saveEditedPhone(send.id, campaign.id)}
+                                              >
+                                                <Check className="h-3 w-3 text-green-600" />
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-6 w-6 p-0"
+                                                onClick={cancelEditPhone}
+                                              >
+                                                <X className="h-3 w-3 text-red-600" />
+                                              </Button>
+                                            </div>
+                                          ) : (
+                                            <>
+                                              <p className="text-xs text-muted-foreground font-mono">
+                                                {send.customer_phone}
+                                              </p>
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-5 w-5 p-0"
+                                                onClick={() => startEditPhone(send.id, send.customer_phone)}
+                                              >
+                                                <Edit2 className="h-2.5 w-2.5" />
+                                              </Button>
+                                            </>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                          {send.driver_name && (
+                                            <span>Mot: {send.driver_name}</span>
+                                          )}
+                                          <span>
+                                            {format(new Date(send.sent_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                                          </span>
+                                        </div>
                                       </div>
-                                      {send.driver_name && (
-                                        <p className="text-xs text-muted-foreground">
-                                          <span className="font-medium">Motorista:</span> {send.driver_name}
-                                        </p>
-                                      )}
-                                      <p className="text-xs text-muted-foreground">
-                                        {format(new Date(send.sent_at), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
-                                      </p>
                                     </div>
                                     <Badge
                                       variant={sendStatusMap[send.status]?.variant || 'secondary'}
-                                      className="shrink-0"
+                                      className="shrink-0 text-xs px-2 py-0"
                                     >
                                       {sendStatusMap[send.status]?.label || send.status}
                                     </Badge>
                                   </div>
                                   {(send.status === 'failed' || send.status === 'blocked') && send.error_message && (
-                                    <p className={`text-xs mt-2 ${send.status === 'blocked' ? 'text-yellow-700 dark:text-yellow-500' : 'text-destructive'}`}>
+                                    <p className={`text-xs mt-1 ${send.status === 'blocked' ? 'text-yellow-700 dark:text-yellow-500' : 'text-destructive'}`}>
                                       {send.status === 'blocked' ? '⊘ ' : 'Erro: '}{send.error_message}
                                     </p>
                                   )}
