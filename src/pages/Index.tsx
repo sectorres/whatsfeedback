@@ -156,10 +156,12 @@ const Index = () => {
           </TabsContent>
         </main>
 
-        <footer className="border-t bg-card mt-12">
-        <div className="container mx-auto px-6 py-4 text-center text-sm text-muted-foreground">
-          WhatsFeedback | Desenvolvido por: Moisés Cavalcante. Versão: 1.0.0
-        </div>
+        <footer className="border-t bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 mt-auto">
+          <div className="container mx-auto px-6 py-2 flex justify-end">
+            <p className="text-[10px] text-muted-foreground/70 font-light">
+              WhatsFeedback | Desenvolvido por: Moisés Cavalcante | v1.0.0
+            </p>
+          </div>
         </footer>
       </Tabs>
     </div>;
