@@ -95,7 +95,7 @@ export function DashboardStats() {
         supabase.from('conversations').select('*', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('conversations').select('*', { count: 'exact', head: true }),
         supabase.from('messages').select('*', { count: 'exact', head: true }).gte('created_at', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()),
-        supabase.from('campaigns').select('*', { count: 'exact', head: true }).in('status', ['draft', 'sending', 'scheduled']),
+        supabase.from('campaigns').select('*', { count: 'exact', head: true }).eq('status', 'sending').gte('updated_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
         supabase.functions.invoke("fetch-cargas", {
           body: {
             dataInicial: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().slice(0, 10).replace(/-/g, ''),
