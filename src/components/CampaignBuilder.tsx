@@ -566,21 +566,6 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                   </div>
                 </div>
 
-                {/* Prévia da Mensagem */}
-                {selectedCarga && selectedPedidos.size > 0 && (
-                  <div className="bg-muted p-4 rounded-lg space-y-2">
-                    <Label className="text-sm font-medium">Prévia da Mensagem</Label>
-                    <div className="bg-background p-3 rounded border text-sm whitespace-pre-wrap">
-                      {messageTemplate
-                        .replace("{cliente}", selectedCarga.pedidos[0]?.cliente?.nome || "Cliente")
-                        .replace("{pedido}", selectedCarga.pedidos[0]?.pedido || "000/000000-P")
-                        .replace("{valor}", `${selectedCarga.pedidos[0]?.valor?.toFixed(2) || "0.00"}`)
-                        .replace("{status}", statusMap[selectedCarga.status] || selectedCarga.status)
-                        .replace("{notaFiscal}", selectedCarga.pedidos[0]?.notaFiscal || "N/A")}
-                    </div>
-                  </div>
-                )}
-
                 {/* Botão de Enviar Campanha */}
                 <Button
                   onClick={() => setShowConfirmDialog(true)}
