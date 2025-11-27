@@ -540,7 +540,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         </CardHeader>
         <CardContent className="p-0">
           <ResizablePanelGroup direction="horizontal" className="min-h-[600px]">
-            {/* Coluna Esquerda - Mensagem e Templates */}
+            {/* Coluna Esquerda - Mensagem */}
             <ResizablePanel defaultSize={50} minSize={35}>
               <div className="h-full p-6 space-y-6 overflow-auto">
                 {/* Mensagem da Campanha */}
@@ -606,9 +606,16 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                     <p className="text-sm text-warning">⚠️ Conecte o WhatsApp primeiro para poder enviar campanhas</p>
                   </div>
                 )}
+              </div>
+            </ResizablePanel>
 
+            <ResizableHandle withHandle />
+
+            {/* Coluna Direita - Templates e Seleções */}
+            <ResizablePanel defaultSize={50} minSize={35}>
+              <div className="h-full p-6 space-y-6 overflow-auto border-l">
                 {/* Templates de Mensagem */}
-                <div className="space-y-4 border-t pt-6">
+                <div className="space-y-4 pb-6 border-b">
                   <Label className="text-base font-semibold">Templates de Mensagem</Label>
 
                   <div className="space-y-3">
@@ -662,14 +669,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                     </div>
                   </div>
                 </div>
-              </div>
-            </ResizablePanel>
 
-            <ResizableHandle withHandle />
-
-            {/* Coluna Direita - Seleções de Carga e Pedidos */}
-            <ResizablePanel defaultSize={50} minSize={35}>
-              <div className="h-full p-6 space-y-6 overflow-auto border-l">
                 {/* Filtros de Carga */}
                 <div className="space-y-4">
                   <div className="space-y-2">
