@@ -32,37 +32,58 @@ const Index = () => {
   return <div className="min-h-screen bg-background">
       <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dashboard">
         <DashboardHeader>
-          <TabsList className="grid w-full grid-cols-7 bg-primary text-primary-foreground h-8 gap-0.5">
-            <TabsTrigger value="dashboard" className="flex items-center gap-1 text-[10px] sm:text-xs px-1">
+          <TabsList className="grid w-full grid-cols-7 bg-white/10 backdrop-blur-sm border border-white/20 h-9 gap-1 p-1">
+            <TabsTrigger 
+              value="dashboard" 
+              className="flex items-center gap-1.5 text-xs px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+            >
               <LayoutDashboard className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden lg:inline">Dashboard</span>
+              <span className="hidden lg:inline font-medium">Dashboard</span>
             </TabsTrigger>
-            <TabsTrigger value="campaigns" className="flex items-center gap-1 text-[10px] sm:text-xs px-1">
+            <TabsTrigger 
+              value="campaigns" 
+              className="flex items-center gap-1.5 text-xs px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+            >
               <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden lg:inline">Aviso de entregas</span>
+              <span className="hidden lg:inline font-medium">Avisos</span>
             </TabsTrigger>
-            <TabsTrigger value="satisfaction" className="flex items-center gap-1 text-[10px] sm:text-xs px-1">
+            <TabsTrigger 
+              value="satisfaction" 
+              className="flex items-center gap-1.5 text-xs px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+            >
               <Star className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden lg:inline">Pesquisa de satisfação</span>
+              <span className="hidden lg:inline font-medium">Pesquisas</span>
             </TabsTrigger>
-            <TabsTrigger value="atendimento" className="flex items-center gap-1 text-[10px] sm:text-xs px-1">
+            <TabsTrigger 
+              value="atendimento" 
+              className="flex items-center gap-1.5 text-xs px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+            >
               <Headphones className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden lg:inline">Atendimento</span>
-              {unreadCount > 0 && <Badge variant="destructive" className="ml-0.5 h-4 min-w-4 flex items-center justify-center px-1 text-[9px]">
+              <span className="hidden lg:inline font-medium">Atendimento</span>
+              {unreadCount > 0 && <Badge variant="destructive" className="ml-0.5 h-4 min-w-4 flex items-center justify-center px-1 text-[9px] shadow-md">
                   {unreadCount}
                 </Badge>}
             </TabsTrigger>
-            <TabsTrigger value="desempenho" className="flex items-center gap-1 text-[10px] sm:text-xs px-1">
+            <TabsTrigger 
+              value="desempenho" 
+              className="flex items-center gap-1.5 text-xs px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+            >
               <BarChart3 className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden lg:inline">Desempenho</span>
+              <span className="hidden lg:inline font-medium">Desempenho</span>
             </TabsTrigger>
-            <TabsTrigger value="orders" className="flex items-center gap-1 text-[10px] sm:text-xs px-1">
+            <TabsTrigger 
+              value="orders" 
+              className="flex items-center gap-1.5 text-xs px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+            >
               <Package className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden lg:inline">Pedidos</span>
+              <span className="hidden lg:inline font-medium">Pedidos</span>
             </TabsTrigger>
-            <TabsTrigger value="config" className="flex items-center gap-1 text-[10px] sm:text-xs px-1">
+            <TabsTrigger 
+              value="config" 
+              className="flex items-center gap-1.5 text-xs px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+            >
               <Settings className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden lg:inline">Configurações</span>
+              <span className="hidden lg:inline font-medium">Configurações</span>
             </TabsTrigger>
           </TabsList>
         </DashboardHeader>
