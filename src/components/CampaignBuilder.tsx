@@ -544,9 +544,9 @@ export const CampaignBuilder = ({
 
             {/* Coluna Direita - Seleções e Templates */}
             <ResizablePanel defaultSize={55} minSize={35}>
-              <div className="h-full p-6 space-y-6 overflow-auto border-l">
-                {/* Filtros de Carga */}
-                <div className="space-y-4 pb-6 border-b">
+              <div className="h-full flex flex-col border-l">
+                {/* Filtros de Carga - Fixo no Topo */}
+                <div className="p-6 space-y-4 border-b bg-background">
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
                       <Filter className="h-4 w-4" />
@@ -595,48 +595,10 @@ export const CampaignBuilder = ({
                   </div>
                 </div>
 
-                {/* Templates de Mensagem */}
-                <div className="space-y-4 pb-6 border-b">
-                  <Label className="text-base font-semibold">Templates de Mensagem</Label>
-
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label>Selecionar Template</Label>
-                      <Select value={selectedTemplateId} onValueChange={handleTemplateChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Escolha um template" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {savedTemplates.map(template => <SelectItem key={template.id} value={template.id}>
-                              {template.name}
-                            </SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Salvar Novo Template</Label>
-                      <div className="flex gap-2">
-                        <Input placeholder="Nome do template" value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} />
-                        <Button onClick={handleSaveTemplate} variant="outline">
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button onClick={handleUpdateTemplate} variant="outline" size="sm" disabled={selectedTemplateId === "default"}>
-                        Atualizar Template Atual
-                      </Button>
-                      <Button onClick={handleDeleteTemplate} variant="outline" size="sm" disabled={selectedTemplateId === "default"}>
-                        Deletar Template
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Lista de Pedidos */}
-                {selectedCarga && selectedCarga.pedidos && selectedCarga.pedidos.length > 0 && <div className="space-y-3">
+                {/* Área Scrollável com Pedidos e Templates */}
+                <div className="flex-1 overflow-auto p-6 space-y-6">
+                  {/* Lista de Pedidos */}
+                  {selectedCarga && selectedCarga.pedidos && selectedCarga.pedidos.length > 0 && <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <Label className="flex items-center gap-2">
                         <Users className="h-4 w-4" />
@@ -679,6 +641,47 @@ export const CampaignBuilder = ({
                       </Table>
                     </div>
                   </div>}
+
+                  {/* Templates de Mensagem */}
+                  <div className="space-y-4 pb-6 border-t pt-6">
+                    <Label className="text-base font-semibold">Templates de Mensagem</Label>
+
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label>Selecionar Template</Label>
+                        <Select value={selectedTemplateId} onValueChange={handleTemplateChange}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Escolha um template" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {savedTemplates.map(template => <SelectItem key={template.id} value={template.id}>
+                                {template.name}
+                              </SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Salvar Novo Template</Label>
+                        <div className="flex gap-2">
+                          <Input placeholder="Nome do template" value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} />
+                          <Button onClick={handleSaveTemplate} variant="outline">
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button onClick={handleUpdateTemplate} variant="outline" size="sm" disabled={selectedTemplateId === "default"}>
+                          Atualizar Template Atual
+                        </Button>
+                        <Button onClick={handleDeleteTemplate} variant="outline" size="sm" disabled={selectedTemplateId === "default"}>
+                          Deletar Template
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>
