@@ -104,21 +104,9 @@ export function ConversationsPanel({
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const [selectedOrderNumero, setSelectedOrderNumero] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // Paginação
-  const [activePage, setActivePage] = useState(0);
-  const [archivedPage, setArchivedPage] = useState(0);
-  const [activeTotal, setActiveTotal] = useState(0);
-  const [archivedTotal, setArchivedTotal] = useState(0);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMoreActive, setHasMoreActive] = useState(true);
-  const [hasMoreArchived, setHasMoreArchived] = useState(true);
-  const PAGE_SIZE = 20;
-  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     audioRef.current = new Audio('/notification.mp3');
@@ -138,7 +126,7 @@ export function ConversationsPanel({
     return isToday(d) ? format(d, 'HH:mm') : format(d, 'dd/MM HH:mm');
   };
   useEffect(() => {
-    loadConversations(true);
+    loadConversations();
 
     // Realtime para conversas
     const conversationsChannel = supabase.channel('conversations-changes').on('postgres_changes', {
@@ -146,7 +134,7 @@ export function ConversationsPanel({
       schema: 'public',
       table: 'conversations'
     }, () => {
-      loadConversations(true);
+      loadConversations();
     }).subscribe();
 
     // Realtime para todas as mensagens (notificação sonora)
@@ -179,16 +167,6 @@ export function ConversationsPanel({
     };
   }, [isOnAtendimentoTab]); // Adicionar dependência para recriar o listener quando a aba mudar
 
-  // Handler de scroll para carregar mais conversas
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLDivElement;
-    const bottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 100;
-    
-    if (bottom && !loadingMore) {
-      loadMoreConversations();
-    }
-  };
-
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation.id);
@@ -218,47 +196,25 @@ export function ConversationsPanel({
       };
     }
   }, [selectedConversation]);
-  const loadConversations = async (reset = false) => {
-    const pageToLoad = reset ? 0 : (activeTab === 'active' ? activePage : archivedPage);
-    
-    if (reset) {
-      setConversations([]);
-      setArchivedConversations([]);
-      setActivePage(0);
-      setArchivedPage(0);
-    }
-    
-    // Carregar total de conversas ativas
-    const { count: activeCount } = await supabase
-      .from('conversations')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'active');
-    
-    setActiveTotal(activeCount || 0);
-    
-    // Carregar total de conversas arquivadas
-    const { count: archivedCount } = await supabase
-      .from('conversations')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'closed');
-    
-    setArchivedTotal(archivedCount || 0);
-    
-    // Carregar conversas ativas com paginação
+  const loadConversations = async () => {
+    // Remover loading para evitar "piscar" na interface
     const {
       data: activeData,
       error: activeError
-    } = await supabase
-      .from('conversations')
-      .select('*')
-      .eq('status', 'active')
-      .order('last_message_at', { ascending: false })
-      .range(pageToLoad * PAGE_SIZE, (pageToLoad + 1) * PAGE_SIZE - 1);
-    
+    } = await supabase.from('conversations').select('*').eq('status', 'active').order('last_message_at', {
+      ascending: false
+    });
+    const {
+      data: archivedData,
+      error: archivedError
+    } = await supabase.from('conversations').select('*').eq('status', 'closed').order('last_message_at', {
+      ascending: false
+    });
     if (activeError) {
       console.error('Error loading active conversations:', activeError);
       toast.error('Erro ao carregar conversas ativas');
     } else {
+      // Buscar fotos de perfil para as conversas ativas
       const conversationsWithPhotos = await Promise.all(
         (activeData || []).map(async (conv) => {
           try {
@@ -275,30 +231,12 @@ export function ConversationsPanel({
           }
         })
       );
-      
-      if (reset) {
-        setConversations(conversationsWithPhotos);
-      } else {
-        setConversations(prev => [...prev, ...conversationsWithPhotos]);
-      }
-      
-      setHasMoreActive((activeData?.length || 0) === PAGE_SIZE);
+      setConversations(conversationsWithPhotos);
     }
-    
-    // Carregar conversas arquivadas com paginação
-    const {
-      data: archivedData,
-      error: archivedError
-    } = await supabase
-      .from('conversations')
-      .select('*')
-      .eq('status', 'closed')
-      .order('last_message_at', { ascending: false })
-      .range(pageToLoad * PAGE_SIZE, (pageToLoad + 1) * PAGE_SIZE - 1);
-    
     if (archivedError) {
       console.error('Error loading archived conversations:', archivedError);
     } else {
+      // Buscar fotos de perfil para as conversas arquivadas
       const conversationsWithPhotos = await Promise.all(
         (archivedData || []).map(async (conv) => {
           try {
@@ -315,77 +253,8 @@ export function ConversationsPanel({
           }
         })
       );
-      
-      if (reset) {
-        setArchivedConversations(conversationsWithPhotos);
-      } else {
-        setArchivedConversations(prev => [...prev, ...conversationsWithPhotos]);
-      }
-      
-      setHasMoreArchived((archivedData?.length || 0) === PAGE_SIZE);
+      setArchivedConversations(conversationsWithPhotos);
     }
-  };
-  
-  const loadMoreConversations = async () => {
-    if (loadingMore) return;
-    
-    const hasMore = activeTab === 'active' ? hasMoreActive : hasMoreArchived;
-    if (!hasMore) return;
-    
-    setLoadingMore(true);
-    
-    const currentPage = activeTab === 'active' ? activePage : archivedPage;
-    const nextPage = currentPage + 1;
-    
-    if (activeTab === 'active') {
-      setActivePage(nextPage);
-    } else {
-      setArchivedPage(nextPage);
-    }
-    
-    // Carregar conversas com a próxima página
-    const status = activeTab === 'active' ? 'active' : 'closed';
-    const {
-      data,
-      error
-    } = await supabase
-      .from('conversations')
-      .select('*')
-      .eq('status', status)
-      .order('last_message_at', { ascending: false })
-      .range(nextPage * PAGE_SIZE, (nextPage + 1) * PAGE_SIZE - 1);
-    
-    if (error) {
-      console.error('Error loading more conversations:', error);
-      toast.error('Erro ao carregar mais conversas');
-    } else {
-      const conversationsWithPhotos = await Promise.all(
-        (data || []).map(async (conv) => {
-          try {
-            const { data: photoData } = await supabase.functions.invoke('fetch-profile-picture', {
-              body: { phone: conv.customer_phone }
-            });
-            return {
-              ...conv,
-              profile_picture_url: photoData?.profilePictureUrl || null
-            };
-          } catch (error) {
-            console.error('Error fetching profile picture:', error);
-            return conv;
-          }
-        })
-      );
-      
-      if (activeTab === 'active') {
-        setConversations(prev => [...prev, ...conversationsWithPhotos]);
-        setHasMoreActive((data?.length || 0) === PAGE_SIZE);
-      } else {
-        setArchivedConversations(prev => [...prev, ...conversationsWithPhotos]);
-        setHasMoreArchived((data?.length || 0) === PAGE_SIZE);
-      }
-    }
-    
-    setLoadingMore(false);
   };
   const loadReschedules = async (conversationId: string) => {
     const {
@@ -587,7 +456,7 @@ export function ConversationsPanel({
     } else {
       toast.success('Conversa encerrada');
       setSelectedConversation(null);
-      loadConversations(true);
+      loadConversations();
     }
   };
   const handleImageClick = (imageUrl: string) => {
@@ -736,7 +605,7 @@ export function ConversationsPanel({
       if (error) throw error;
       toast.success('Telefone atualizado com sucesso!');
       setEditPhoneDialogOpen(false);
-      loadConversations(true);
+      loadConversations();
 
       // Atualizar conversa selecionada
       setSelectedConversation({
@@ -793,7 +662,7 @@ export function ConversationsPanel({
       setNewConversationDialogOpen(false);
       setNewConversationPhone("");
       setNewConversationName("");
-      loadConversations(true);
+      loadConversations();
       setSelectedConversation(newConv);
     } catch (error) {
       console.error('Error creating conversation:', error);
@@ -824,77 +693,17 @@ export function ConversationsPanel({
             <TabsTrigger value="active" className="gap-1 text-xs">
               <MessageCircle className="h-3 w-3" />
               Ativas
-              <Badge variant="secondary" className="text-xs">{activeTotal}</Badge>
+              <Badge variant="secondary" className="text-xs">{conversations.length}</Badge>
             </TabsTrigger>
             <TabsTrigger value="archived" className="gap-1 text-xs">
               <Archive className="h-3 w-3" />
               Antigas
-              <Badge variant="secondary" className="text-xs">{archivedTotal}</Badge>
+              <Badge variant="secondary" className="text-xs">{archivedConversations.length}</Badge>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="active" className="mt-0 flex-1 min-h-0">
-            <ScrollArea className="h-full" onScrollCapture={handleScroll}>
-              {loading ? <div className="flex justify-center p-4">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                </div> : conversations.filter(conv => {
-                  if (!searchQuery) return true;
-                  const query = searchQuery.toLowerCase();
-                  return (
-                    conv.customer_name?.toLowerCase().includes(query) ||
-                    conv.customer_phone.includes(query)
-                  );
-                }).length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
-                  Nenhuma conversa ativa
-                </p> : <div>
-                  {conversations.filter(conv => {
-                    if (!searchQuery) return true;
-                    const query = searchQuery.toLowerCase();
-                    return (
-                      conv.customer_name?.toLowerCase().includes(query) ||
-                      conv.customer_phone.includes(query)
-                    );
-                  }).map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
-                      <div className="flex items-start gap-2">
-                        <Avatar className="h-10 w-10 flex-shrink-0">
-                          {conv.profile_picture_url && <AvatarImage src={conv.profile_picture_url} alt={conv.customer_name || conv.customer_phone} />}
-                          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                            {conv.customer_name ? conv.customer_name.substring(0, 2).toUpperCase() : conv.customer_phone.substring(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <div className="font-medium text-sm truncate">{conv.customer_name || conv.customer_phone}</div>
-                            {conv.unread_count > 0 && <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center px-1">
-                                {conv.unread_count}
-                              </Badge>}
-                            {conv.tags?.includes('reagendar') && <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs h-5">
-                                Reagendar
-                              </Badge>}
-                            {conv.tags?.includes('confirmado')}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {conv.customer_phone}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {formatDistanceToNow(new Date(conv.last_message_at), {
-                        addSuffix: true,
-                        locale: ptBR
-                      })}
-                          </div>
-                        </div>
-                        {conv.unread_count > 0 && <div className="w-2 h-2 rounded-full bg-destructive flex-shrink-0" />}
-                      </div>
-                    </div>)}
-                  {loadingMore && <div className="flex justify-center p-4">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>}
-                </div>}
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent value="archived" className="mt-0 flex-1 min-h-0">
-            <ScrollArea className="h-full" onScrollCapture={handleScroll}>
+            <ScrollArea className="h-full">
               {loading ? <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div> : conversations.filter(conv => {
@@ -949,7 +758,7 @@ export function ConversationsPanel({
           </TabsContent>
 
           <TabsContent value="archived" className="mt-0 flex-1 min-h-0">
-            <ScrollArea className="h-full" onScrollCapture={handleScroll}>
+            <ScrollArea className="h-full">
               {loading ? <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div> : archivedConversations.filter(conv => {
@@ -961,45 +770,40 @@ export function ConversationsPanel({
                   );
                 }).length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
                   Nenhuma conversa arquivada
-                </p> : <div>
-                  {archivedConversations.filter(conv => {
-                    if (!searchQuery) return true;
-                    const query = searchQuery.toLowerCase();
-                    return (
-                      conv.customer_name?.toLowerCase().includes(query) ||
-                      conv.customer_phone.includes(query)
-                    );
-                  }).map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
-                      <div className="flex items-start gap-2">
-                        <Avatar className="h-10 w-10 flex-shrink-0">
-                          {conv.profile_picture_url && <AvatarImage src={conv.profile_picture_url} alt={conv.customer_name || conv.customer_phone} />}
-                          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                            {conv.customer_name ? conv.customer_name.substring(0, 2).toUpperCase() : conv.customer_phone.substring(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <div className="font-medium text-sm truncate">{conv.customer_name || conv.customer_phone}</div>
-                          {conv.tags?.includes('reagendado') && <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs h-5">
-                              Reagendado
-                            </Badge>}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {conv.customer_phone}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {formatDistanceToNow(new Date(conv.last_message_at), {
-                          addSuffix: true,
-                          locale: ptBR
-                        })}
-                          </div>
+                </p> : archivedConversations.filter(conv => {
+                  if (!searchQuery) return true;
+                  const query = searchQuery.toLowerCase();
+                  return (
+                    conv.customer_name?.toLowerCase().includes(query) ||
+                    conv.customer_phone.includes(query)
+                  );
+                }).map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
+                    <div className="flex items-start gap-2">
+                      <Avatar className="h-10 w-10 flex-shrink-0">
+                        {conv.profile_picture_url && <AvatarImage src={conv.profile_picture_url} alt={conv.customer_name || conv.customer_phone} />}
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                          {conv.customer_name ? conv.customer_name.substring(0, 2).toUpperCase() : conv.customer_phone.substring(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="font-medium text-sm truncate">{conv.customer_name || conv.customer_phone}</div>
+                        {conv.tags?.includes('reagendado') && <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs h-5">
+                            Reagendado
+                          </Badge>}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {conv.customer_phone}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {formatDistanceToNow(new Date(conv.last_message_at), {
+                        addSuffix: true,
+                        locale: ptBR
+                      })}
                         </div>
                       </div>
-                    </div>)}
-                  {loadingMore && <div className="flex justify-center p-4">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>}
-                </div>}
+                    </div>
+                  </div>)}
             </ScrollArea>
           </TabsContent>
         </Tabs>
@@ -1086,7 +890,7 @@ export function ConversationsPanel({
               }).eq('id', selectedConversation.id);
               toast.success('Reagendamento confirmado!');
               setSelectedDate(undefined);
-              loadConversations(true);
+              loadConversations();
               loadReschedules(selectedConversation.id);
             }}>
                     <Calendar className="h-4 w-4 mr-2" />
