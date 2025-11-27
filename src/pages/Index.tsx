@@ -32,37 +32,37 @@ const Index = () => {
   return <div className="min-h-screen bg-background">
       <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dashboard">
         <DashboardHeader>
-          <TabsList className="grid w-full grid-cols-7 bg-primary text-primary-foreground h-9">
-            <TabsTrigger value="dashboard" className="flex items-center gap-1.5 text-xs sm:text-sm">
-              <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Dashboard</span>
+          <TabsList className="grid w-full grid-cols-7 bg-primary text-primary-foreground h-8 gap-0.5">
+            <TabsTrigger value="dashboard" className="flex items-center gap-1 text-[10px] sm:text-xs px-1">
+              <LayoutDashboard className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="hidden lg:inline">Dashboard</span>
             </TabsTrigger>
-            <TabsTrigger value="campaigns" className="flex items-center gap-1.5 text-xs sm:text-sm">
-              <Calendar className="h-4 w-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Aviso de entregas</span>
+            <TabsTrigger value="campaigns" className="flex items-center gap-1 text-[10px] sm:text-xs px-1">
+              <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="hidden lg:inline">Aviso de entregas</span>
             </TabsTrigger>
-            <TabsTrigger value="satisfaction" className="flex items-center gap-1.5 text-xs sm:text-sm">
-              <Star className="h-4 w-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Pesquisa de satisfação</span>
+            <TabsTrigger value="satisfaction" className="flex items-center gap-1 text-[10px] sm:text-xs px-1">
+              <Star className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="hidden lg:inline">Pesquisa de satisfação</span>
             </TabsTrigger>
-            <TabsTrigger value="atendimento" className="flex items-center gap-1.5 text-xs sm:text-sm">
-              <Headphones className="h-4 w-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Atendimento</span>
-              {unreadCount > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-5 flex items-center justify-center px-1.5">
+            <TabsTrigger value="atendimento" className="flex items-center gap-1 text-[10px] sm:text-xs px-1">
+              <Headphones className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="hidden lg:inline">Atendimento</span>
+              {unreadCount > 0 && <Badge variant="destructive" className="ml-0.5 h-4 min-w-4 flex items-center justify-center px-1 text-[9px]">
                   {unreadCount}
                 </Badge>}
             </TabsTrigger>
-            <TabsTrigger value="desempenho" className="flex items-center gap-1.5 text-xs sm:text-sm">
-              <BarChart3 className="h-4 w-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Desempenho</span>
+            <TabsTrigger value="desempenho" className="flex items-center gap-1 text-[10px] sm:text-xs px-1">
+              <BarChart3 className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="hidden lg:inline">Desempenho</span>
             </TabsTrigger>
-            <TabsTrigger value="orders" className="flex items-center gap-1.5 text-xs sm:text-sm">
-              <Package className="h-4 w-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Pedidos</span>
+            <TabsTrigger value="orders" className="flex items-center gap-1 text-[10px] sm:text-xs px-1">
+              <Package className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="hidden lg:inline">Pedidos</span>
             </TabsTrigger>
-            <TabsTrigger value="config" className="flex items-center gap-1.5 text-xs sm:text-sm">
-              <Settings className="h-4 w-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Configurações</span>
+            <TabsTrigger value="config" className="flex items-center gap-1 text-[10px] sm:text-xs px-1">
+              <Settings className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="hidden lg:inline">Configurações</span>
             </TabsTrigger>
           </TabsList>
         </DashboardHeader>
