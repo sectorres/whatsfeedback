@@ -30,10 +30,8 @@ const Index = () => {
     isConnected
   } = useWhatsAppStatus();
   return <div className="min-h-screen bg-background">
-      <DashboardHeader />
-      
-      <main className="container mx-auto px-4 py-3">
-        <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dashboard" className="space-y-2">
+      <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dashboard">
+        <DashboardHeader>
           <TabsList className="grid w-full grid-cols-7 bg-primary text-primary-foreground h-9">
             <TabsTrigger value="dashboard" className="flex items-center gap-1.5 text-xs sm:text-sm">
               <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
@@ -67,7 +65,9 @@ const Index = () => {
               <span className="hidden sm:inline">Configurações</span>
             </TabsTrigger>
           </TabsList>
-
+        </DashboardHeader>
+      
+        <main className="container mx-auto px-4 py-3">
           <TabsContent value="dashboard" className="space-y-6">
             <DashboardStats />
           </TabsContent>
@@ -133,14 +133,14 @@ const Index = () => {
               </TabsContent>
             </Tabs>
           </TabsContent>
-        </Tabs>
-      </main>
+        </main>
 
-      <footer className="border-t bg-card mt-12">
+        <footer className="border-t bg-card mt-12">
         <div className="container mx-auto px-6 py-4 text-center text-sm text-muted-foreground">
           WhatsFeedback | Desenvolvido por: Moisés Cavalcante. Versão: 1.0.0
         </div>
-      </footer>
+        </footer>
+      </Tabs>
     </div>;
 };
 export default Index;
