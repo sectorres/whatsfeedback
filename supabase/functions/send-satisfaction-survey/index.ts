@@ -2,14 +2,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-// Sequência progressiva de delays entre mensagens (em segundos)
-const DELAY_STAGES = [2, 5, 7, 9, 11, 13, 17];
-
-const getProgressiveDelay = (messageIndex: number): number => {
-  const stageIndex = messageIndex % DELAY_STAGES.length;
-  return DELAY_STAGES[stageIndex];
-};
-
 const surveySendSchema = z.object({
   campaignSendIds: z.array(z.string().uuid()).optional(),
   campaignId: z.string().uuid().optional(),
@@ -31,6 +23,31 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // Buscar delays configurados ou usar padrão
+    let delayStages = [2, 5, 7, 9, 11, 13, 17];
+    
+    try {
+      const { data: configData } = await supabaseClient
+        .from('app_config')
+        .select('config_value')
+        .eq('config_key', 'message_send_delays')
+        .maybeSingle();
+
+      if (configData?.config_value) {
+        const parsed = JSON.parse(configData.config_value);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          delayStages = parsed;
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao buscar delays configurados, usando padrão:', error);
+    }
+
+    const getProgressiveDelay = (messageIndex: number): number => {
+      const stageIndex = messageIndex % delayStages.length;
+      return delayStages[stageIndex];
+    };
 
     // Aceitar envio individual ou em lote
     const body = await req.json().catch(() => ({}));

@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { normalizePhone } from "@/lib/phone-utils";
-import { getProgressiveDelay } from "./SendDelayConfig";
 
 interface Campaign {
   id: string;
@@ -224,9 +223,9 @@ export function SavedCampaigns() {
         }
       }
 
-      // Delay progressivo: 2s → 5s → 7s → 9s → 11s → 13s → 17s
+      // Delay de 5 segundos entre envios
       if (i < failedSends.length - 1) {
-        const delaySeconds = getProgressiveDelay(i);
+        const delaySeconds = 5;
         await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
       }
     }

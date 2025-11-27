@@ -18,7 +18,6 @@ import { Calendar } from "./ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
 import { normalizePhone } from "@/lib/phone-utils";
-import { getProgressiveDelay } from "./SendDelayConfig";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -427,8 +426,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         }
 
         if (i < pedidosParaEnviar.length - 1) {
-          // Delay progressivo: 2s → 5s → 7s → 9s → 11s → 13s → 17s
-          const delaySeconds = getProgressiveDelay(i);
+          // Delay de 5 segundos entre envios
+          const delaySeconds = 5;
           setCountdown(delaySeconds);
 
           // Countdown visual
