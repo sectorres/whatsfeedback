@@ -7,7 +7,6 @@ const whatsappSendSchema = z.object({
   message: z.string().min(1).max(4096),
   skip_message_save: z.boolean().optional(),
   conversation_id: z.string().optional(),
-  replied_to_id: z.string().optional(), // ID da mensagem sendo respondida
 });
 
 const corsHeaders = {
@@ -32,7 +31,7 @@ serve(async (req) => {
       );
     }
 
-    const { phone, message, skip_message_save, conversation_id, replied_to_id } = validationResult.data;
+    const { phone, message, skip_message_save, conversation_id } = validationResult.data;
     const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
     const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
     const EVOLUTION_INSTANCE_NAME = Deno.env.get('EVOLUTION_INSTANCE_NAME');
@@ -87,15 +86,6 @@ serve(async (req) => {
       number: cleanPhone,
       text: message,
     };
-
-    // Se for uma resposta a outra mensagem, adicionar contexto de quoted
-    if (replied_to_id) {
-      sendPayload.quoted = {
-        key: {
-          id: replied_to_id
-        }
-      };
-    }
     
     // Send message via Evolution API
     const response = await fetch(
@@ -232,14 +222,8 @@ serve(async (req) => {
             sender_type: 'agent',
             sender_name: 'Bot',
             message_text: message,
-            message_status: 'sent',
-            whatsapp_message_id: whatsappMessageId
+            message_status: 'sent'
           };
-
-          // Adicionar replied_to_id se for uma resposta
-          if (replied_to_id) {
-            messageData.replied_to_id = replied_to_id;
-          }
 
           await supabase.from('messages').insert(messageData);
         }
