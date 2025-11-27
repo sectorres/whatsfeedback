@@ -280,6 +280,7 @@ export function SavedCampaigns() {
 
   const sendStatusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
     success: { label: "✓ Enviado", variant: "default" },
+    confirmed: { label: "✓ Confirmado", variant: "default" },
     failed: { label: "✗ Falhou", variant: "destructive" },
     blocked: { label: "⊘ Bloqueado", variant: "secondary" }
   };
@@ -329,7 +330,7 @@ export function SavedCampaigns() {
                             {campaignSends[campaign.id] && (
                               <>
                                 <span className="text-green-600 dark:text-green-400">
-                                  ✓ {campaignSends[campaign.id].filter(s => s.status === 'success').length}
+                                  ✓ {campaignSends[campaign.id].filter(s => s.status === 'success' || s.status === 'confirmed').length}
                                 </span>
                                 <span className="text-destructive">
                                   ✗ {campaignSends[campaign.id].filter(s => s.status === 'failed').length}
@@ -380,7 +381,7 @@ export function SavedCampaigns() {
                                 <div
                                   key={send.id}
                                   className={`p-2 rounded border ${
-                                    send.status === 'success'
+                                    send.status === 'success' || send.status === 'confirmed'
                                       ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
                                       : send.status === 'blocked'
                                       ? 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800'
