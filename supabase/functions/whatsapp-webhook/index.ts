@@ -302,6 +302,7 @@ serve(async (req) => {
               message_text: '1',
               media_type: 'text',
               media_url: null,
+              whatsapp_message_id: msg.key?.id
             });
             
             // Atualizar status do campaign_send para 'confirmed'
@@ -336,6 +337,7 @@ serve(async (req) => {
               message_text: 'Obrigado pela confirmação!',
               media_type: 'text',
               media_url: null,
+              whatsapp_message_id: msg.key?.id
             });
             
             // Enviar resposta do bot (sem salvar novamente no banco)
@@ -358,6 +360,7 @@ serve(async (req) => {
               message_text: '2',
               media_type: 'text',
               media_url: null,
+              whatsapp_message_id: msg.key?.id
             });
             
             // Atualizar status do campaign_send para 'reschedule_requested'
@@ -381,6 +384,7 @@ serve(async (req) => {
               message_text: 'Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.',
               media_type: 'text',
               media_url: null,
+              whatsapp_message_id: msg.key?.id
             });
             
             // Enviar mensagem com o número para reagendar (sem salvar novamente no banco)
@@ -403,6 +407,7 @@ serve(async (req) => {
               message_text: '3',
               media_type: 'text',
               media_url: null,
+              whatsapp_message_id: msg.key?.id
             });
             
             // Registrar resposta e adicionar à blacklist
@@ -442,6 +447,7 @@ serve(async (req) => {
               message_text: botMessage,
               media_type: 'text',
               media_url: null,
+              whatsapp_message_id: msg.key?.id
             });
             
             continue;
@@ -636,7 +642,8 @@ serve(async (req) => {
               message_text: messageText,
               message_status: 'received',
               media_type: mediaType,
-              media_url: finalMediaUrl
+              media_url: finalMediaUrl,
+              whatsapp_message_id: msg.key?.id
             });
 
           if (msgError) {

@@ -33,9 +33,21 @@ serve(async (req) => {
       throw new Error('Supabase credentials not configured');
     }
 
-    // Buscar a mensagem no banco para pegar o key da Evolution API
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    // Buscar whatsapp_message_id no banco
+    const { data: message, error: fetchError } = await supabase
+      .from('messages')
+      .select('whatsapp_message_id')
+      .eq('id', messageId)
+      .single();
+
+    if (fetchError || !message?.whatsapp_message_id) {
+      throw new Error('Mensagem não encontrada ou sem whatsapp_message_id');
+    }
+
+    console.log('WhatsApp message ID:', message.whatsapp_message_id);
 
     // Editar via Evolution API
     const response = await fetch(
@@ -48,7 +60,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           key: {
-            id: messageId
+            id: message.whatsapp_message_id
           },
           text: newText
         })

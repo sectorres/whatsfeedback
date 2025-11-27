@@ -113,6 +113,13 @@ serve(async (req) => {
     const data = await response.json();
     console.log('Send message response:', data);
 
+    // Extrair whatsapp_message_id da resposta
+    let whatsappMessageId = null;
+    if (data.key?.id) {
+      whatsappMessageId = data.key.id;
+      console.log('WhatsApp message ID:', whatsappMessageId);
+    }
+
     if (!response.ok) {
       // Verificar se é erro de número não existente
       if (data.response?.message && Array.isArray(data.response.message)) {
@@ -226,6 +233,7 @@ serve(async (req) => {
             sender_name: 'Bot',
             message_text: message,
             message_status: 'sent',
+            whatsapp_message_id: whatsappMessageId
           };
 
           // Adicionar replied_to_id se for uma resposta
