@@ -8,22 +8,22 @@ export function WhatsAppStatusIndicator() {
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-200">
             <div className="relative">
               <div 
-                className={`h-3 w-3 rounded-full ${
+                className={`h-2.5 w-2.5 rounded-full ${
                   isChecking 
-                    ? 'bg-gray-400' 
+                    ? 'bg-gray-300' 
                     : isConnected 
-                      ? 'bg-green-500 animate-pulse' 
-                      : 'bg-red-500'
+                      ? 'bg-green-400 animate-pulse shadow-lg shadow-green-400/50' 
+                      : 'bg-red-400 shadow-lg shadow-red-400/50'
                 }`}
               />
               {isConnected && (
-                <div className="absolute inset-0 h-3 w-3 rounded-full bg-green-500 animate-ping opacity-75" />
+                <div className="absolute inset-0 h-2.5 w-2.5 rounded-full bg-green-400 animate-ping opacity-75" />
               )}
             </div>
-            <span className="text-sm font-medium">
+            <span className="text-xs font-medium text-white hidden sm:inline">
               {isChecking ? 'Verificando...' : isConnected ? 'WhatsApp Conectado' : 'WhatsApp Desconectado'}
             </span>
           </div>
