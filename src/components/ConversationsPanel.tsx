@@ -671,7 +671,7 @@ export function ConversationsPanel({
       setCreatingConversation(false);
     }
   };
-  return <div className="grid gap-4 h-[calc(100vh-205px)] min-h-0" style={{
+  return <div className="grid gap-4 h-[calc(100vh-185px)] min-h-0" style={{
     gridTemplateColumns: "300px 1fr 320px"
   }}>
       {/* Lista de conversas */}
