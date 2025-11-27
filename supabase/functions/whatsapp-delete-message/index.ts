@@ -51,7 +51,7 @@ serve(async (req) => {
 
     // Deletar via Evolution API
     const response = await fetch(
-      `${EVOLUTION_API_URL}/message/deleteMessage/${EVOLUTION_INSTANCE_NAME}`,
+      `${EVOLUTION_API_URL}/chat/deleteMessageForEveryone/${EVOLUTION_INSTANCE_NAME}`,
       {
         method: 'DELETE',
         headers: {
