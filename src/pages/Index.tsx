@@ -88,12 +88,12 @@ const Index = () => {
           </TabsList>
         </DashboardHeader>
       
-        <main className="container mx-auto px-4 py-3">
+        <main className="container mx-auto px-4 py-4">
           <TabsContent value="dashboard" className="space-y-6">
             <DashboardStats />
           </TabsContent>
 
-          <TabsContent value="atendimento" className="space-y-2">
+          <TabsContent value="atendimento" className="space-y-2 min-h-[calc(100vh-180px)]">
             <div>
               
               
