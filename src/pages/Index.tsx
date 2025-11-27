@@ -21,6 +21,7 @@ import { useWhatsAppStatus } from "@/hooks/useWhatsAppStatus";
 import { SatisfactionSurveys } from "@/components/SatisfactionSurveys";
 import { IpWhitelistManager } from "@/components/IpWhitelistManager";
 import { DriverPerformance } from "@/components/DriverPerformance";
+import { SatisfactionSurveyConfig } from "@/components/SatisfactionSurveyConfig";
 const Index = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -102,6 +103,7 @@ const Index = () => {
             <WhatsAppConnection onConnectionChange={setWhatsappConnected} />
             <IpWhitelistManager />
             <SendDelayConfig />
+            <SatisfactionSurveyConfig />
             <ApiConfiguration />
             <WebhookConfiguration />
             <ChangePassword />
