@@ -51,7 +51,7 @@ serve(async (req) => {
 
     // Editar via Evolution API
     const response = await fetch(
-      `${EVOLUTION_API_URL}/message/updateMessage/${EVOLUTION_INSTANCE_NAME}`,
+      `${EVOLUTION_API_URL}/chat/updateMessage/${EVOLUTION_INSTANCE_NAME}`,
       {
         method: 'PUT',
         headers: {
