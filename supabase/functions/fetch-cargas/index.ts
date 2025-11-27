@@ -29,7 +29,7 @@ serve(async (req) => {
 
     if (pedidoNumero) {
       // Para busca de pedido específico: apenas últimos 7 dias
-      dataFinalDate.setDate(hoje.getDate() + 1);
+      dataFinalDate.setDate(hoje.getDate() + 15);
       dataInicialDate.setDate(hoje.getDate() - 60);
       console.log("Busca otimizada por pedido:", pedidoNumero);
     } else {
