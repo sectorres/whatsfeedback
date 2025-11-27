@@ -459,7 +459,7 @@ export function SurveyManagement() {
           </div>}
       </CardContent>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remover pesquisas selecionadas?</AlertDialogTitle>
@@ -468,7 +468,7 @@ export function SurveyManagement() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setShowDeleteDialog(false)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={deleteSelectedSurveys} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {deleting ? <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
