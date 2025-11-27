@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { dataInicial, dataFinal } = await req.json().catch(() => ({}));
+    const { dataInicial, dataFinal, pedidoNumero } = await req.json().catch(() => ({}));
     
     const API_URL = 'https://ec.torrescabral.com.br/shx-integrador/srv/ServPubGetCargasEntrega/V1';
     const API_USERNAME = Deno.env.get('API_USERNAME');
@@ -58,23 +58,31 @@ serve(async (req) => {
     const data = await response.json();
     console.log('Successfully fetched cargas:', data.status);
     
-    if (data.retorno?.cargas) {
-      console.log('Total de cargas retornadas:', data.retorno.cargas.length);
+    // Se pedidoNumero foi fornecido, filtrar apenas cargas que contêm esse pedido
+    if (pedidoNumero && data.retorno?.cargas) {
+      console.log('Filtrando por pedido:', pedidoNumero);
+      const filteredCargas = data.retorno.cargas
+        .map((carga: any) => {
+          if (!carga.pedidos) return null;
+          
+          // Filtrar pedidos que correspondem ao número buscado
+          const matchingPedidos = carga.pedidos.filter((pedido: any) => 
+            pedido.pedido && pedido.pedido.toLowerCase().includes(pedidoNumero.toLowerCase())
+          );
+          
+          // Se encontrou pedidos correspondentes, retornar a carga com apenas esses pedidos
+          if (matchingPedidos.length > 0) {
+            return {
+              ...carga,
+              pedidos: matchingPedidos
+            };
+          }
+          return null;
+        })
+        .filter((carga: any) => carga !== null);
       
-      // Log dos IDs das primeiras e últimas cargas
-      const cargas = data.retorno.cargas;
-      if (cargas.length > 0) {
-        console.log('Primeiras 5 cargas:', cargas.slice(0, 5).map((c: any) => ({ id: c.id, data: c.data })));
-        console.log('Últimas 5 cargas:', cargas.slice(-5).map((c: any) => ({ id: c.id, data: c.data })));
-        
-        // Procurar especificamente pela carga 220009
-        const carga220009 = cargas.find((c: any) => c.id === 220009);
-        if (carga220009) {
-          console.log('CARGA 220009 ENCONTRADA:', carga220009);
-        } else {
-          console.log('CARGA 220009 NÃO ENCONTRADA no retorno da API');
-        }
-      }
+      data.retorno.cargas = filteredCargas;
+      console.log('Cargas filtradas:', filteredCargas.length);
     }
 
     return new Response(JSON.stringify(data), {

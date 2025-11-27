@@ -42,31 +42,30 @@ export function SurveyManagement() {
     if (!searchTerm.trim()) return;
     setLoading(true);
     try {
-      // Buscar dados atualizados da API primeiro
-      console.log('Buscando dados da API para:', searchTerm);
+      // Buscar dados atualizados da API com filtro direto por pedido
+      console.log('Buscando pedido na API:', searchTerm);
       try {
         const {
           data: apiData,
           error: apiError
         } = await supabase.functions.invoke('fetch-cargas', {
-          body: {}
+          body: { pedidoNumero: searchTerm }
         });
         if (!apiError && apiData?.retorno?.cargas) {
+          // Atualizar dados dos pedidos encontrados no banco
           for (const carga of apiData.retorno.cargas) {
             if (carga.pedidos) {
               for (const pedido of carga.pedidos) {
                 const pedidoNumero = pedido.pedido;
-                if (pedidoNumero && pedidoNumero.toLowerCase().includes(searchTerm.toLowerCase())) {
-                  console.log('Pedido encontrado na API:', pedidoNumero);
-                  const {
-                    data: existingSends
-                  } = await supabase.from('campaign_sends').select('id').eq('pedido_numero', pedidoNumero);
-                  if (existingSends && existingSends.length > 0) {
-                    await supabase.from('campaign_sends').update({
-                      driver_name: carga.nomeMotorista || 'N/A',
-                      customer_name: pedido.cliente?.nome || 'N/A'
-                    }).eq('id', existingSends[0].id);
-                  }
+                console.log('Pedido encontrado na API:', pedidoNumero);
+                const {
+                  data: existingSends
+                } = await supabase.from('campaign_sends').select('id').eq('pedido_numero', pedidoNumero);
+                if (existingSends && existingSends.length > 0) {
+                  await supabase.from('campaign_sends').update({
+                    driver_name: carga.nomeMotorista || 'N/A',
+                    customer_name: pedido.cliente?.nome || 'N/A'
+                  }).eq('id', existingSends[0].id);
                 }
               }
             }
