@@ -7,6 +7,7 @@ const whatsappSendSchema = z.object({
   message: z.string().min(1).max(4096),
   skip_message_save: z.boolean().optional(),
   conversation_id: z.string().optional(),
+  replied_to_id: z.string().optional(), // ID da mensagem sendo respondida
 });
 
 const corsHeaders = {
@@ -31,7 +32,7 @@ serve(async (req) => {
       );
     }
 
-    const { phone, message, skip_message_save, conversation_id } = validationResult.data;
+    const { phone, message, skip_message_save, conversation_id, replied_to_id } = validationResult.data;
     const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
     const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
     const EVOLUTION_INSTANCE_NAME = Deno.env.get('EVOLUTION_INSTANCE_NAME');
@@ -81,6 +82,21 @@ serve(async (req) => {
       }
     }
     
+    // Preparar payload para envio
+    const sendPayload: any = {
+      number: cleanPhone,
+      text: message,
+    };
+
+    // Se for uma resposta a outra mensagem, adicionar contexto de quoted
+    if (replied_to_id) {
+      sendPayload.quoted = {
+        key: {
+          id: replied_to_id
+        }
+      };
+    }
+    
     // Send message via Evolution API
     const response = await fetch(
       `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE_NAME}`,
@@ -90,10 +106,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
           'apikey': EVOLUTION_API_KEY,
         },
-        body: JSON.stringify({
-          number: cleanPhone,
-          text: message,
-        })
+        body: JSON.stringify(sendPayload)
       }
     );
 
@@ -207,13 +220,20 @@ serve(async (req) => {
 
         // Criar mensagem no chat (apenas para mensagens do bot)
         if (conversationId) {
-          await supabase.from('messages').insert({
+          const messageData: any = {
             conversation_id: conversationId,
             sender_type: 'agent',
             sender_name: 'Bot',
             message_text: message,
             message_status: 'sent',
-          });
+          };
+
+          // Adicionar replied_to_id se for uma resposta
+          if (replied_to_id) {
+            messageData.replied_to_id = replied_to_id;
+          }
+
+          await supabase.from('messages').insert(messageData);
         }
       } catch (chatError) {
         console.error('Erro ao registrar mensagem no chat:', chatError);
