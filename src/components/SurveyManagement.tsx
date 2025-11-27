@@ -367,14 +367,15 @@ export function SurveyManagement() {
   };
   return <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-end justify-between gap-4">
+          <div className="flex-shrink-0">
             <CardTitle>Gerenciamento de Pesquisas</CardTitle>
             <CardDescription>
               Visualize e gerencie o envio individual de pesquisas de satisfação
             </CardDescription>
           </div>
-          <div className="flex gap-3 items-end">
+          
+          <div className="flex items-end gap-3">
             <div className="w-[300px]">
               <label className="text-sm font-medium mb-1.5 block">Buscar Pedido</label>
               <div className="relative">
@@ -387,8 +388,6 @@ export function SurveyManagement() {
               }} className="pl-9" disabled={loading} />
               </div>
             </div>
-          </div>
-          <div className="flex gap-2">
             
             <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)} disabled={selectedIds.size === 0}>
               <Trash2 className="h-4 w-4 mr-2" />
