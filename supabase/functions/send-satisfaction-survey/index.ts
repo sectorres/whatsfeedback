@@ -90,8 +90,8 @@ serve(async (req) => {
       );
     }
     
-    // Mensagem da pesquisa
-    const getSurveyMessage = (customerName?: string) => `Olá${customerName ? ' ' + customerName : ''}!
+    // Buscar mensagem configurada ou usar padrão
+    let surveyMessageTemplate = `Olá{NOME}!
 
 De uma nota de 1 a 5 para a entrega de seus produtos.
 
@@ -102,6 +102,32 @@ De uma nota de 1 a 5 para a entrega de seus produtos.
 5️⃣ - Muito satisfeito
 
 Responda apenas com o número da sua avaliação.`;
+
+    try {
+      const { data: configData } = await supabaseClient
+        .from('app_config')
+        .select('config_value')
+        .eq('config_key', 'satisfaction_survey_message')
+        .maybeSingle();
+
+      if (configData?.config_value) {
+        surveyMessageTemplate = configData.config_value;
+      }
+    } catch (error) {
+      console.error('Erro ao buscar mensagem configurada, usando padrão:', error);
+    }
+
+    // Função para aplicar o nome do cliente na mensagem
+    const getSurveyMessage = (customerName?: string) => {
+      if (customerName && surveyMessageTemplate.includes('{NOME}')) {
+        return surveyMessageTemplate.replace('{NOME}', ' ' + customerName);
+      } else if (customerName) {
+        // Se não tem {NOME} no template, adiciona no início
+        return surveyMessageTemplate.replace('Olá!', `Olá ${customerName}!`).replace('Olá', `Olá ${customerName}`);
+      }
+      // Se não tem nome, remove o placeholder
+      return surveyMessageTemplate.replace('{NOME}', '');
+    };
 
     // Função auxiliar para verificar e atualizar motorista via API usando pedido_id
     const checkAndUpdateDriver = async (send: any) => {
