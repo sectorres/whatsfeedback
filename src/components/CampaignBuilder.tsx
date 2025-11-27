@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Send, Filter, Users, MessageSquare, CalendarIcon, Search } from "lucide-react";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "./ui/resizable";
 import { format } from "date-fns";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
@@ -537,262 +538,284 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           </CardTitle>
           <CardDescription>Configure campanhas de atualização de status para seus clientes</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Filtros de Carga */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Filter className="h-4 w-4" />
-                Status da Carga
-              </Label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os Status</SelectItem>
-                  <SelectItem value="ABER">Aberta</SelectItem>
-                  <SelectItem value="SEPA">Em Separação</SelectItem>
-                  <SelectItem value="FATU">Faturada</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        <CardContent className="p-0">
+          <ResizablePanelGroup direction="horizontal" className="min-h-[600px]">
+            {/* Coluna Esquerda - Mensagem e Templates */}
+            <ResizablePanel defaultSize={50} minSize={35}>
+              <div className="h-full p-6 space-y-6 overflow-auto">
+                {/* Mensagem da Campanha */}
+                <div className="space-y-2">
+                  <Label htmlFor="message-template" className="text-base font-semibold">
+                    Mensagem da Campanha
+                  </Label>
+                  <Textarea
+                    id="message-template"
+                    placeholder="Digite sua mensagem..."
+                    value={messageTemplate}
+                    onChange={(e) => setMessageTemplate(e.target.value)}
+                    rows={8}
+                    className="resize-none"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <p className="text-xs text-muted-foreground w-full">Variáveis disponíveis:</p>
+                    {["{cliente}", "{pedido}", "{valor}", "{status}", "{notaFiscal}"].map((v) => (
+                      <Badge key={v} variant="outline" className="text-xs">
+                        {v}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
 
-            <div className="space-y-2">
-              <Label>Selecionar Carga</Label>
-              <Select value={selectedCargaId} onValueChange={setSelectedCargaId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Escolha uma carga" />
-                </SelectTrigger>
-                <SelectContent
-                  className="bg-background z-50 max-h-[400px] max-w-[500px]"
-                  onCloseAutoFocus={(e) => e.preventDefault()}
-                  position="popper"
-                >
-                  <div className="p-2 border-b bg-background" onPointerDown={(e) => e.stopPropagation()}>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                      <Input
-                        placeholder="Buscar carga..."
-                        value={cargaSearch}
-                        onChange={(e) => setCargaSearch(e.target.value)}
-                        className="pl-9 h-9"
-                        onKeyDown={(e) => {
-                          e.stopPropagation();
-                        }}
-                        onPointerDown={(e) => {
-                          e.stopPropagation();
-                        }}
-                      />
+                {/* Prévia da Mensagem */}
+                {selectedCarga && selectedPedidos.size > 0 && (
+                  <div className="bg-muted p-4 rounded-lg space-y-2">
+                    <Label className="text-sm font-medium">Prévia da Mensagem</Label>
+                    <div className="bg-background p-3 rounded border text-sm whitespace-pre-wrap">
+                      {messageTemplate
+                        .replace("{cliente}", selectedCarga.pedidos[0]?.cliente?.nome || "Cliente")
+                        .replace("{pedido}", selectedCarga.pedidos[0]?.pedido || "000/000000-P")
+                        .replace("{valor}", `${selectedCarga.pedidos[0]?.valor?.toFixed(2) || "0.00"}`)
+                        .replace("{status}", statusMap[selectedCarga.status] || selectedCarga.status)
+                        .replace("{notaFiscal}", selectedCarga.pedidos[0]?.notaFiscal || "N/A")}
                     </div>
                   </div>
-                  {loading ? (
-                    <div className="p-4 text-center">
-                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                    </div>
+                )}
+
+                {/* Botão de Enviar Campanha */}
+                <Button
+                  onClick={() => setShowConfirmDialog(true)}
+                  className="w-full"
+                  size="lg"
+                  disabled={!whatsappConnected || selectedPedidos.size === 0 || sending}
+                >
+                  {sending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Enviando...
+                    </>
                   ) : (
-                    <ScrollArea className="h-[300px]">
-                      {filteredCargas.filter(
-                        (carga) =>
-                          cargaSearch === "" ||
-                          carga.id.toString().includes(cargaSearch) ||
-                          formatDate(carga.data).includes(cargaSearch) ||
-                          statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) ||
-                          carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase()),
-                      ).length === 0 ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">Nenhuma carga encontrada</div>
-                      ) : (
-                        filteredCargas
-                          .filter(
-                            (carga) =>
-                              cargaSearch === "" ||
-                              carga.id.toString().includes(cargaSearch) ||
-                              formatDate(carga.data).includes(cargaSearch) ||
-                              statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) ||
-                              carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase()),
-                          )
-                          .map((carga) => (
-                            <SelectItem key={carga.id} value={carga.id.toString()} className="text-xs">
-                              Carga #{carga.id} - {formatDate(carga.data)} - {statusMap[carga.status]} (
-                              {carga.pedidos?.length || 0} pedidos)
-                            </SelectItem>
-                          ))
-                      )}
-                    </ScrollArea>
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Enviar Campanha ({selectedPedidos.size} mensagens)
+                    </>
                   )}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+                </Button>
 
-          {/* Lista de Pedidos */}
-          {selectedCarga && selectedCarga.pedidos && selectedCarga.pedidos.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Pedidos da Carga (selecionados: {selectedPedidos.size})
-                </Label>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={selectAllPedidos}>
-                    Selecionar Todos
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={deselectAllPedidos}>
-                    Limpar
-                  </Button>
+                {!whatsappConnected && (
+                  <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
+                    <p className="text-sm text-warning">⚠️ Conecte o WhatsApp primeiro para poder enviar campanhas</p>
+                  </div>
+                )}
+
+                {/* Templates de Mensagem */}
+                <div className="space-y-4 border-t pt-6">
+                  <Label className="text-base font-semibold">Templates de Mensagem</Label>
+
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>Selecionar Template</Label>
+                      <Select value={selectedTemplateId} onValueChange={handleTemplateChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Escolha um template" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {savedTemplates.map((template) => (
+                            <SelectItem key={template.id} value={template.id}>
+                              {template.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Salvar Novo Template</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Nome do template"
+                          value={newTemplateName}
+                          onChange={(e) => setNewTemplateName(e.target.value)}
+                        />
+                        <Button onClick={handleSaveTemplate} variant="outline">
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleUpdateTemplate}
+                        variant="outline"
+                        size="sm"
+                        disabled={selectedTemplateId === "default"}
+                      >
+                        Atualizar Template Atual
+                      </Button>
+                      <Button
+                        onClick={handleDeleteTemplate}
+                        variant="outline"
+                        size="sm"
+                        disabled={selectedTemplateId === "default"}
+                      >
+                        Deletar Template
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
+            </ResizablePanel>
 
-              <div className="border rounded-lg max-h-96 overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12"></TableHead>
-                      <TableHead>Pedido</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Telefone</TableHead>
-                      <TableHead>Valor</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedCarga.pedidos.map((pedido) => (
-                      <TableRow key={pedido.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedPedidos.has(pedido.id)}
-                            onCheckedChange={() => togglePedido(pedido.id)}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">{pedido.pedido}</TableCell>
-                        <TableCell>{pedido.cliente?.nome || "N/A"}</TableCell>
-                        <TableCell>
-                          <Input
-                            value={getPhone(pedido)}
-                            onChange={(e) => updatePhone(pedido.id, e.target.value)}
-                            placeholder="Telefone"
-                            className="h-8"
-                          />
-                        </TableCell>
-                        <TableCell>R$ {pedido.valor?.toFixed(2) || "0.00"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )}
+            <ResizableHandle withHandle />
 
-          {/* Templates de Mensagem */}
-          <div className="space-y-4 border-t pt-4">
-            <Label>Templates de Mensagem</Label>
+            {/* Coluna Direita - Seleções de Carga e Pedidos */}
+            <ResizablePanel defaultSize={50} minSize={35}>
+              <div className="h-full p-6 space-y-6 overflow-auto border-l">
+                {/* Filtros de Carga */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      Status da Carga
+                    </Label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Filtrar por status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os Status</SelectItem>
+                        <SelectItem value="ABER">Aberta</SelectItem>
+                        <SelectItem value="SEPA">Em Separação</SelectItem>
+                        <SelectItem value="FATU">Faturada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-            <div className="grid md:grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Selecionar Template</Label>
-                <Select value={selectedTemplateId} onValueChange={handleTemplateChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Escolha um template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {savedTemplates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Salvar Novo Template</Label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Nome do template"
-                    value={newTemplateName}
-                    onChange={(e) => setNewTemplateName(e.target.value)}
-                  />
-                  <Button onClick={handleSaveTemplate} variant="outline">
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                  <div className="space-y-2">
+                    <Label>Selecionar Carga</Label>
+                    <Select value={selectedCargaId} onValueChange={setSelectedCargaId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Escolha uma carga" />
+                      </SelectTrigger>
+                      <SelectContent
+                        className="bg-background z-50 max-h-[400px] max-w-[500px]"
+                        onCloseAutoFocus={(e) => e.preventDefault()}
+                        position="popper"
+                      >
+                        <div className="p-2 border-b bg-background" onPointerDown={(e) => e.stopPropagation()}>
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                            <Input
+                              placeholder="Buscar carga..."
+                              value={cargaSearch}
+                              onChange={(e) => setCargaSearch(e.target.value)}
+                              className="pl-9 h-9"
+                              onKeyDown={(e) => {
+                                e.stopPropagation();
+                              }}
+                              onPointerDown={(e) => {
+                                e.stopPropagation();
+                              }}
+                            />
+                          </div>
+                        </div>
+                        {loading ? (
+                          <div className="p-4 text-center">
+                            <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                          </div>
+                        ) : (
+                          <ScrollArea className="h-[300px]">
+                            {filteredCargas.filter(
+                              (carga) =>
+                                cargaSearch === "" ||
+                                carga.id.toString().includes(cargaSearch) ||
+                                formatDate(carga.data).includes(cargaSearch) ||
+                                statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) ||
+                                carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase()),
+                            ).length === 0 ? (
+                              <div className="p-4 text-center text-sm text-muted-foreground">Nenhuma carga encontrada</div>
+                            ) : (
+                              filteredCargas
+                                .filter(
+                                  (carga) =>
+                                    cargaSearch === "" ||
+                                    carga.id.toString().includes(cargaSearch) ||
+                                    formatDate(carga.data).includes(cargaSearch) ||
+                                    statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) ||
+                                    carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase()),
+                                )
+                                .map((carga) => (
+                                  <SelectItem key={carga.id} value={carga.id.toString()} className="text-xs">
+                                    Carga #{carga.id} - {formatDate(carga.data)} - {statusMap[carga.status]} (
+                                    {carga.pedidos?.length || 0} pedidos)
+                                  </SelectItem>
+                                ))
+                            )}
+                          </ScrollArea>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+
+                {/* Lista de Pedidos */}
+                {selectedCarga && selectedCarga.pedidos && selectedCarga.pedidos.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Pedidos da Carga (selecionados: {selectedPedidos.size})
+                      </Label>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={selectAllPedidos}>
+                          Selecionar Todos
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={deselectAllPedidos}>
+                          Limpar
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="border rounded-lg max-h-[400px] overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-12"></TableHead>
+                            <TableHead>Pedido</TableHead>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead>Telefone</TableHead>
+                            <TableHead>Valor</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedCarga.pedidos.map((pedido) => (
+                            <TableRow key={pedido.id}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedPedidos.has(pedido.id)}
+                                  onCheckedChange={() => togglePedido(pedido.id)}
+                                />
+                              </TableCell>
+                              <TableCell className="font-medium">{pedido.pedido}</TableCell>
+                              <TableCell>{pedido.cliente?.nome || "N/A"}</TableCell>
+                              <TableCell>
+                                <Input
+                                  value={getPhone(pedido)}
+                                  onChange={(e) => updatePhone(pedido.id, e.target.value)}
+                                  placeholder="Telefone"
+                                  className="h-8"
+                                />
+                              </TableCell>
+                              <TableCell>R$ {pedido.valor?.toFixed(2) || "0.00"}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                onClick={handleUpdateTemplate}
-                variant="outline"
-                size="sm"
-                disabled={selectedTemplateId === "default"}
-              >
-                Atualizar Template Atual
-              </Button>
-              <Button
-                onClick={handleDeleteTemplate}
-                variant="outline"
-                size="sm"
-                disabled={selectedTemplateId === "default"}
-              >
-                Deletar Template
-              </Button>
-            </div>
-          </div>
-
-          {/* Template de Mensagem */}
-          <div className="space-y-2">
-            <Label htmlFor="message-template">Mensagem da Campanha</Label>
-            <Textarea
-              id="message-template"
-              placeholder="Digite sua mensagem..."
-              value={messageTemplate}
-              onChange={(e) => setMessageTemplate(e.target.value)}
-              rows={4}
-            />
-            <div className="flex flex-wrap gap-2">
-              <p className="text-xs text-muted-foreground w-full">Variáveis disponíveis:</p>
-              {["{cliente}", "{pedido}", "{valor}", "{status}", "{notaFiscal}"].map((v) => (
-                <Badge key={v} variant="outline" className="text-xs">
-                  {v}
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          {/* Prévia da Mensagem */}
-          {selectedCarga && selectedPedidos.size > 0 && (
-            <div className="bg-muted p-4 rounded-lg space-y-2">
-              <Label className="text-sm font-medium">Prévia da Mensagem</Label>
-              <div className="bg-background p-3 rounded border text-sm">
-                {messageTemplate
-                  .replace("{cliente}", selectedCarga.pedidos[0]?.cliente?.nome || "Cliente")
-                  .replace("{pedido}", selectedCarga.pedidos[0]?.pedido || "000/000000-P")
-                  .replace("{valor}", `${selectedCarga.pedidos[0]?.valor?.toFixed(2) || "0.00"}`)
-                  .replace("{status}", statusMap[selectedCarga.status] || selectedCarga.status)
-                  .replace("{notaFiscal}", selectedCarga.pedidos[0]?.notaFiscal || "N/A")}
-              </div>
-            </div>
-          )}
-
-          {/* Botões de Ação */}
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setShowConfirmDialog(true)}
-              className="flex-1"
-              disabled={!whatsappConnected || selectedPedidos.size === 0 || sending}
-            >
-              {sending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Enviando...
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  Enviar Campanha ({selectedPedidos.size} mensagens)
-                </>
-              )}
-            </Button>
-          </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
 
           {/* Diálogo de Confirmação */}
           <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
@@ -858,12 +881,6 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               </div>
             </DialogContent>
           </Dialog>
-
-          {!whatsappConnected && (
-            <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
-              <p className="text-sm text-warning">⚠️ Conecte o WhatsApp primeiro para poder enviar campanhas</p>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>
