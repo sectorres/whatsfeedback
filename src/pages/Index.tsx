@@ -32,9 +32,9 @@ const Index = () => {
   return <div className="min-h-screen bg-background">
       <DashboardHeader />
       
-      <main className="container mx-auto px-6 py-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dashboard" className="space-y-3">
-          <TabsList className="grid w-full grid-cols-7 bg-primary text-primary-foreground">
+      <main className="container mx-auto px-4 py-3">
+        <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dashboard" className="space-y-2">
+          <TabsList className="grid w-full grid-cols-7 bg-primary text-primary-foreground h-9">
             <TabsTrigger value="dashboard" className="flex items-center gap-1.5 text-xs sm:text-sm">
               <LayoutDashboard className="h-4 w-4 flex-shrink-0" />
               <span className="hidden sm:inline">Dashboard</span>
