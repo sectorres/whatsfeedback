@@ -42,7 +42,9 @@ export function SurveyManagement() {
     if (!searchTerm.trim()) return;
     setLoading(true);
     try {
-      const searchLower = searchTerm.toLowerCase();
+      // Normalizar código de barras: converter "001-0074434-P" para "001/0074434-P"
+      const normalizedTerm = searchTerm.replace(/^(\d{3})-(\d{7})-([A-Z])$/i, '$1/$2-$3');
+      const searchLower = normalizedTerm.toLowerCase();
       
       // Primeiro buscar em delivered_orders (pedidos já entregues)
       const { data: deliveredOrders, error: deliveredError } = await supabase
