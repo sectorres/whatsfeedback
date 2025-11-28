@@ -21,7 +21,7 @@ import { OrderDetailsDialog } from "@/components/OrderDetailsDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
 interface Conversation {
   id: string;
   customer_phone: string;
@@ -32,7 +32,6 @@ interface Conversation {
   unread_count: number;
   last_read_at: string | null;
   tags: string[] | null;
-  profile_picture_url?: string | null;
 }
 interface Message {
   id: string;
@@ -104,48 +103,16 @@ export function ConversationsPanel({
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const [selectedOrderNumero, setSelectedOrderNumero] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [conversationsPage, setConversationsPage] = useState(0);
+  const [hasMoreConversations, setHasMoreConversations] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  
-  // Cache de fotos de perfil para evitar requisições repetidas
-  const profilePictureCache = useRef<Map<string, string | null>>(new Map());
-  const loadingPhotos = useRef<Set<string>>(new Set());
   
   useEffect(() => {
     audioRef.current = new Audio('/notification.mp3');
     audioRef.current.volume = 0.5;
     audioRef.current.load();
-  }, []);
-  
-  // Função otimizada para buscar foto de perfil com cache
-  const fetchProfilePicture = useCallback(async (phone: string) => {
-    // Se já está no cache, retornar imediatamente
-    if (profilePictureCache.current.has(phone)) {
-      return profilePictureCache.current.get(phone);
-    }
-    
-    // Se já está sendo carregada, não fazer outra requisição
-    if (loadingPhotos.current.has(phone)) {
-      return null;
-    }
-    
-    loadingPhotos.current.add(phone);
-    
-    try {
-      const { data } = await supabase.functions.invoke('fetch-profile-picture', {
-        body: { phone }
-      });
-      const url = data?.profilePictureUrl || null;
-      profilePictureCache.current.set(phone, url);
-      return url;
-    } catch (error) {
-      console.error('Error fetching profile picture:', error);
-      profilePictureCache.current.set(phone, null);
-      return null;
-    } finally {
-      loadingPhotos.current.delete(phone);
-    }
   }, []);
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
@@ -167,16 +134,13 @@ export function ConversationsPanel({
       event: 'INSERT',
       schema: 'public',
       table: 'conversations'
-    }, async (payload) => {
+    }, (payload) => {
       const newConv = payload.new as Conversation;
-      // Buscar foto apenas para a nova conversa
-      const photoUrl = await fetchProfilePicture(newConv.customer_phone);
-      const convWithPhoto = { ...newConv, profile_picture_url: photoUrl };
       
       if (newConv.status === 'active') {
-        setConversations(prev => [convWithPhoto, ...prev]);
+        setConversations(prev => [newConv, ...prev]);
       } else if (newConv.status === 'closed') {
-        setArchivedConversations(prev => [convWithPhoto, ...prev]);
+        setArchivedConversations(prev => [newConv, ...prev]);
       }
     }).on('postgres_changes', {
       event: 'UPDATE',
@@ -233,7 +197,7 @@ export function ConversationsPanel({
       supabase.removeChannel(conversationsChannel);
       supabase.removeChannel(allMessagesChannel);
     };
-  }, [isOnAtendimentoTab, fetchProfilePicture]);
+  }, [isOnAtendimentoTab]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -264,56 +228,50 @@ export function ConversationsPanel({
       };
     }
   }, [selectedConversation]);
-  const loadConversations = async () => {
+  const loadConversations = async (page = 0) => {
     setLoading(true);
+    const pageSize = 20;
     try {
       const {
         data: activeData,
         error: activeError
-      } = await supabase.from('conversations').select('*').eq('status', 'active').order('last_message_at', {
-        ascending: false
-      });
+      } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('status', 'active')
+        .order('last_message_at', { ascending: false })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
       
       const {
         data: archivedData,
         error: archivedError
-      } = await supabase.from('conversations').select('*').eq('status', 'closed').order('last_message_at', {
-        ascending: false
-      });
+      } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('status', 'closed')
+        .order('last_message_at', { ascending: false })
+        .range(page * pageSize, (page + 1) * pageSize - 1);
       
       if (activeError) {
         console.error('Error loading active conversations:', activeError);
         toast.error('Erro ao carregar conversas ativas');
       } else if (activeData) {
-        // Carregar fotos apenas para conversas que não estão no cache
-        const conversationsWithPhotos = await Promise.all(
-          activeData.map(async (conv) => {
-            const cachedPhoto = profilePictureCache.current.get(conv.customer_phone);
-            if (cachedPhoto !== undefined) {
-              return { ...conv, profile_picture_url: cachedPhoto };
-            }
-            const photoUrl = await fetchProfilePicture(conv.customer_phone);
-            return { ...conv, profile_picture_url: photoUrl };
-          })
-        );
-        setConversations(conversationsWithPhotos);
+        if (page === 0) {
+          setConversations(activeData);
+        } else {
+          setConversations(prev => [...prev, ...activeData]);
+        }
+        setHasMoreConversations(activeData.length === pageSize);
       }
       
       if (archivedError) {
         console.error('Error loading archived conversations:', archivedError);
       } else if (archivedData) {
-        // Carregar fotos apenas para conversas que não estão no cache
-        const conversationsWithPhotos = await Promise.all(
-          archivedData.map(async (conv) => {
-            const cachedPhoto = profilePictureCache.current.get(conv.customer_phone);
-            if (cachedPhoto !== undefined) {
-              return { ...conv, profile_picture_url: cachedPhoto };
-            }
-            const photoUrl = await fetchProfilePicture(conv.customer_phone);
-            return { ...conv, profile_picture_url: photoUrl };
-          })
-        );
-        setArchivedConversations(conversationsWithPhotos);
+        if (page === 0) {
+          setArchivedConversations(archivedData);
+        } else {
+          setArchivedConversations(prev => [...prev, ...archivedData]);
+        }
       }
     } finally {
       setLoading(false);
@@ -791,14 +749,11 @@ export function ConversationsPanel({
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div> : filteredActiveConversations.length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
                   Nenhuma conversa ativa
-                </p> : filteredActiveConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
+                 </p> : filteredActiveConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
                     <div className="flex items-start gap-2">
-                      <Avatar className="h-10 w-10 flex-shrink-0">
-                        {conv.profile_picture_url && <AvatarImage src={conv.profile_picture_url} alt={conv.customer_name || conv.customer_phone} />}
-                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                          {conv.customer_name ? conv.customer_name.substring(0, 2).toUpperCase() : conv.customer_phone.substring(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center">
+                        {conv.customer_name ? conv.customer_name.substring(0, 2).toUpperCase() : conv.customer_phone.substring(0, 2)}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <div className="font-medium text-sm truncate">{conv.customer_name || conv.customer_phone}</div>
@@ -832,14 +787,11 @@ export function ConversationsPanel({
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div> : filteredArchivedConversations.length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
                   Nenhuma conversa arquivada
-                </p> : filteredArchivedConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
+                 </p> : filteredArchivedConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
                     <div className="flex items-start gap-2">
-                      <Avatar className="h-10 w-10 flex-shrink-0">
-                        {conv.profile_picture_url && <AvatarImage src={conv.profile_picture_url} alt={conv.customer_name || conv.customer_phone} />}
-                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                          {conv.customer_name ? conv.customer_name.substring(0, 2).toUpperCase() : conv.customer_phone.substring(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center">
+                        {conv.customer_name ? conv.customer_name.substring(0, 2).toUpperCase() : conv.customer_phone.substring(0, 2)}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <div className="font-medium text-sm truncate">{conv.customer_name || conv.customer_phone}</div>
