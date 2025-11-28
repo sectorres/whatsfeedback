@@ -30,104 +30,102 @@ const Index = () => {
   const {
     isConnected
   } = useWhatsAppStatus();
-  return <div className="min-h-screen bg-background">
-      <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dashboard">
+  return <div className="min-h-screen bg-background flex flex-col">
+      <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dashboard" className="flex-1 flex flex-col">
         <DashboardHeader>
-          <TabsList className="grid w-full grid-cols-7 bg-white/10 backdrop-blur-sm border border-white/20 h-9 gap-1 p-1">
+          <TabsList className="grid w-full grid-cols-7 bg-white/10 backdrop-blur-sm border border-white/20 h-8 md:h-9 gap-0.5 md:gap-1 p-0.5 md:p-1 overflow-x-auto">
             <TabsTrigger 
               value="dashboard" 
-              className="flex items-center gap-1.5 text-xs px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+              className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0"
             >
-              <LayoutDashboard className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden lg:inline font-medium">Dashboard</span>
+              <LayoutDashboard className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
+              <span className="hidden sm:inline font-medium truncate">Dashboard</span>
             </TabsTrigger>
             <TabsTrigger 
               value="campaigns" 
-              className="flex items-center gap-1.5 text-xs px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+              className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0"
             >
-              <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden lg:inline font-medium">Avisos</span>
+              <Calendar className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
+              <span className="hidden sm:inline font-medium truncate">Avisos</span>
             </TabsTrigger>
             <TabsTrigger 
               value="satisfaction" 
-              className="flex items-center gap-1.5 text-xs px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+              className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0"
             >
-              <Star className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden lg:inline font-medium">Pesquisas</span>
+              <Star className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
+              <span className="hidden sm:inline font-medium truncate">Pesquisas</span>
             </TabsTrigger>
             <TabsTrigger 
               value="atendimento" 
-              className="flex items-center gap-1.5 text-xs px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+              className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0 relative"
             >
-              <Headphones className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden lg:inline font-medium">Atendimento</span>
-              {unreadCount > 0 && <Badge variant="destructive" className="ml-0.5 h-4 min-w-4 flex items-center justify-center px-1 text-[9px] shadow-md">
+              <Headphones className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
+              <span className="hidden sm:inline font-medium truncate">Atendimento</span>
+              {unreadCount > 0 && <Badge variant="destructive" className="ml-0.5 h-3.5 md:h-4 min-w-3.5 md:min-w-4 flex items-center justify-center px-1 text-[8px] md:text-[9px] shadow-md absolute -top-1 -right-1 sm:static">
                   {unreadCount}
                 </Badge>}
             </TabsTrigger>
             <TabsTrigger 
               value="desempenho" 
-              className="flex items-center gap-1.5 text-xs px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+              className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0"
             >
-              <BarChart3 className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden lg:inline font-medium">Desempenho</span>
+              <BarChart3 className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
+              <span className="hidden sm:inline font-medium truncate">Desempenho</span>
             </TabsTrigger>
             <TabsTrigger 
               value="orders" 
-              className="flex items-center gap-1.5 text-xs px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+              className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0"
             >
-              <Package className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden lg:inline font-medium">Pedidos</span>
+              <Package className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
+              <span className="hidden sm:inline font-medium truncate">Pedidos</span>
             </TabsTrigger>
             <TabsTrigger 
               value="config" 
-              className="flex items-center gap-1.5 text-xs px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105"
+              className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0"
             >
-              <Settings className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="hidden lg:inline font-medium">Configurações</span>
+              <Settings className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
+              <span className="hidden sm:inline font-medium truncate">Config</span>
             </TabsTrigger>
           </TabsList>
         </DashboardHeader>
       
-        <main className="container mx-auto px-4 py-4">
-          <TabsContent value="dashboard" className="space-y-6">
+        <main className="container mx-auto px-2 sm:px-4 py-2 sm:py-4 flex-1">
+          <TabsContent value="dashboard" className="space-y-3 sm:space-y-6 mt-0">
             <DashboardStats />
           </TabsContent>
 
-          <TabsContent value="atendimento" className="overflow-hidden">
-            <div>
-              
-              
+          <TabsContent value="atendimento" className="overflow-hidden mt-0 h-[calc(100vh-8rem)] sm:h-auto">
+            <div className="h-full">
               <ConversationsPanel isOnAtendimentoTab={activeTab === "atendimento"} />
             </div>
           </TabsContent>
 
-          <TabsContent value="campaigns" className="space-y-6">
+          <TabsContent value="campaigns" className="space-y-3 sm:space-y-6 mt-0">
             <CampaignBuilder whatsappConnected={isConnected} />
             <SavedCampaigns />
             <BlacklistManager />
           </TabsContent>
 
-          <TabsContent value="satisfaction">
+          <TabsContent value="satisfaction" className="mt-0">
             <SatisfactionSurveys />
           </TabsContent>
 
-          <TabsContent value="desempenho">
+          <TabsContent value="desempenho" className="mt-0">
             <DriverPerformance />
           </TabsContent>
 
-          <TabsContent value="orders">
+          <TabsContent value="orders" className="mt-0">
             <OrderStatusTable />
           </TabsContent>
 
-          <TabsContent value="config" className="space-y-4">
+          <TabsContent value="config" className="space-y-3 sm:space-y-4 mt-0">
             <Tabs defaultValue="appearance" className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="appearance">Aparência</TabsTrigger>
-                <TabsTrigger value="integrations">Integrações</TabsTrigger>
-                <TabsTrigger value="communication">Comunicação</TabsTrigger>
-                <TabsTrigger value="security">Segurança</TabsTrigger>
-                <TabsTrigger value="system">Sistema</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-5 h-auto overflow-x-auto">
+                <TabsTrigger value="appearance" className="text-xs sm:text-sm whitespace-nowrap">Aparência</TabsTrigger>
+                <TabsTrigger value="integrations" className="text-xs sm:text-sm whitespace-nowrap">Integrações</TabsTrigger>
+                <TabsTrigger value="communication" className="text-xs sm:text-sm whitespace-nowrap">Comunicação</TabsTrigger>
+                <TabsTrigger value="security" className="text-xs sm:text-sm whitespace-nowrap">Segurança</TabsTrigger>
+                <TabsTrigger value="system" className="text-xs sm:text-sm whitespace-nowrap">Sistema</TabsTrigger>
               </TabsList>
 
               <TabsContent value="appearance" className="space-y-6 mt-4">
@@ -159,8 +157,8 @@ const Index = () => {
         </main>
 
         <footer className="border-t bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 mt-auto">
-          <div className="container mx-auto px-6 py-2 flex justify-end">
-            <p className="text-[10px] text-muted-foreground/70 font-light">
+          <div className="container mx-auto px-2 sm:px-6 py-1.5 sm:py-2 flex justify-center sm:justify-end">
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground/70 font-light text-center sm:text-right">
               WhatsFeedback | Desenvolvido por: Moisés Cavalcante | v1.0.0
             </p>
           </div>

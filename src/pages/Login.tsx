@@ -66,23 +66,23 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <Lock className="h-6 w-6 text-primary" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-2 sm:p-4">
+      <Card className="w-full max-w-md mx-2 sm:mx-0">
+        <CardHeader className="space-y-1 text-center px-4 sm:px-6">
+          <div className="flex justify-center mb-3 sm:mb-4">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Lock className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">WhatsFeedback</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-xl sm:text-2xl font-bold">WhatsFeedback</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
             Entre com suas credenciais para acessar o sistema
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+        <CardContent className="px-4 sm:px-6">
+          <form onSubmit={handleLogin} className="space-y-3 sm:space-y-4">
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label htmlFor="email" className="text-sm">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -91,10 +91,11 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="off"
                 required
+                className="h-10 sm:h-11 text-sm sm:text-base"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+            <div className="space-y-1.5 sm:space-y-2">
+              <Label htmlFor="password" className="text-sm">Senha</Label>
               <Input
                 id="password"
                 type="password"
@@ -104,13 +105,14 @@ export default function Login() {
                 autoComplete="new-password"
                 required
                 minLength={6}
+                className="h-10 sm:h-11 text-sm sm:text-base"
               />
-              <p className="text-xs text-muted-foreground">Mínimo de 6 caracteres</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Mínimo de 6 caracteres</p>
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full h-10 sm:h-11 text-sm sm:text-base" disabled={loading}>
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
                   Entrando...
                 </>
               ) : (
