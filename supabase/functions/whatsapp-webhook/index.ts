@@ -17,6 +17,24 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Carregar mensagens configuradas
+    const { data: messagesConfig } = await supabase
+      .from('app_config')
+      .select('config_key, config_value')
+      .in('config_key', [
+        'bot_message_campaign_confirmation',
+        'bot_message_campaign_confirmed_response',
+        'bot_message_campaign_reschedule_response',
+        'bot_message_campaign_invalid_response',
+        'bot_message_survey_feedback_request',
+        'bot_message_survey_invalid_rating'
+      ]);
+
+    const getBotMessage = (key: string, defaultMsg: string) => {
+      const config = messagesConfig?.find(c => c.config_key === `bot_message_${key}`);
+      return config?.config_value || defaultMsg;
+    };
+
     const payload = await req.json();
     console.log('Webhook received:', JSON.stringify(payload, null, 2));
 
@@ -218,7 +236,10 @@ serve(async (req) => {
                 await supabase.functions.invoke('whatsapp-send', {
                   body: {
                     phone: customerPhone,
-                    message: `Obrigado pela sua nota! 🙏\n\nGostaria de deixar uma avaliação ou comentário adicional? Se sim, por favor escreva abaixo. Caso contrário, pode ignorar esta mensagem.`
+                    message: getBotMessage(
+                      'survey_feedback_request',
+                      'Obrigado pela sua nota! 🙏\n\nGostaria de deixar uma avaliação ou comentário adicional? Se sim, por favor escreva abaixo. Caso contrário, pode ignorar esta mensagem.'
+                    )
                   }
                 });
               } catch (feedbackError) {
@@ -235,7 +256,10 @@ serve(async (req) => {
               await supabase.functions.invoke('whatsapp-send', {
                 body: {
                   phone: customerPhone,
-                  message: `Por favor, responda apenas com um número de 1 a 5 para avaliar sua entrega:\n\n1️⃣ - Muito insatisfeito\n2️⃣ - Insatisfeito\n3️⃣ - Neutro\n4️⃣ - Satisfeito\n5️⃣ - Muito satisfeito`
+                  message: getBotMessage(
+                    'survey_invalid_rating',
+                    'Por favor, responda apenas com um número de 1 a 5 para avaliar sua entrega:\n\n1️⃣ - Muito insatisfeito\n2️⃣ - Insatisfeito\n3️⃣ - Neutro\n4️⃣ - Satisfeito\n5️⃣ - Muito satisfeito'
+                  )
                 }
               });
             } catch (sendError) {
@@ -269,7 +293,10 @@ serve(async (req) => {
               await supabase.functions.invoke('whatsapp-send', {
                 body: {
                   phone: customerPhone,
-                  message: `Por favor, responda com:\n\n1️⃣ - Confirmar\n2️⃣ - Reagendar\n3️⃣ - Parar de enviar notificação`
+                  message: getBotMessage(
+                    'campaign_invalid_response',
+                    'Por favor, responda com:\n\n1️⃣ - Confirmar\n2️⃣ - Reagendar\n3️⃣ - Parar de enviar notificação'
+                  )
                 }
               });
             } catch (sendError) {
@@ -329,12 +356,14 @@ serve(async (req) => {
                 .eq('id', existingConv.id);
             }
 
+            const confirmedMsg = getBotMessage('campaign_confirmed_response', 'Obrigado pela confirmação!');
+            
             // Registrar mensagem do cliente primeiro
             await supabase.from('messages').insert({
               conversation_id: existingConv.id,
               sender_type: 'agent',
               sender_name: 'Bot',
-              message_text: 'Obrigado pela confirmação!',
+              message_text: confirmedMsg,
               media_type: 'text',
               media_url: null,
               whatsapp_message_id: msg.key?.id
@@ -344,7 +373,7 @@ serve(async (req) => {
             await supabase.functions.invoke('whatsapp-send', {
               body: {
                 phone: customerPhone,
-                message: 'Obrigado pela confirmação!',
+                message: confirmedMsg,
                 skip_message_save: true
               }
             });
@@ -376,12 +405,17 @@ serve(async (req) => {
               response_type: 'reschedule'
             });
 
+            const rescheduleMsg = getBotMessage(
+              'campaign_reschedule_response',
+              'Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.'
+            );
+
             // Registrar mensagem do bot primeiro
             await supabase.from('messages').insert({
               conversation_id: existingConv.id,
               sender_type: 'agent',
               sender_name: 'Bot',
-              message_text: 'Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.',
+              message_text: rescheduleMsg,
               media_type: 'text',
               media_url: null,
               whatsapp_message_id: msg.key?.id
@@ -391,7 +425,7 @@ serve(async (req) => {
             await supabase.functions.invoke('whatsapp-send', {
               body: {
                 phone: customerPhone,
-                message: 'Para reagendar ligue no número: (11) 4206-5500 e fale com seu vendedor.',
+                message: rescheduleMsg,
                 skip_message_save: true
               }
             });

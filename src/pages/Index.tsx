@@ -22,6 +22,7 @@ import { SatisfactionSurveys } from "@/components/SatisfactionSurveys";
 import { IpWhitelistManager } from "@/components/IpWhitelistManager";
 import { DriverPerformance } from "@/components/DriverPerformance";
 import { SatisfactionSurveyConfig } from "@/components/SatisfactionSurveyConfig";
+import { BotMessagesConfig } from "@/components/BotMessagesConfig";
 const Index = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -140,6 +141,7 @@ const Index = () => {
               </TabsContent>
 
               <TabsContent value="communication" className="space-y-6 mt-4">
+                <BotMessagesConfig />
                 <SendDelayConfig />
                 <SatisfactionSurveyConfig />
               </TabsContent>
