@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -108,10 +108,44 @@ export function ConversationsPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   
+  // Cache de fotos de perfil para evitar requisições repetidas
+  const profilePictureCache = useRef<Map<string, string | null>>(new Map());
+  const loadingPhotos = useRef<Set<string>>(new Set());
+  
   useEffect(() => {
     audioRef.current = new Audio('/notification.mp3');
     audioRef.current.volume = 0.5;
     audioRef.current.load();
+  }, []);
+  
+  // Função otimizada para buscar foto de perfil com cache
+  const fetchProfilePicture = useCallback(async (phone: string) => {
+    // Se já está no cache, retornar imediatamente
+    if (profilePictureCache.current.has(phone)) {
+      return profilePictureCache.current.get(phone);
+    }
+    
+    // Se já está sendo carregada, não fazer outra requisição
+    if (loadingPhotos.current.has(phone)) {
+      return null;
+    }
+    
+    loadingPhotos.current.add(phone);
+    
+    try {
+      const { data } = await supabase.functions.invoke('fetch-profile-picture', {
+        body: { phone }
+      });
+      const url = data?.profilePictureUrl || null;
+      profilePictureCache.current.set(phone, url);
+      return url;
+    } catch (error) {
+      console.error('Error fetching profile picture:', error);
+      profilePictureCache.current.set(phone, null);
+      return null;
+    } finally {
+      loadingPhotos.current.delete(phone);
+    }
   }, []);
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
@@ -128,13 +162,47 @@ export function ConversationsPanel({
   useEffect(() => {
     loadConversations();
 
-    // Realtime para conversas
+    // Realtime para conversas - atualização incremental
     const conversationsChannel = supabase.channel('conversations-changes').on('postgres_changes', {
-      event: '*',
+      event: 'INSERT',
       schema: 'public',
       table: 'conversations'
-    }, () => {
-      loadConversations();
+    }, async (payload) => {
+      const newConv = payload.new as Conversation;
+      // Buscar foto apenas para a nova conversa
+      const photoUrl = await fetchProfilePicture(newConv.customer_phone);
+      const convWithPhoto = { ...newConv, profile_picture_url: photoUrl };
+      
+      if (newConv.status === 'active') {
+        setConversations(prev => [convWithPhoto, ...prev]);
+      } else if (newConv.status === 'closed') {
+        setArchivedConversations(prev => [convWithPhoto, ...prev]);
+      }
+    }).on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'conversations'
+    }, (payload) => {
+      const updatedConv = payload.new as Conversation;
+      const updateFn = (prev: Conversation[]) => 
+        prev.map(conv => conv.id === updatedConv.id ? { ...conv, ...updatedConv } : conv)
+          .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+      
+      if (updatedConv.status === 'active') {
+        setConversations(updateFn);
+        setArchivedConversations(prev => prev.filter(c => c.id !== updatedConv.id));
+      } else if (updatedConv.status === 'closed') {
+        setArchivedConversations(updateFn);
+        setConversations(prev => prev.filter(c => c.id !== updatedConv.id));
+      }
+    }).on('postgres_changes', {
+      event: 'DELETE',
+      schema: 'public',
+      table: 'conversations'
+    }, (payload) => {
+      const deletedId = payload.old.id;
+      setConversations(prev => prev.filter(c => c.id !== deletedId));
+      setArchivedConversations(prev => prev.filter(c => c.id !== deletedId));
     }).subscribe();
 
     // Realtime para todas as mensagens (notificação sonora)
@@ -165,7 +233,7 @@ export function ConversationsPanel({
       supabase.removeChannel(conversationsChannel);
       supabase.removeChannel(allMessagesChannel);
     };
-  }, [isOnAtendimentoTab]); // Adicionar dependência para recriar o listener quando a aba mudar
+  }, [isOnAtendimentoTab, fetchProfilePicture]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -197,63 +265,58 @@ export function ConversationsPanel({
     }
   }, [selectedConversation]);
   const loadConversations = async () => {
-    // Remover loading para evitar "piscar" na interface
-    const {
-      data: activeData,
-      error: activeError
-    } = await supabase.from('conversations').select('*').eq('status', 'active').order('last_message_at', {
-      ascending: false
-    });
-    const {
-      data: archivedData,
-      error: archivedError
-    } = await supabase.from('conversations').select('*').eq('status', 'closed').order('last_message_at', {
-      ascending: false
-    });
-    if (activeError) {
-      console.error('Error loading active conversations:', activeError);
-      toast.error('Erro ao carregar conversas ativas');
-    } else {
-      // Buscar fotos de perfil para as conversas ativas
-      const conversationsWithPhotos = await Promise.all(
-        (activeData || []).map(async (conv) => {
-          try {
-            const { data } = await supabase.functions.invoke('fetch-profile-picture', {
-              body: { phone: conv.customer_phone }
-            });
-            return {
-              ...conv,
-              profile_picture_url: data?.profilePictureUrl || null
-            };
-          } catch (error) {
-            console.error('Error fetching profile picture:', error);
-            return conv;
-          }
-        })
-      );
-      setConversations(conversationsWithPhotos);
-    }
-    if (archivedError) {
-      console.error('Error loading archived conversations:', archivedError);
-    } else {
-      // Buscar fotos de perfil para as conversas arquivadas
-      const conversationsWithPhotos = await Promise.all(
-        (archivedData || []).map(async (conv) => {
-          try {
-            const { data } = await supabase.functions.invoke('fetch-profile-picture', {
-              body: { phone: conv.customer_phone }
-            });
-            return {
-              ...conv,
-              profile_picture_url: data?.profilePictureUrl || null
-            };
-          } catch (error) {
-            console.error('Error fetching profile picture:', error);
-            return conv;
-          }
-        })
-      );
-      setArchivedConversations(conversationsWithPhotos);
+    setLoading(true);
+    try {
+      const {
+        data: activeData,
+        error: activeError
+      } = await supabase.from('conversations').select('*').eq('status', 'active').order('last_message_at', {
+        ascending: false
+      });
+      
+      const {
+        data: archivedData,
+        error: archivedError
+      } = await supabase.from('conversations').select('*').eq('status', 'closed').order('last_message_at', {
+        ascending: false
+      });
+      
+      if (activeError) {
+        console.error('Error loading active conversations:', activeError);
+        toast.error('Erro ao carregar conversas ativas');
+      } else if (activeData) {
+        // Carregar fotos apenas para conversas que não estão no cache
+        const conversationsWithPhotos = await Promise.all(
+          activeData.map(async (conv) => {
+            const cachedPhoto = profilePictureCache.current.get(conv.customer_phone);
+            if (cachedPhoto !== undefined) {
+              return { ...conv, profile_picture_url: cachedPhoto };
+            }
+            const photoUrl = await fetchProfilePicture(conv.customer_phone);
+            return { ...conv, profile_picture_url: photoUrl };
+          })
+        );
+        setConversations(conversationsWithPhotos);
+      }
+      
+      if (archivedError) {
+        console.error('Error loading archived conversations:', archivedError);
+      } else if (archivedData) {
+        // Carregar fotos apenas para conversas que não estão no cache
+        const conversationsWithPhotos = await Promise.all(
+          archivedData.map(async (conv) => {
+            const cachedPhoto = profilePictureCache.current.get(conv.customer_phone);
+            if (cachedPhoto !== undefined) {
+              return { ...conv, profile_picture_url: cachedPhoto };
+            }
+            const photoUrl = await fetchProfilePicture(conv.customer_phone);
+            return { ...conv, profile_picture_url: photoUrl };
+          })
+        );
+        setArchivedConversations(conversationsWithPhotos);
+      }
+    } finally {
+      setLoading(false);
     }
   };
   const loadReschedules = async (conversationId: string) => {
@@ -671,6 +734,26 @@ export function ConversationsPanel({
       setCreatingConversation(false);
     }
   };
+  
+  // Memoizar conversas filtradas para evitar reprocessamento
+  const filteredActiveConversations = useMemo(() => {
+    if (!searchQuery) return conversations;
+    const query = searchQuery.toLowerCase();
+    return conversations.filter(conv =>
+      conv.customer_name?.toLowerCase().includes(query) ||
+      conv.customer_phone.includes(query)
+    );
+  }, [conversations, searchQuery]);
+  
+  const filteredArchivedConversations = useMemo(() => {
+    if (!searchQuery) return archivedConversations;
+    const query = searchQuery.toLowerCase();
+    return archivedConversations.filter(conv =>
+      conv.customer_name?.toLowerCase().includes(query) ||
+      conv.customer_phone.includes(query)
+    );
+  }, [archivedConversations, searchQuery]);
+  
   return <div className="grid gap-4 h-[calc(100vh-185px)] min-h-0" style={{
     gridTemplateColumns: "300px 1fr 320px"
   }}>
@@ -706,23 +789,9 @@ export function ConversationsPanel({
             <ScrollArea className="h-full">
               {loading ? <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin" />
-                </div> : conversations.filter(conv => {
-                  if (!searchQuery) return true;
-                  const query = searchQuery.toLowerCase();
-                  return (
-                    conv.customer_name?.toLowerCase().includes(query) ||
-                    conv.customer_phone.includes(query)
-                  );
-                }).length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
+                </div> : filteredActiveConversations.length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
                   Nenhuma conversa ativa
-                </p> : conversations.filter(conv => {
-                  if (!searchQuery) return true;
-                  const query = searchQuery.toLowerCase();
-                  return (
-                    conv.customer_name?.toLowerCase().includes(query) ||
-                    conv.customer_phone.includes(query)
-                  );
-                }).map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
+                </p> : filteredActiveConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
                     <div className="flex items-start gap-2">
                       <Avatar className="h-10 w-10 flex-shrink-0">
                         {conv.profile_picture_url && <AvatarImage src={conv.profile_picture_url} alt={conv.customer_name || conv.customer_phone} />}
@@ -761,23 +830,9 @@ export function ConversationsPanel({
             <ScrollArea className="h-full">
               {loading ? <div className="flex justify-center p-4">
                   <Loader2 className="h-6 w-6 animate-spin" />
-                </div> : archivedConversations.filter(conv => {
-                  if (!searchQuery) return true;
-                  const query = searchQuery.toLowerCase();
-                  return (
-                    conv.customer_name?.toLowerCase().includes(query) ||
-                    conv.customer_phone.includes(query)
-                  );
-                }).length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
+                </div> : filteredArchivedConversations.length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
                   Nenhuma conversa arquivada
-                </p> : archivedConversations.filter(conv => {
-                  if (!searchQuery) return true;
-                  const query = searchQuery.toLowerCase();
-                  return (
-                    conv.customer_name?.toLowerCase().includes(query) ||
-                    conv.customer_phone.includes(query)
-                  );
-                }).map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
+                </p> : filteredArchivedConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
                     <div className="flex items-start gap-2">
                       <Avatar className="h-10 w-10 flex-shrink-0">
                         {conv.profile_picture_url && <AvatarImage src={conv.profile_picture_url} alt={conv.customer_name || conv.customer_phone} />}
