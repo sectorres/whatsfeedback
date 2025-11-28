@@ -307,6 +307,81 @@ export type Database = {
         }
         Relationships: []
       }
+      delivered_orders: {
+        Row: {
+          bairro: string | null
+          carga_id: number | null
+          cidade: string | null
+          created_at: string | null
+          customer_name: string | null
+          customer_phone: string
+          data_entrega: string | null
+          detected_at: string | null
+          driver_name: string | null
+          endereco_completo: string | null
+          estado: string | null
+          id: string
+          observacao: string | null
+          pedido_id: number
+          pedido_numero: string
+          peso_total: number | null
+          produtos: Json | null
+          quantidade_itens: number | null
+          referencia: string | null
+          status: string | null
+          updated_at: string | null
+          valor_total: number | null
+        }
+        Insert: {
+          bairro?: string | null
+          carga_id?: number | null
+          cidade?: string | null
+          created_at?: string | null
+          customer_name?: string | null
+          customer_phone: string
+          data_entrega?: string | null
+          detected_at?: string | null
+          driver_name?: string | null
+          endereco_completo?: string | null
+          estado?: string | null
+          id?: string
+          observacao?: string | null
+          pedido_id: number
+          pedido_numero: string
+          peso_total?: number | null
+          produtos?: Json | null
+          quantidade_itens?: number | null
+          referencia?: string | null
+          status?: string | null
+          updated_at?: string | null
+          valor_total?: number | null
+        }
+        Update: {
+          bairro?: string | null
+          carga_id?: number | null
+          cidade?: string | null
+          created_at?: string | null
+          customer_name?: string | null
+          customer_phone?: string
+          data_entrega?: string | null
+          detected_at?: string | null
+          driver_name?: string | null
+          endereco_completo?: string | null
+          estado?: string | null
+          id?: string
+          observacao?: string | null
+          pedido_id?: number
+          pedido_numero?: string
+          peso_total?: number | null
+          produtos?: Json | null
+          quantidade_itens?: number | null
+          referencia?: string | null
+          status?: string | null
+          updated_at?: string | null
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           conversation_id: string
