@@ -54,6 +54,16 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    // Carregar mensagem de confirmação configurada
+    const { data: confirmConfig } = await supabase
+      .from('app_config')
+      .select('config_value')
+      .eq('config_key', 'bot_message_campaign_confirmation')
+      .maybeSingle();
+
+    const confirmationMessage = confirmConfig?.config_value || 
+      "Por favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação";
+
     const body = await req.json();
 
     // Validate input
@@ -129,7 +139,7 @@ serve(async (req) => {
     }
 
     // 2) Preparar mensagem completa com confirmação
-    const fullMessage = `${message}\n\nPor favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação`;
+    const fullMessage = `${message}\n\n${confirmationMessage}`;
 
     // 3) Disparar WhatsApp via função dedicada (reaproveita normalização e blacklist)
     const { error: sendError } = await supabase.functions.invoke("whatsapp-send", {
