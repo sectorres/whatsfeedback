@@ -42,93 +42,100 @@ export function SurveyManagement() {
     if (!searchTerm.trim()) return;
     setLoading(true);
     try {
-      // Primeiro buscar no banco de dados (mais rápido)
       const searchLower = searchTerm.toLowerCase();
-      const query = supabase.from('campaign_sends').select('id, customer_name, customer_phone, sent_at, pedido_numero, driver_name, campaign_id').in('status', ['success', 'sent', 'confirmed', 'reschedule_requested']).or(`pedido_numero.ilike.%${searchLower}%,customer_name.ilike.%${searchLower}%`).order('sent_at', {
-        ascending: false
-      }).limit(100);
-      const {
-        data: sends,
-        error: sendsError
-      } = await query;
+      
+      // Primeiro buscar em delivered_orders (pedidos já entregues)
+      const { data: deliveredOrders, error: deliveredError } = await supabase
+        .from('delivered_orders')
+        .select('*')
+        .or(`pedido_numero.ilike.%${searchLower}%,customer_name.ilike.%${searchLower}%`)
+        .order('detected_at', { ascending: false })
+        .limit(100);
+      
+      if (deliveredError) throw deliveredError;
+      
+      // Buscar também em campaign_sends para pedidos ainda não entregues
+      const { data: sends, error: sendsError } = await supabase
+        .from('campaign_sends')
+        .select('id, customer_name, customer_phone, sent_at, pedido_numero, driver_name, campaign_id')
+        .in('status', ['success', 'sent', 'confirmed', 'reschedule_requested'])
+        .or(`pedido_numero.ilike.%${searchLower}%,customer_name.ilike.%${searchLower}%`)
+        .order('sent_at', { ascending: false })
+        .limit(100);
+      
       if (sendsError) throw sendsError;
       
-      // Se não encontrou no banco, buscar na API
-      if (!sends || sends.length === 0) {
-        console.log('Pedido não encontrado no banco, buscando na API...');
-        try {
-          const {
-            data: apiData,
-            error: apiError
-          } = await supabase.functions.invoke('fetch-cargas', {
-            body: { pedidoNumero: searchTerm }
-          });
+      // Combinar resultados (priorizar delivered_orders)
+      const allResults = [];
+      
+      // Adicionar pedidos entregues primeiro
+      if (deliveredOrders && deliveredOrders.length > 0) {
+        for (const order of deliveredOrders) {
+          // Buscar o campaign_send correspondente se existir
+          const { data: matchingSend } = await supabase
+            .from('campaign_sends')
+            .select('id, campaign_id')
+            .eq('pedido_numero', order.pedido_numero)
+            .maybeSingle();
           
-          if (!apiError && apiData?.retorno?.cargas?.length > 0) {
-            // Atualizar dados dos pedidos encontrados na API
-            for (const carga of apiData.retorno.cargas) {
-              if (carga.pedidos) {
-                for (const pedido of carga.pedidos) {
-                  const pedidoNumero = pedido.pedido;
-                  console.log('Atualizando pedido da API:', pedidoNumero);
-                  const {
-                    data: existingSends
-                  } = await supabase.from('campaign_sends').select('id').eq('pedido_numero', pedidoNumero);
-                  if (existingSends && existingSends.length > 0) {
-                    await supabase.from('campaign_sends').update({
-                      driver_name: carga.nomeMotorista || 'N/A',
-                      customer_name: pedido.cliente?.nome || 'N/A'
-                    }).eq('id', existingSends[0].id);
-                  }
-                }
-              }
-            }
-            
-            // Buscar novamente no banco após atualização
-            const { data: updatedSends } = await query;
-            if (updatedSends && updatedSends.length > 0) {
-              sends.push(...updatedSends);
-            }
-          }
-        } catch (apiErr) {
-          console.error('Erro ao buscar dados da API:', apiErr);
-        }
-        
-        if (!sends || sends.length === 0) {
-          toast({
-            title: "Pedido não encontrado",
-            description: `Nenhum pedido encontrado para: ${searchTerm}`,
-            variant: "destructive"
+          allResults.push({
+            id: matchingSend?.id || order.id,
+            campaign_id: matchingSend?.campaign_id || null,
+            customer_name: order.customer_name,
+            customer_phone: order.customer_phone,
+            sent_at: matchingSend ? null : order.detected_at,
+            pedido_numero: order.pedido_numero,
+            driver_name: order.driver_name
           });
-          setSearchTerm('');
-          return;
         }
+      }
+      
+      // Adicionar pedidos de campaign_sends que não estão em delivered_orders
+      if (sends && sends.length > 0) {
+        const deliveredPedidos = new Set((deliveredOrders || []).map(d => d.pedido_numero));
+        const nonDeliveredSends = sends.filter(s => !deliveredPedidos.has(s.pedido_numero));
+        allResults.push(...nonDeliveredSends);
+      }
+      
+      if (allResults.length === 0) {
+        toast({
+          title: "Pedido não encontrado",
+          description: `Nenhum pedido encontrado para: ${searchTerm}`,
+          variant: "destructive"
+        });
+        setSearchTerm('');
+        return;
       }
 
       // Buscar nome da campanha
-      const campaignIds = [...new Set(sends.map(s => s.campaign_id))];
-      const {
-        data: campaignsData
-      } = await supabase.from('campaigns').select('id, name').in('id', campaignIds);
+      const campaignIds = [...new Set(allResults.map(s => s.campaign_id).filter(Boolean))];
+      const { data: campaignsData } = await supabase
+        .from('campaigns')
+        .select('id, name')
+        .in('id', campaignIds);
+      
       const campaignsMap = (campaignsData || []).reduce((acc, campaign) => {
         acc[campaign.id] = campaign.name;
         return acc;
       }, {} as Record<string, string>);
 
       // Buscar surveys existentes
-      const {
-        data: surveys
-      } = await supabase.from('satisfaction_surveys').select('campaign_send_id, id, status, sent_at, responded_at, rating').not('status', 'in', '("cancelled","not_sent")').order('sent_at', {
-        ascending: false
-      });
-      const sendIdsSet = new Set(sends.map(s => s.id));
-      const surveysMap = (surveys || []).filter(survey => sendIdsSet.has(survey.campaign_send_id)).reduce((acc, survey) => {
-        acc[survey.campaign_send_id] = survey;
-        return acc;
-      }, {} as Record<string, any>);
+      const { data: surveys } = await supabase
+        .from('satisfaction_surveys')
+        .select('campaign_send_id, id, status, sent_at, responded_at, rating')
+        .not('status', 'in', '("cancelled","not_sent")')
+        .order('sent_at', { ascending: false });
+      
+      const sendIdsSet = new Set(allResults.map(s => s.id));
+      const surveysMap = (surveys || [])
+        .filter(survey => sendIdsSet.has(survey.campaign_send_id))
+        .reduce((acc, survey) => {
+          acc[survey.campaign_send_id] = survey;
+          return acc;
+        }, {} as Record<string, any>);
 
       // Combinar dados
-      const combined = sends.map(send => {
+      const combined = allResults.map(send => {
         const survey = surveysMap[send.id];
         return {
           id: survey?.id || send.id,
@@ -139,7 +146,7 @@ export function SurveyManagement() {
           sent_at: survey?.sent_at || send.sent_at,
           responded_at: survey?.responded_at || null,
           rating: survey?.rating || null,
-          campaign_name: campaignsMap[send.campaign_id] || 'N/A',
+          campaign_name: send.campaign_id ? (campaignsMap[send.campaign_id] || 'N/A') : 'Pedido Entregue',
           pedido_numero: send.pedido_numero || 'N/A',
           driver_name: send.driver_name || 'N/A'
         };
