@@ -103,8 +103,6 @@ export function ConversationsPanel({
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const [selectedOrderNumero, setSelectedOrderNumero] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [conversationsPage, setConversationsPage] = useState(0);
-  const [hasMoreConversations, setHasMoreConversations] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -228,9 +226,8 @@ export function ConversationsPanel({
       };
     }
   }, [selectedConversation]);
-  const loadConversations = async (page = 0) => {
+  const loadConversations = async () => {
     setLoading(true);
-    const pageSize = 20;
     try {
       const {
         data: activeData,
@@ -239,8 +236,7 @@ export function ConversationsPanel({
         .from('conversations')
         .select('*')
         .eq('status', 'active')
-        .order('last_message_at', { ascending: false })
-        .range(page * pageSize, (page + 1) * pageSize - 1);
+        .order('last_message_at', { ascending: false });
       
       const {
         data: archivedData,
@@ -249,29 +245,19 @@ export function ConversationsPanel({
         .from('conversations')
         .select('*')
         .eq('status', 'closed')
-        .order('last_message_at', { ascending: false })
-        .range(page * pageSize, (page + 1) * pageSize - 1);
+        .order('last_message_at', { ascending: false });
       
       if (activeError) {
         console.error('Error loading active conversations:', activeError);
         toast.error('Erro ao carregar conversas ativas');
       } else if (activeData) {
-        if (page === 0) {
-          setConversations(activeData);
-        } else {
-          setConversations(prev => [...prev, ...activeData]);
-        }
-        setHasMoreConversations(activeData.length === pageSize);
+        setConversations(activeData);
       }
       
       if (archivedError) {
         console.error('Error loading archived conversations:', archivedError);
       } else if (archivedData) {
-        if (page === 0) {
-          setArchivedConversations(archivedData);
-        } else {
-          setArchivedConversations(prev => [...prev, ...archivedData]);
-        }
+        setArchivedConversations(archivedData);
       }
     } finally {
       setLoading(false);
@@ -749,33 +735,28 @@ export function ConversationsPanel({
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div> : filteredActiveConversations.length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
                   Nenhuma conversa ativa
-                 </p> : filteredActiveConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
-                    <div className="flex items-start gap-2">
-                      <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center">
-                        {conv.customer_name ? conv.customer_name.substring(0, 2).toUpperCase() : conv.customer_phone.substring(0, 2)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <div className="font-medium text-sm truncate">{conv.customer_name || conv.customer_phone}</div>
+                </p> : filteredActiveConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-medium text-sm truncate flex-1">{conv.customer_name || conv.customer_phone}</div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           {conv.unread_count > 0 && <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center px-1">
-                              {conv.unread_count}
-                            </Badge>}
+                            {conv.unread_count}
+                          </Badge>}
                           {conv.tags?.includes('reagendar') && <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs h-5">
-                              Reagendar
-                            </Badge>}
-                          {conv.tags?.includes('confirmado')}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {conv.customer_phone}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {formatDistanceToNow(new Date(conv.last_message_at), {
-                      addSuffix: true,
-                      locale: ptBR
-                    })}
+                            Reagendar
+                          </Badge>}
                         </div>
                       </div>
-                      {conv.unread_count > 0 && <div className="w-2 h-2 rounded-full bg-destructive flex-shrink-0" />}
+                      <div className="text-xs text-muted-foreground">
+                        {conv.customer_phone}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(conv.last_message_at), {
+                          addSuffix: true,
+                          locale: ptBR
+                        })}
+                      </div>
                     </div>
                   </div>)}
             </ScrollArea>
@@ -787,27 +768,22 @@ export function ConversationsPanel({
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div> : filteredArchivedConversations.length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
                   Nenhuma conversa arquivada
-                 </p> : filteredArchivedConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
-                    <div className="flex items-start gap-2">
-                      <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center">
-                        {conv.customer_name ? conv.customer_name.substring(0, 2).toUpperCase() : conv.customer_phone.substring(0, 2)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <div className="font-medium text-sm truncate">{conv.customer_name || conv.customer_phone}</div>
+                </p> : filteredArchivedConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-medium text-sm truncate flex-1">{conv.customer_name || conv.customer_phone}</div>
                         {conv.tags?.includes('reagendado') && <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs h-5">
-                            Reagendado
-                          </Badge>}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {conv.customer_phone}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {formatDistanceToNow(new Date(conv.last_message_at), {
-                        addSuffix: true,
-                        locale: ptBR
-                      })}
-                        </div>
+                          Reagendado
+                        </Badge>}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {conv.customer_phone}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(conv.last_message_at), {
+                          addSuffix: true,
+                          locale: ptBR
+                        })}
                       </div>
                     </div>
                   </div>)}
