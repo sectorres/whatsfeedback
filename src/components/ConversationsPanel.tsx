@@ -167,17 +167,52 @@ export function ConversationsPanel({
       setArchivedConversations(prev => prev.filter(c => c.id !== deletedId));
     }).subscribe();
 
-    // Realtime para todas as mensagens (notificação sonora)
+    // Realtime para todas as mensagens (notificação sonora e atualização de conversas)
     const allMessagesChannel = supabase.channel('all-messages-notification').on('postgres_changes', {
       event: 'INSERT',
       schema: 'public',
       table: 'messages'
-    }, payload => {
+    }, async (payload) => {
       console.log('Nova mensagem recebida:', {
         sender_type: payload.new.sender_type,
         isOnAtendimentoTab,
         shouldPlaySound: payload.new.sender_type === 'customer' && !isOnAtendimentoTab
       });
+
+      // Se for mensagem de cliente, recarregar as conversas para garantir que apareça em ativas
+      if (payload.new.sender_type === 'customer') {
+        // Buscar a conversa atualizada
+        const { data: updatedConv } = await supabase
+          .from('conversations')
+          .select('*')
+          .eq('id', payload.new.conversation_id)
+          .single();
+        
+        if (updatedConv) {
+          // Se a conversa está fechada, movê-la para ativas
+          if (updatedConv.status === 'closed') {
+            await supabase
+              .from('conversations')
+              .update({ status: 'active' })
+              .eq('id', updatedConv.id);
+            
+            // Remover de arquivadas e adicionar a ativas
+            setArchivedConversations(prev => prev.filter(c => c.id !== updatedConv.id));
+            setConversations(prev => {
+              const filtered = prev.filter(c => c.id !== updatedConv.id);
+              return [{ ...updatedConv, status: 'active' }, ...filtered]
+                .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+            });
+          } else {
+            // Se já está ativa, apenas atualizar e reordenar
+            setConversations(prev => {
+              const filtered = prev.filter(c => c.id !== updatedConv.id);
+              return [updatedConv, ...filtered]
+                .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+            });
+          }
+        }
+      }
 
       // Tocar notificação sonora se for mensagem de cliente E não estiver na aba de atendimento
       if (payload.new.sender_type === 'customer' && !isOnAtendimentoTab) {
