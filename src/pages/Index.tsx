@@ -33,7 +33,7 @@ const Index = () => {
   return <div className="min-h-screen bg-background flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dashboard" className="flex-1 flex flex-col">
         <DashboardHeader>
-          <TabsList className="grid w-full grid-cols-7 bg-white/10 backdrop-blur-sm border border-white/20 h-8 md:h-9 gap-0.5 md:gap-1 p-0.5 md:p-1 overflow-x-auto">
+          <TabsList className="grid w-full grid-cols-7 bg-white/10 backdrop-blur-sm border border-white/20 h-8 md:h-9 gap-0.5 md:gap-1 p-0.5 md:p-1">
             <TabsTrigger 
               value="dashboard" 
               className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0"
@@ -120,7 +120,7 @@ const Index = () => {
 
           <TabsContent value="config" className="space-y-3 sm:space-y-4 mt-0">
             <Tabs defaultValue="appearance" className="w-full">
-              <TabsList className="grid w-full grid-cols-5 h-auto overflow-x-auto">
+              <TabsList className="grid w-full grid-cols-5 h-auto">
                 <TabsTrigger value="appearance" className="text-xs sm:text-sm whitespace-nowrap">Aparência</TabsTrigger>
                 <TabsTrigger value="integrations" className="text-xs sm:text-sm whitespace-nowrap">Integrações</TabsTrigger>
                 <TabsTrigger value="communication" className="text-xs sm:text-sm whitespace-nowrap">Comunicação</TabsTrigger>
