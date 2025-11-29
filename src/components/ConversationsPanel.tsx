@@ -332,6 +332,11 @@ export function ConversationsPanel({
 
   const sendMessage = async () => {
     if (!messageText.trim() || !selectedConversation) return;
+    
+    // Salvar o texto e limpar o input IMEDIATAMENTE
+    const textToSend = messageText.trim();
+    setMessageText("");
+    
     setSending(true);
     
     // Criar ID único para evitar duplicatas
@@ -344,7 +349,7 @@ export function ConversationsPanel({
         conversation_id: selectedConversation.id,
         sender_type: 'operator',
         sender_name: 'Operador',
-        message_text: messageText,
+        message_text: textToSend,
         message_status: 'sending'
       };
 
@@ -360,7 +365,7 @@ export function ConversationsPanel({
       // Preparar payload para Evolution API
       const sendPayload: any = {
         phone: selectedConversation.customer_phone,
-        message: messageText,
+        message: textToSend,
         conversation_id: selectedConversation.id,
         skip_message_save: true
       };
@@ -397,7 +402,6 @@ export function ConversationsPanel({
         last_message_at: new Date().toISOString()
       }).eq('id', selectedConversation.id);
       
-      setMessageText("");
       setReplyingTo(null);
       toast.success('Mensagem enviada!');
     } catch (error) {
