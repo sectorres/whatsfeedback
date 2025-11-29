@@ -65,6 +65,9 @@ serve(async (req) => {
     const apiUrl = 'https://ec.torrescabral.com.br/shx-integrador/srv/ServPubGetCargasEntrega/V1';
     const authString = btoa(`${API_USERNAME}:${API_PASSWORD}`);
 
+    console.log(`sync-order-details: Fazendo requisição para ${apiUrl}`);
+    console.log(`sync-order-details: Body da requisição:`, { dataInicial, dataFinal });
+
     const apiResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -74,8 +77,12 @@ serve(async (req) => {
       body: JSON.stringify({ dataInicial, dataFinal }),
     });
 
+    console.log(`sync-order-details: Status da resposta: ${apiResponse.status}`);
+
     if (!apiResponse.ok) {
-      throw new Error(`API retornou status ${apiResponse.status}`);
+      const errorText = await apiResponse.text();
+      console.error(`sync-order-details: Erro na API: ${apiResponse.status} - ${errorText}`);
+      throw new Error(`API retornou status ${apiResponse.status}: ${errorText}`);
     }
 
     const apiData = await apiResponse.json();
