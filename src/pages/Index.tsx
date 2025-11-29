@@ -12,8 +12,10 @@ import { WebhookConfiguration } from "@/components/WebhookConfiguration";
 import { BlacklistManager } from "@/components/BlacklistManager";
 import { SendDelayConfig } from "@/components/SendDelayConfig";
 import { DataClearConfig } from "@/components/DataClearConfig";
+import { OrderSyncButton } from "@/components/OrderSyncButton";
 import { LogoManager } from "@/components/LogoManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Package, Settings, Headphones, LayoutDashboard, Star, BarChart3 } from "lucide-react";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
@@ -150,6 +152,17 @@ const Index = () => {
               </TabsContent>
 
               <TabsContent value="system" className="space-y-6 mt-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Sincronização de Pedidos</CardTitle>
+                    <CardDescription>
+                      Sincroniza os dados completos dos pedidos que ainda estão disponíveis na API
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <OrderSyncButton />
+                  </CardContent>
+                </Card>
                 <DataClearConfig />
               </TabsContent>
             </Tabs>
