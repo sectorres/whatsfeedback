@@ -34,10 +34,18 @@ interface Pedido {
   id: number;
   pedido: string;
   notaFiscal: string;
+  data?: string;
+  rota?: string;
   cliente: {
     nome: string;
     telefone: string;
     celular: string;
+    endereco?: string;
+    bairro?: string;
+    cep?: string;
+    cidade?: string;
+    estado?: string;
+    referencia?: string;
   };
   valor: number;
   pesoBruto?: number;
@@ -345,7 +353,7 @@ export const CampaignBuilder = ({
           continue;
         }
         try {
-          // Enviar e registrar de forma atômica no backend
+          // Enviar e registrar de forma atômica no backend com dados completos
           const {
             data,
             error
@@ -363,7 +371,18 @@ export const CampaignBuilder = ({
               quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0,
               pedido_id: pedido.id,
               pedido_numero: pedido.pedido,
-              carga_id: selectedCarga.id
+              carga_id: selectedCarga.id,
+              // Dados completos do pedido
+              nota_fiscal: pedido.notaFiscal || null,
+              data_pedido: pedido.data || null,
+              rota: pedido.rota || null,
+              endereco_completo: pedido.cliente?.endereco || null,
+              bairro: pedido.cliente?.bairro || null,
+              cep: pedido.cliente?.cep || null,
+              cidade: pedido.cliente?.cidade || null,
+              estado: pedido.cliente?.estado || null,
+              referencia: pedido.cliente?.referencia || null,
+              produtos: pedido.produtos || []
             }
           });
           if (error) throw error;

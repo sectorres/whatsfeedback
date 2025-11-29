@@ -82,102 +82,45 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
 
     setLoading(true);
     try {
-      console.log("OrderDetailsDialog: Buscando pedido na API:", pedidoNumero);
+      console.log("OrderDetailsDialog: Buscando pedido salvo no banco:", pedidoNumero);
 
-      // Primeiro, buscar informações da carga no banco para ter a data
-      const { data: campaignInfo } = await supabase
+      // Buscar dados completos salvos no banco
+      const { data: savedOrder, error: orderError } = await supabase
         .from('campaign_sends')
-        .select('carga_id, sent_at')
+        .select('*')
         .eq('pedido_numero', pedidoNumero)
         .order('sent_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      console.log("OrderDetailsDialog: Info da campanha:", campaignInfo);
+      console.log("OrderDetailsDialog: Dados salvos:", savedOrder);
 
-      // Calcular período de busca com base na data do envio ou usar um período amplo
-      let dataInicial: string | undefined;
-      let dataFinal: string | undefined;
+      if (savedOrder && savedOrder.produtos) {
+        // Converter dados salvos para o formato do pedido
+        const pedidoFromDb: Pedido = {
+          id: savedOrder.pedido_id || 0,
+          pedido: savedOrder.pedido_numero || pedidoNumero,
+          notaFiscal: savedOrder.nota_fiscal || "",
+          data: savedOrder.data_pedido || "",
+          valor: savedOrder.valor_total || 0,
+          rota: savedOrder.rota || "",
+          cliente: {
+            nome: savedOrder.customer_name || "Cliente",
+            endereco: savedOrder.endereco_completo || "",
+            bairro: savedOrder.bairro || "",
+            cep: savedOrder.cep || "",
+            cidade: savedOrder.cidade || "",
+            estado: savedOrder.estado || "",
+            referencia: savedOrder.referencia || "",
+          },
+          produtos: (savedOrder.produtos as any as Produto[]) || [],
+        };
 
-      if (campaignInfo?.sent_at) {
-        // Buscar 30 dias antes e 30 dias depois da data de envio
-        const sentDate = new Date(campaignInfo.sent_at);
-        const dataInicialDate = new Date(sentDate);
-        dataInicialDate.setDate(sentDate.getDate() - 30);
-        const dataFinalDate = new Date(sentDate);
-        dataFinalDate.setDate(sentDate.getDate() + 30);
-        
-        dataInicial = dataInicialDate.toISOString().slice(0, 10).replace(/-/g, '');
-        dataFinal = dataFinalDate.toISOString().slice(0, 10).replace(/-/g, '');
-        
-        console.log("OrderDetailsDialog: Buscando com período específico:", { dataInicial, dataFinal });
+        console.log("OrderDetailsDialog: Pedido carregado do banco:", pedidoFromDb);
+        setPedido(pedidoFromDb);
       } else {
-        console.log("OrderDetailsDialog: Buscando com período padrão (últimos 60 dias)");
-      }
-
-      // Buscar direto na API - o pedido sempre estará disponível
-      const { data: cargasData, error: cargasError } = await supabase.functions.invoke("fetch-cargas", {
-        body: dataInicial && dataFinal ? { dataInicial, dataFinal } : {}
-      });
-
-      if (cargasError) {
-        console.error("OrderDetailsDialog: Erro ao buscar cargas:", cargasError);
-        toast.error("Erro ao buscar dados das cargas");
-        throw cargasError;
-      }
-
-      console.log("OrderDetailsDialog: Resposta da API:", cargasData);
-
-      if (cargasData && cargasData.status === "SUCESSO" && cargasData.retorno?.cargas) {
-        // Procurar o pedido em todas as cargas
-        let foundPedido: Pedido | null = null;
-
-        console.log("OrderDetailsDialog: Total de cargas retornadas:", cargasData.retorno.cargas.length);
-        
-        // Log das primeiras e últimas cargas para ver o range
-        if (cargasData.retorno.cargas.length > 0) {
-          console.log("OrderDetailsDialog: Primeira carga ID:", cargasData.retorno.cargas[0].id);
-          console.log("OrderDetailsDialog: Última carga ID:", cargasData.retorno.cargas[cargasData.retorno.cargas.length - 1].id);
-        }
-        
-        // Se temos info da campanha, ver se a carga esperada está na lista
-        if (campaignInfo?.carga_id) {
-          const cargaExists = cargasData.retorno.cargas.some((c: any) => c.id === campaignInfo.carga_id);
-          console.log(`OrderDetailsDialog: Carga ${campaignInfo.carga_id} ${cargaExists ? 'ENCONTRADA' : 'NÃO ENCONTRADA'} na API`);
-        }
-
-        for (const carga of cargasData.retorno.cargas) {
-          if (!carga.pedidos || carga.pedidos.length === 0) {
-            continue;
-          }
-
-          const pedidoEncontrado = carga.pedidos.find((p: any) => p.pedido === pedidoNumero);
-
-          if (pedidoEncontrado) {
-            console.log("OrderDetailsDialog: Pedido encontrado!", pedidoEncontrado);
-            foundPedido = {
-              ...pedidoEncontrado,
-              carga: {
-                id: carga.id,
-                motorista: carga.motorista,
-                nomeMotorista: carga.nomeMotorista,
-                status: carga.status,
-              },
-            };
-            break;
-          }
-        }
-
-        if (foundPedido) {
-          console.log("OrderDetailsDialog: Definindo pedido encontrado:", foundPedido);
-          setPedido(foundPedido);
-        } else {
-          console.error("OrderDetailsDialog: Pedido não encontrado. Número buscado:", pedidoNumero);
-          toast.error(`Pedido ${pedidoNumero} não encontrado. O pedido pode já ter sido entregue ou estar fora do período disponível.`);
-        }
-      } else {
-        console.error("OrderDetailsDialog: Estrutura de dados inválida:", cargasData);
-        toast.error("Erro ao buscar dados das cargas");
+        console.log("OrderDetailsDialog: Pedido não encontrado no banco, mostrando mensagem");
+        toast.error(`Pedido ${pedidoNumero} não encontrado. Os dados podem não ter sido salvos ainda.`);
       }
     } catch (error) {
       console.error("OrderDetailsDialog: Erro ao buscar detalhes:", error);
@@ -229,20 +172,8 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
                     <span>{formatCurrency(pedido.valor)}</span>
                   </div>
                   <div>
-                    <span className="font-semibold">Carga: </span>
-                    <span>{pedido.carga?.id || "N/A"}</span>
-                  </div>
-                  <div>
-                    <span className="font-semibold">Motorista: </span>
-                    <span>{pedido.carga?.nomeMotorista || "N/A"}</span>
-                  </div>
-                  <div>
                     <span className="font-semibold">Setor: </span>
                     <span>{pedido.rota || "N/A"}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="font-semibold">Status: </span>
-                    <span>{pedido.carga?.status || "Aberto"}</span>
                   </div>
                 </div>
               </CardContent>

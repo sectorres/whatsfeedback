@@ -157,61 +157,91 @@ export type Database = {
       }
       campaign_sends: {
         Row: {
+          bairro: string | null
           campaign_id: string
           carga_id: number | null
+          cep: string | null
+          cidade: string | null
           created_at: string
           customer_name: string | null
           customer_phone: string
+          data_pedido: string | null
           driver_name: string | null
+          endereco_completo: string | null
           error_message: string | null
+          estado: string | null
           id: string
           message_sent: string
+          nota_fiscal: string | null
           pedido_id: number | null
           pedido_numero: string | null
           peso_total: number | null
+          produtos: Json | null
           quantidade_entregas: number | null
           quantidade_itens: number | null
           quantidade_skus: number | null
+          referencia: string | null
+          rota: string | null
           sent_at: string
           status: string
           valor_total: number | null
         }
         Insert: {
+          bairro?: string | null
           campaign_id: string
           carga_id?: number | null
+          cep?: string | null
+          cidade?: string | null
           created_at?: string
           customer_name?: string | null
           customer_phone: string
+          data_pedido?: string | null
           driver_name?: string | null
+          endereco_completo?: string | null
           error_message?: string | null
+          estado?: string | null
           id?: string
           message_sent: string
+          nota_fiscal?: string | null
           pedido_id?: number | null
           pedido_numero?: string | null
           peso_total?: number | null
+          produtos?: Json | null
           quantidade_entregas?: number | null
           quantidade_itens?: number | null
           quantidade_skus?: number | null
+          referencia?: string | null
+          rota?: string | null
           sent_at?: string
           status?: string
           valor_total?: number | null
         }
         Update: {
+          bairro?: string | null
           campaign_id?: string
           carga_id?: number | null
+          cep?: string | null
+          cidade?: string | null
           created_at?: string
           customer_name?: string | null
           customer_phone?: string
+          data_pedido?: string | null
           driver_name?: string | null
+          endereco_completo?: string | null
           error_message?: string | null
+          estado?: string | null
           id?: string
           message_sent?: string
+          nota_fiscal?: string | null
           pedido_id?: number | null
           pedido_numero?: string | null
           peso_total?: number | null
+          produtos?: Json | null
           quantidade_entregas?: number | null
           quantidade_itens?: number | null
           quantidade_skus?: number | null
+          referencia?: string | null
+          rota?: string | null
           sent_at?: string
           status?: string
           valor_total?: number | null
