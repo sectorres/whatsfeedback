@@ -32,6 +32,17 @@ const campaignSendSchema = z.object({
   pedido_id: z.number().int().positive().nullish(),
   pedido_numero: z.string().max(50).nullish(),
   carga_id: z.number().int().positive().nullish(),
+  // Dados completos do pedido
+  nota_fiscal: z.string().max(50).nullish(),
+  data_pedido: z.string().max(20).nullish(),
+  rota: z.string().max(255).nullish(),
+  endereco_completo: z.string().max(500).nullish(),
+  bairro: z.string().max(255).nullish(),
+  cep: z.string().max(20).nullish(),
+  cidade: z.string().max(255).nullish(),
+  estado: z.string().max(2).nullish(),
+  referencia: z.string().max(500).nullish(),
+  produtos: z.array(z.any()).nullish(),
 });
 
 const corsHeaders = {
@@ -89,6 +100,16 @@ serve(async (req) => {
       pedido_id,
       pedido_numero,
       carga_id,
+      nota_fiscal,
+      data_pedido,
+      rota,
+      endereco_completo,
+      bairro,
+      cep,
+      cidade,
+      estado,
+      referencia,
+      produtos,
     } = validationResult.data;
 
     if (!campaignId || !customerPhone || !message) {
@@ -112,7 +133,7 @@ serve(async (req) => {
       valor_total,
     });
 
-    // 1) Inserir registro como pending
+    // 1) Inserir registro como pending com dados completos do pedido
     const { data: sendRow, error: insertError } = await supabase
       .from("campaign_sends")
       .insert({
@@ -130,6 +151,16 @@ serve(async (req) => {
         pedido_id: pedido_id ?? null,
         pedido_numero: pedido_numero ?? null,
         carga_id: carga_id ?? null,
+        nota_fiscal: nota_fiscal ?? null,
+        data_pedido: data_pedido ?? null,
+        rota: rota ?? null,
+        endereco_completo: endereco_completo ?? null,
+        bairro: bairro ?? null,
+        cep: cep ?? null,
+        cidade: cidade ?? null,
+        estado: estado ?? null,
+        referencia: referencia ?? null,
+        produtos: produtos ?? null,
       })
       .select()
       .single();
