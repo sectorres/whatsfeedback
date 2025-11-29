@@ -70,7 +70,10 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
 
   useEffect(() => {
     if (open && pedidoNumero) {
+      setPedido(null); // Limpa o pedido anterior ao abrir o modal
       fetchPedidoDetails();
+    } else if (!open) {
+      setPedido(null); // Limpa o pedido ao fechar o modal
     }
   }, [open, pedidoNumero]);
 
@@ -119,8 +122,9 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
         console.log("OrderDetailsDialog: Pedido carregado do banco:", pedidoFromDb);
         setPedido(pedidoFromDb);
       } else {
-        console.log("OrderDetailsDialog: Pedido não encontrado no banco, mostrando mensagem");
+        console.log("OrderDetailsDialog: Pedido não encontrado no banco, mostrando mensagem e fechando modal");
         toast.error(`Pedido ${pedidoNumero} não encontrado. Os dados podem não ter sido salvos ainda.`);
+        onOpenChange(false); // Fecha o modal quando não encontrar o pedido
       }
     } catch (error) {
       console.error("OrderDetailsDialog: Erro ao buscar detalhes:", error);
