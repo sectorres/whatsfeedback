@@ -24,7 +24,7 @@ export function WhatsAppStatusIndicator() {
               )}
             </div>
             <span className="text-xs font-medium text-white hidden sm:inline">
-              {isChecking ? 'Verificando...' : isConnected ? 'WhatsApp Conectado' : 'WhatsApp Desconectado'}
+              {isChecking ? 'Verificando...' : isConnected ? 'WhatsApp' : 'WhatsApp Desconectado'}
             </span>
           </div>
         </TooltipTrigger>
