@@ -62,7 +62,7 @@ serve(async (req) => {
 
     console.log(`sync-order-details: Buscando cargas de ${dataInicial} até ${dataFinal}`);
 
-    const apiUrl = `https://api.torrescabral.com.br/api/consultar-cargas`;
+    const apiUrl = 'https://ec.torrescabral.com.br/shx-integrador/srv/ServPubGetCargasEntrega/V1';
     const authString = btoa(`${API_USERNAME}:${API_PASSWORD}`);
 
     const apiResponse = await fetch(apiUrl, {
