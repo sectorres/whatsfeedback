@@ -988,8 +988,16 @@ export function ConversationsPanel({
                             <span>Visualizar documento</span>
                           </a>
                         </div>}
+
+                      {/* Localização */}
+                      {msg.media_type === 'location' && <div className="mb-2">
+                          <a href={msg.media_url || '#'} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm underline hover:opacity-80 transition-opacity bg-black/10 dark:bg-white/10 p-3 rounded">
+                            <span className="text-2xl">📍</span>
+                            <span>Ver localização no mapa</span>
+                          </a>
+                        </div>}
                       
-                      {msg.message_text && msg.message_text !== '[Audio]' && msg.message_text !== '[Áudio]' && msg.message_text !== '[Imagem]' && msg.message_text !== '[Image]' && <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>}
+                      {msg.message_text && msg.message_text !== '[Audio]' && msg.message_text !== '[Áudio]' && msg.message_text !== '[Imagem]' && msg.message_text !== '[Image]' && msg.message_text !== '[Localização]' && msg.message_text !== '[Location]' && <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>}
                       <p className="text-xs opacity-70 mt-1">
                         {formatMessageTimestamp(msg.created_at)}
                       </p>

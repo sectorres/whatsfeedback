@@ -150,6 +150,12 @@ serve(async (req) => {
           mediaType = 'document';
           mediaUrl = msg.message.documentMessage.url;
           console.log('Document detected:', mediaUrl);
+        } else if (msg.message?.locationMessage) {
+          mediaType = 'location';
+          const lat = msg.message.locationMessage.degreesLatitude;
+          const lng = msg.message.locationMessage.degreesLongitude;
+          mediaUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+          console.log('Location detected:', mediaUrl);
         } else if (msg.message?.stickerMessage) {
           mediaType = 'sticker';
           mediaUrl = msg.message.stickerMessage.url;
@@ -170,6 +176,10 @@ serve(async (req) => {
           messageText = msg.message?.documentMessage?.caption || fileName;
         } else if (mediaType === 'sticker') {
           messageText = '[Sticker]';
+        } else if (mediaType === 'location') {
+          const address = msg.message?.locationMessage?.address || '';
+          const name = msg.message?.locationMessage?.name || '';
+          messageText = name || address || '[Localização]';
         } else {
           messageText =
             msg.message?.conversation ||
