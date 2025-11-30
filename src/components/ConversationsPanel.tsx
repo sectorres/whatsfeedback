@@ -1001,9 +1001,19 @@ export function ConversationsPanel({
                       {msg.media_type === 'contact' && msg.media_url && (() => {
                           try {
                             const contactData = JSON.parse(msg.media_url);
-                            // Extrair número de telefone do vcard
-                            const vcardMatch = contactData.vcard?.match(/TEL[^:]*:([+\d]+)/);
-                            const phoneNumber = vcardMatch ? vcardMatch[1].replace(/\D/g, '') : null;
+                            // Extrair número de telefone do vcard - aceitar vários formatos
+                            const vcardMatch = contactData.vcard?.match(/TEL[^:]*:([\s\+\-\(\)\d]+)/);
+                            let phoneNumber = null;
+                            if (vcardMatch) {
+                              // Limpar o número mas preservar formato
+                              phoneNumber = vcardMatch[1].replace(/[\s\-\(\)]/g, '');
+                              // Se começar com +55, remover para normalizar
+                              if (phoneNumber.startsWith('+55')) {
+                                phoneNumber = phoneNumber.substring(3);
+                              } else if (phoneNumber.startsWith('55')) {
+                                phoneNumber = phoneNumber.substring(2);
+                              }
+                            }
                             
                             return (
                               <div className="mb-2 bg-black/10 dark:bg-white/10 p-3 rounded space-y-2">
@@ -1016,6 +1026,7 @@ export function ConversationsPanel({
                                     size="sm" 
                                     variant="outline"
                                     onClick={() => {
+                                      console.log('Setting phone number:', phoneNumber);
                                       setNewConversationPhone(phoneNumber);
                                       setNewConversationName(contactData.displayName);
                                       setNewConversationDialogOpen(true);
@@ -1168,7 +1179,14 @@ export function ConversationsPanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={newConversationDialogOpen} onOpenChange={setNewConversationDialogOpen}>
+      <Dialog open={newConversationDialogOpen} onOpenChange={(open) => {
+        setNewConversationDialogOpen(open);
+        // Só limpa os campos se o modal está sendo fechado
+        if (!open) {
+          setNewConversationPhone("");
+          setNewConversationName("");
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Iniciar Nova Conversa</DialogTitle>
