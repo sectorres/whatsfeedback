@@ -24,17 +24,14 @@ const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
 >(({ className, ...props }, ref) => (
-  <>
-    <TabsPrimitive.Trigger
-      ref={ref}
-      className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap px-3 py-1.5 text-sm font-normal text-white/70 transition-all hover:text-white data-[state=active]:text-white data-[state=active]:font-medium focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
-        className,
-      )}
-      {...props}
-    />
-    <span className="text-white/30 last:hidden select-none">|</span>
-  </>
+  <TabsPrimitive.Trigger
+    ref={ref}
+    className={cn(
+      "inline-flex items-center justify-center whitespace-nowrap px-3 py-1.5 text-sm font-normal transition-all focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 relative after:content-['|'] after:absolute after:right-0 after:text-white/30 last:after:content-none",
+      className,
+    )}
+    {...props}
+  />
 ));
 TabsTrigger.displayName = TabsPrimitive.Trigger.displayName;
 
