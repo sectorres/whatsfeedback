@@ -35,31 +35,31 @@ const Index = () => {
   return <div className="min-h-screen bg-background flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="dashboard" className="flex-1 flex flex-col">
         <DashboardHeader>
-          <TabsList className="grid w-full grid-cols-7 bg-white/10 backdrop-blur-sm border border-white/20 h-8 md:h-9 gap-0.5 md:gap-1 p-0.5 md:p-1">
+          <TabsList className="flex w-full h-10 gap-0">
             <TabsTrigger 
               value="dashboard" 
-              className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0"
+              className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
               <LayoutDashboard className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
               <span className="hidden sm:inline font-medium truncate">Dashboard</span>
             </TabsTrigger>
             <TabsTrigger 
               value="campaigns" 
-              className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0"
+              className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
               <Calendar className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
               <span className="hidden sm:inline font-medium truncate">Avisos</span>
             </TabsTrigger>
             <TabsTrigger 
               value="satisfaction" 
-              className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0"
+              className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
               <Star className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
               <span className="hidden sm:inline font-medium truncate">Pesquisas</span>
             </TabsTrigger>
             <TabsTrigger 
               value="atendimento" 
-              className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0 relative"
+              className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
               <Headphones className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
               <span className="hidden sm:inline font-medium truncate">Atendimento</span>
@@ -69,21 +69,21 @@ const Index = () => {
             </TabsTrigger>
             <TabsTrigger 
               value="desempenho" 
-              className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0"
+              className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
               <BarChart3 className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
               <span className="hidden sm:inline font-medium truncate">Desempenho</span>
             </TabsTrigger>
             <TabsTrigger 
               value="orders" 
-              className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0"
+              className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
               <Package className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
               <span className="hidden sm:inline font-medium truncate">Pedidos</span>
             </TabsTrigger>
             <TabsTrigger 
               value="config" 
-              className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs px-1 md:px-2 data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md text-white/90 hover:bg-white/20 transition-all duration-200 hover:scale-105 min-w-0"
+              className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
               <Settings className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
               <span className="hidden sm:inline font-medium truncate">Config</span>
