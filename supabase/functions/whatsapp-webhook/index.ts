@@ -156,6 +156,15 @@ serve(async (req) => {
           const lng = msg.message.locationMessage.degreesLongitude;
           mediaUrl = `https://www.google.com/maps?q=${lat},${lng}`;
           console.log('Location detected:', mediaUrl);
+        } else if (msg.message?.contactMessage) {
+          mediaType = 'contact';
+          const contact = msg.message.contactMessage;
+          // Armazenar informações do contato como JSON na mediaUrl
+          mediaUrl = JSON.stringify({
+            displayName: contact.displayName,
+            vcard: contact.vcard
+          });
+          console.log('Contact detected:', contact.displayName);
         } else if (msg.message?.stickerMessage) {
           mediaType = 'sticker';
           mediaUrl = msg.message.stickerMessage.url;
@@ -180,6 +189,9 @@ serve(async (req) => {
           const address = msg.message?.locationMessage?.address || '';
           const name = msg.message?.locationMessage?.name || '';
           messageText = name || address || '[Localização]';
+        } else if (mediaType === 'contact') {
+          const displayName = msg.message?.contactMessage?.displayName || 'Contato';
+          messageText = `📇 ${displayName}`;
         } else {
           messageText =
             msg.message?.conversation ||

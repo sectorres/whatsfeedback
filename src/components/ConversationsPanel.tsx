@@ -996,8 +996,43 @@ export function ConversationsPanel({
                             <span>Ver localização no mapa</span>
                           </a>
                         </div>}
+
+                      {/* Contato */}
+                      {msg.media_type === 'contact' && msg.media_url && (() => {
+                          try {
+                            const contactData = JSON.parse(msg.media_url);
+                            // Extrair número de telefone do vcard
+                            const vcardMatch = contactData.vcard?.match(/TEL[^:]*:([+\d]+)/);
+                            const phoneNumber = vcardMatch ? vcardMatch[1].replace(/\D/g, '') : null;
+                            
+                            return (
+                              <div className="mb-2 bg-black/10 dark:bg-white/10 p-3 rounded space-y-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-2xl">📇</span>
+                                  <span className="font-semibold">{contactData.displayName}</span>
+                                </div>
+                                {phoneNumber && (
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => {
+                                      setNewConversationPhone(phoneNumber);
+                                      setNewConversationName(contactData.displayName);
+                                      setNewConversationDialogOpen(true);
+                                    }}
+                                    className="w-full"
+                                  >
+                                    Iniciar conversa
+                                  </Button>
+                                )}
+                              </div>
+                            );
+                          } catch (e) {
+                            return <p className="text-sm">📇 Contato compartilhado</p>;
+                          }
+                        })()}
                       
-                      {msg.message_text && msg.message_text !== '[Audio]' && msg.message_text !== '[Áudio]' && msg.message_text !== '[Imagem]' && msg.message_text !== '[Image]' && msg.message_text !== '[Localização]' && msg.message_text !== '[Location]' && <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>}
+                      {msg.message_text && msg.message_text !== '[Audio]' && msg.message_text !== '[Áudio]' && msg.message_text !== '[Imagem]' && msg.message_text !== '[Image]' && msg.message_text !== '[Localização]' && msg.message_text !== '[Location]' && !msg.message_text.startsWith('📇') && <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>}
                       <p className="text-xs opacity-70 mt-1">
                         {formatMessageTimestamp(msg.created_at)}
                       </p>
