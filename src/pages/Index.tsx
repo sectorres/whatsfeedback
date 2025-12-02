@@ -5,6 +5,7 @@ import { CampaignBuilder } from "@/components/CampaignBuilder";
 import { SavedCampaigns } from "@/components/SavedCampaigns";
 import { OrderStatusTable } from "@/components/OrderStatusTable";
 import { ApiConfiguration } from "@/components/ApiConfiguration";
+import { EvolutionApiConfig } from "@/components/EvolutionApiConfig";
 import { WhatsAppConnection } from "@/components/WhatsAppConnection";
 import { ConversationsPanel } from "@/components/ConversationsPanel";
 import { ChangePassword } from "@/components/ChangePassword";
@@ -136,6 +137,7 @@ const Index = () => {
 
               <TabsContent value="integrations" className="space-y-6 mt-4">
                 <WhatsAppConnection onConnectionChange={setWhatsappConnected} />
+                <EvolutionApiConfig />
                 <ApiConfiguration />
                 <WebhookConfiguration />
               </TabsContent>
