@@ -88,23 +88,35 @@ export function DriverPerformance() {
     setLoadingDriverData(true);
     console.log('DriverPerformance: Iniciando loadAllDriverData');
     try {
-      // Buscar todos os envios de campanha
-      const { data: sends, error: sendsError } = await supabase
-        .from('campaign_sends')
-        .select('*');
+      // Buscar todos os envios de campanha (paginado para superar limite de 1000)
+      const sendsMap: Record<string, CampaignSend> = {};
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const { data: sends, error: sendsError } = await supabase
+          .from('campaign_sends')
+          .select('*')
+          .range(page * pageSize, (page + 1) * pageSize - 1);
 
-      if (sendsError) {
-        console.error('DriverPerformance: Erro ao buscar envios:', sendsError);
-        throw sendsError;
+        if (sendsError) {
+          console.error('DriverPerformance: Erro ao buscar envios:', sendsError);
+          throw sendsError;
+        }
+
+        if (sends && sends.length > 0) {
+          sends.forEach(send => {
+            sendsMap[send.id] = send;
+          });
+          page++;
+          hasMore = sends.length === pageSize;
+        } else {
+          hasMore = false;
+        }
       }
 
-      console.log('DriverPerformance: Envios carregados:', sends?.length);
-      
-      // Criar mapa de todos os envios
-      const sendsMap: Record<string, CampaignSend> = {};
-      sends?.forEach(send => {
-        sendsMap[send.id] = send;
-      });
+      console.log('DriverPerformance: Envios carregados:', Object.keys(sendsMap).length);
       setAllCampaignSends(sendsMap);
 
       // Buscar todas as pesquisas sem filtro de IDs para evitar "Bad Request"
