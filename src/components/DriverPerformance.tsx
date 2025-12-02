@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Star, TrendingUp, TrendingDown, Loader2, BarChart3, CalendarIcon, Download, Truck, Users, PackageCheck, AlertCircle, X } from "lucide-react";
+import { Star, TrendingUp, TrendingDown, Loader2, BarChart3, CalendarIcon, Download, Truck, Users, PackageCheck, AlertCircle, X, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -528,6 +528,19 @@ export function DriverPerformance() {
                   <Download className="h-4 w-4" />
                 )}
                 Exportar Excel
+              </Button>
+              <Button
+                onClick={loadAllDriverData}
+                disabled={loadingDriverData}
+                variant="outline"
+                size="icon"
+                title="Atualizar dados"
+              >
+                {loadingDriverData ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>
