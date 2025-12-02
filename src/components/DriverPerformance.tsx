@@ -118,7 +118,13 @@ export function DriverPerformance() {
 
       if (!surveysError && allSurveysData) {
         console.log('DriverPerformance: Surveys carregadas:', allSurveysData.length);
-        console.log('DriverPerformance: Amostra de surveys:', allSurveysData.slice(0, 3));
+        
+        // Debug: verificar se os campaign_send_ids existem no mapa
+        allSurveysData.forEach(survey => {
+          const sendExists = sendsMap[survey.campaign_send_id];
+          console.log(`DriverPerformance: Survey ${survey.customer_name} - campaign_send_id: ${survey.campaign_send_id} - driver: ${sendExists?.driver_name || 'NÃO ENCONTRADO'}`);
+        });
+        
         setAllSurveys(allSurveysData);
       } else {
         console.error('DriverPerformance: Erro ao buscar surveys:', surveysError);
