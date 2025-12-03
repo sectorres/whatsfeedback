@@ -73,7 +73,7 @@ interface CampaignBuilderProps {
 }
 export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => {
   const [messageTemplate, setMessageTemplate] = useState(
-    " *TORRES CABRAL* 🚛📦 \n\nOlá {cliente},\n\n*Seu pedido {pedido} será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega",
+    " Olá {cliente},\n\n*Seu pedido {pedido} será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega",
   );
   const defaultTemplates = [
     {
