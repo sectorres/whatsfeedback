@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { formatPhoneForWhatsApp, normalizePhone } from "../_shared/phone-utils.ts";
+import { getEvolutionCredentials } from "../_shared/evolution-config.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const whatsappSendSchema = z.object({
@@ -32,15 +33,12 @@ serve(async (req) => {
     }
 
     const { phone, message, skip_message_save, conversation_id } = validationResult.data;
-    const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
-    const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
-    const EVOLUTION_INSTANCE_NAME = Deno.env.get('EVOLUTION_INSTANCE_NAME');
+    
+    // Buscar credenciais da Evolution API (do banco ou secrets)
+    const { apiUrl: EVOLUTION_API_URL, apiKey: EVOLUTION_API_KEY, instanceName: EVOLUTION_INSTANCE_NAME } = await getEvolutionCredentials();
+    
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY || !EVOLUTION_INSTANCE_NAME) {
-      throw new Error('Evolution API credentials not configured');
-    }
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error('Supabase credentials not configured');
