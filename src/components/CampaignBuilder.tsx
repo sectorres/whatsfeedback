@@ -19,7 +19,16 @@ import { Calendar } from "./ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
 import { normalizePhone } from "@/lib/phone-utils";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Progress } from "./ui/progress";
 interface Carga {
@@ -62,20 +71,25 @@ interface PedidoWithEditablePhone extends Pedido {
 interface CampaignBuilderProps {
   whatsappConnected: boolean;
 }
-export const CampaignBuilder = ({
-  whatsappConnected
-}: CampaignBuilderProps) => {
-  const [messageTemplate, setMessageTemplate] = useState(" *TORRES CABRAL* 🚛📦 \n\nOlá {cliente},\n\n*Seu pedido {pedido} será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega");
-  const defaultTemplates = [{
-    id: "default",
-    name: "Padrão - Notificação de Entrega",
-    template: " *TORRES CABRAL* 🚛📦 \n\nOlá {cliente},\n\n*Seu pedido {pedido} será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega"
-  }];
-  const [savedTemplates, setSavedTemplates] = useState<Array<{
-    id: string;
-    name: string;
-    template: string;
-  }>>(defaultTemplates);
+export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => {
+  const [messageTemplate, setMessageTemplate] = useState(
+    " *TORRES CABRAL* 🚛📦 \n\nOlá {cliente},\n\n*Seu pedido {pedido} será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega",
+  );
+  const defaultTemplates = [
+    {
+      id: "default",
+      name: "Padrão - Notificação de Entrega",
+      template:
+        " Olá {cliente},\n\n*Seu pedido {pedido} será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega",
+    },
+  ];
+  const [savedTemplates, setSavedTemplates] = useState<
+    Array<{
+      id: string;
+      name: string;
+      template: string;
+    }>
+  >(defaultTemplates);
   const [selectedTemplateId, setSelectedTemplateId] = useState("default");
   const [newTemplateName, setNewTemplateName] = useState("");
   const [cargas, setCargas] = useState<Carga[]>([]);
@@ -93,7 +107,7 @@ export const CampaignBuilder = ({
     total: 0,
     success: 0,
     failed: 0,
-    blocked: 0
+    blocked: 0,
   });
   const [countdown, setCountdown] = useState<number>(0);
 
@@ -135,14 +149,11 @@ export const CampaignBuilder = ({
   const fetchCargas = async () => {
     try {
       setLoading(true);
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke("fetch-cargas", {
+      const { data, error } = await supabase.functions.invoke("fetch-cargas", {
         body: {
           dataInicial: formatDateForAPI(startDate),
-          dataFinal: formatDateForAPI(endDate)
-        }
+          dataFinal: formatDateForAPI(endDate),
+        },
       });
       if (error) throw error;
       if (data && data.status === "SUCESSO" && data.retorno?.cargas) {
@@ -155,13 +166,13 @@ export const CampaignBuilder = ({
       setLoading(false);
     }
   };
-  const filteredCargas = statusFilter === "all" ? cargas : cargas.filter(c => c.status === statusFilter);
-  const selectedCarga = cargas.find(c => c.id.toString() === selectedCargaId);
+  const filteredCargas = statusFilter === "all" ? cargas : cargas.filter((c) => c.status === statusFilter);
+  const selectedCarga = cargas.find((c) => c.id.toString() === selectedCargaId);
 
   // Selecionar automaticamente todos os pedidos quando uma carga é escolhida
   useEffect(() => {
     if (selectedCarga && selectedCarga.pedidos) {
-      const allIds = new Set(selectedCarga.pedidos.map(p => p.id));
+      const allIds = new Set(selectedCarga.pedidos.map((p) => p.id));
       setSelectedPedidos(allIds);
     }
   }, [selectedCargaId, selectedCarga]);
@@ -176,7 +187,7 @@ export const CampaignBuilder = ({
   };
   const selectAllPedidos = () => {
     if (!selectedCarga) return;
-    const allIds = new Set(selectedCarga.pedidos.map(p => p.id));
+    const allIds = new Set(selectedCarga.pedidos.map((p) => p.id));
     setSelectedPedidos(allIds);
   };
   const deselectAllPedidos = () => {
@@ -187,9 +198,9 @@ export const CampaignBuilder = ({
     return normalizePhone(phone);
   };
   const updatePhone = (pedidoId: number, phone: string) => {
-    setEditedPhones(prev => ({
+    setEditedPhones((prev) => ({
       ...prev,
-      [pedidoId]: phone
+      [pedidoId]: phone,
     }));
   };
   const getPhone = (pedido: Pedido) => {
@@ -217,67 +228,73 @@ export const CampaignBuilder = ({
     setShowProgressDialog(true);
 
     // Helper para gravar envios com retentativas (melhora confiabilidade)
-    const insertCampaignSendWithRetry = async (payload: {
-      campaign_id: string;
-      customer_name: string | null;
-      customer_phone: string;
-      message_sent: string;
-      status: string;
-      error_message?: string | null;
-      driver_name?: string | null;
-      peso_total?: number | null;
-      valor_total?: number | null;
-      quantidade_entregas?: number | null;
-      quantidade_skus?: number | null;
-      quantidade_itens?: number | null;
-      pedido_id?: number | null;
-      pedido_numero?: string | null;
-      carga_id?: number | null;
-    }, retries = 2, delayMs = 500) => {
+    const insertCampaignSendWithRetry = async (
+      payload: {
+        campaign_id: string;
+        customer_name: string | null;
+        customer_phone: string;
+        message_sent: string;
+        status: string;
+        error_message?: string | null;
+        driver_name?: string | null;
+        peso_total?: number | null;
+        valor_total?: number | null;
+        quantidade_entregas?: number | null;
+        quantidade_skus?: number | null;
+        quantidade_itens?: number | null;
+        pedido_id?: number | null;
+        pedido_numero?: string | null;
+        carga_id?: number | null;
+      },
+      retries = 2,
+      delayMs = 500,
+    ) => {
       let attempt = 0;
       let lastError: any = null;
       while (attempt <= retries) {
-        const {
-          error
-        } = await supabase.from("campaign_sends").insert(payload);
+        const { error } = await supabase.from("campaign_sends").insert(payload);
         if (!error) return true;
         lastError = error;
         attempt++;
         if (attempt <= retries) {
-          await new Promise(r => setTimeout(r, delayMs));
+          await new Promise((r) => setTimeout(r, delayMs));
         }
       }
       console.error("Falha ao inserir campaign_sends após retentativas:", lastError, payload);
       return false;
     };
-    const pedidosParaEnviar = selectedCarga?.pedidos.filter(p => selectedPedidos.has(p.id)) || [];
+    const pedidosParaEnviar = selectedCarga?.pedidos.filter((p) => selectedPedidos.has(p.id)) || [];
     setSendProgress({
       current: 0,
       total: pedidosParaEnviar.length,
       success: 0,
       failed: 0,
-      blocked: 0
+      blocked: 0,
     });
 
     // Gerar nome automático: Carga #numero - data hora
     const now = new Date();
-    const campaignName = `Carga #${selectedCarga.id} - ${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit"
-    })}`;
+    const campaignName = `Carga #${selectedCarga.id} - ${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString(
+      "pt-BR",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      },
+    )}`;
 
     // Salvar campanha no banco
     try {
-      const {
-        data: campaign,
-        error: campaignError
-      } = await supabase.from("campaigns").insert({
-        name: campaignName,
-        message: messageTemplate,
-        status: "sending",
-        target_type: "carga",
-        sent_count: 0
-      }).select().single();
+      const { data: campaign, error: campaignError } = await supabase
+        .from("campaigns")
+        .insert({
+          name: campaignName,
+          message: messageTemplate,
+          status: "sending",
+          target_type: "carga",
+          sent_count: 0,
+        })
+        .select()
+        .single();
       if (campaignError) throw campaignError;
       toast.success(`Enviando ${pedidosParaEnviar.length} mensagens...`);
       let successCount = 0;
@@ -288,7 +305,12 @@ export const CampaignBuilder = ({
         const rawPhone = getPhone(pedido);
         const phone = formatPhone(rawPhone); // normalizado sem DDI e sem zeros à esquerda
 
-        const formattedMessage = messageTemplate.replace(/{cliente}/g, pedido.cliente?.nome || "Cliente").replace(/{pedido}/g, pedido.pedido || "").replace(/{valor}/g, `${pedido.valor?.toFixed(2) || "0.00"}`).replace(/{status}/g, statusMap[selectedCarga?.status || ""] || "").replace(/{notaFiscal}/g, pedido.notaFiscal || "");
+        const formattedMessage = messageTemplate
+          .replace(/{cliente}/g, pedido.cliente?.nome || "Cliente")
+          .replace(/{pedido}/g, pedido.pedido || "")
+          .replace(/{valor}/g, `${pedido.valor?.toFixed(2) || "0.00"}`)
+          .replace(/{status}/g, statusMap[selectedCarga?.status || ""] || "")
+          .replace(/{notaFiscal}/g, pedido.notaFiscal || "");
         if (!phone || phone.length < 10) {
           errorCount++;
           console.error(`✗ Telefone inválido para ${pedido.cliente?.nome}: ${rawPhone}`);
@@ -309,20 +331,18 @@ export const CampaignBuilder = ({
             quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0,
             pedido_id: pedido.id,
             pedido_numero: pedido.pedido,
-            carga_id: selectedCarga.id
+            carga_id: selectedCarga.id,
           });
-          setSendProgress(prev => ({
+          setSendProgress((prev) => ({
             ...prev,
             current: i + 1,
-            failed: prev.failed + 1
+            failed: prev.failed + 1,
           }));
           continue;
         }
 
         // Verificar se o número está na blacklist
-        const {
-          data: blacklisted
-        } = await supabase.from("blacklist").select("id").eq("phone", phone).maybeSingle();
+        const { data: blacklisted } = await supabase.from("blacklist").select("id").eq("phone", phone).maybeSingle();
         if (blacklisted) {
           blockedCount++;
           console.log(`⊘ Bloqueado por blacklist: ${pedido.cliente?.nome}`);
@@ -343,21 +363,18 @@ export const CampaignBuilder = ({
             quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0,
             pedido_id: pedido.id,
             pedido_numero: pedido.pedido,
-            carga_id: selectedCarga.id
+            carga_id: selectedCarga.id,
           });
-          setSendProgress(prev => ({
+          setSendProgress((prev) => ({
             ...prev,
             current: i + 1,
-            blocked: prev.blocked + 1
+            blocked: prev.blocked + 1,
           }));
           continue;
         }
         try {
           // Enviar e registrar de forma atômica no backend com dados completos
-          const {
-            data,
-            error
-          } = await supabase.functions.invoke("campaign-send", {
+          const { data, error } = await supabase.functions.invoke("campaign-send", {
             body: {
               campaignId: campaign.id,
               customerName: pedido.cliente?.nome || "Cliente",
@@ -382,18 +399,18 @@ export const CampaignBuilder = ({
               cidade: pedido.cliente?.cidade || null,
               estado: pedido.cliente?.estado || null,
               referencia: pedido.cliente?.referencia || null,
-              produtos: pedido.produtos || []
-            }
+              produtos: pedido.produtos || [],
+            },
           });
           if (error) throw error;
           if (data?.status !== "success") {
             throw new Error(data?.error || "Falha no envio");
           }
           successCount++;
-          setSendProgress(prev => ({
+          setSendProgress((prev) => ({
             ...prev,
             current: i + 1,
-            success: prev.success + 1
+            success: prev.success + 1,
           }));
           console.log(`✓ Enviado para ${pedido.cliente?.nome}`);
         } catch (error) {
@@ -416,15 +433,15 @@ export const CampaignBuilder = ({
             quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0,
             pedido_id: pedido.id,
             pedido_numero: pedido.pedido,
-            carga_id: selectedCarga.id
+            carga_id: selectedCarga.id,
           });
           if (!inserted) {
             console.error("Erro ao salvar registro de falha (após retentativas).");
           }
-          setSendProgress(prev => ({
+          setSendProgress((prev) => ({
             ...prev,
             current: i + 1,
-            failed: prev.failed + 1
+            failed: prev.failed + 1,
           }));
         }
         if (i < pedidosParaEnviar.length - 1) {
@@ -435,17 +452,20 @@ export const CampaignBuilder = ({
           // Countdown visual
           for (let sec = delaySeconds; sec > 0; sec--) {
             setCountdown(sec);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise((resolve) => setTimeout(resolve, 1000));
           }
           setCountdown(0);
         }
       }
 
       // Atualizar campanha com status final
-      await supabase.from("campaigns").update({
-        status: errorCount === 0 ? "completed" : "completed_with_errors",
-        sent_count: successCount
-      }).eq("id", campaign.id);
+      await supabase
+        .from("campaigns")
+        .update({
+          status: errorCount === 0 ? "completed" : "completed_with_errors",
+          sent_count: successCount,
+        })
+        .eq("id", campaign.id);
       setSending(false);
       setShowProgressDialog(false);
       if (errorCount === 0 && blockedCount === 0) {
@@ -472,11 +492,11 @@ export const CampaignBuilder = ({
   const statusMap: Record<string, string> = {
     ABER: "Aberta",
     SEPA: "Em Separação",
-    FATU: "Faturada"
+    FATU: "Faturada",
   };
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplateId(templateId);
-    const template = savedTemplates.find(t => t.id === templateId);
+    const template = savedTemplates.find((t) => t.id === templateId);
     if (template) {
       setMessageTemplate(template.template);
     }
@@ -489,7 +509,7 @@ export const CampaignBuilder = ({
     const newTemplate = {
       id: Date.now().toString(),
       name: newTemplateName,
-      template: messageTemplate
+      template: messageTemplate,
     };
     setSavedTemplates([...savedTemplates, newTemplate]);
     setSelectedTemplateId(newTemplate.id);
@@ -497,10 +517,14 @@ export const CampaignBuilder = ({
     toast.success("Template salvo com sucesso!");
   };
   const handleUpdateTemplate = () => {
-    const updatedTemplates = savedTemplates.map(t => t.id === selectedTemplateId ? {
-      ...t,
-      template: messageTemplate
-    } : t);
+    const updatedTemplates = savedTemplates.map((t) =>
+      t.id === selectedTemplateId
+        ? {
+            ...t,
+            template: messageTemplate,
+          }
+        : t,
+    );
     setSavedTemplates(updatedTemplates);
     toast.success("Template atualizado!");
   };
@@ -509,19 +533,19 @@ export const CampaignBuilder = ({
       toast.error("Não é possível deletar o template padrão");
       return;
     }
-    setSavedTemplates(savedTemplates.filter(t => t.id !== selectedTemplateId));
+    setSavedTemplates(savedTemplates.filter((t) => t.id !== selectedTemplateId));
     setSelectedTemplateId("default");
     setMessageTemplate(savedTemplates[0].template);
     toast.success("Template deletado!");
   };
-  return <div className="space-y-6">
+  return (
+    <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5 text-primary" />
             Criar Nova Campanha
           </CardTitle>
-          
         </CardHeader>
         <CardContent className="p-0">
           <ResizablePanelGroup direction="horizontal" className="min-h-[600px]">
@@ -533,29 +557,49 @@ export const CampaignBuilder = ({
                   <Label htmlFor="message-template" className="text-base font-semibold">
                     Mensagem da Campanha
                   </Label>
-                  <Textarea id="message-template" placeholder="Digite sua mensagem..." value={messageTemplate} onChange={e => setMessageTemplate(e.target.value)} rows={15} className="resize-none" />
+                  <Textarea
+                    id="message-template"
+                    placeholder="Digite sua mensagem..."
+                    value={messageTemplate}
+                    onChange={(e) => setMessageTemplate(e.target.value)}
+                    rows={15}
+                    className="resize-none"
+                  />
                   <div className="flex flex-wrap gap-2">
                     <p className="text-xs text-muted-foreground w-full">Variáveis disponíveis:</p>
-                    {["{cliente}", "{pedido}", "{valor}", "{status}", "{notaFiscal}"].map(v => <Badge key={v} variant="outline" className="text-xs">
+                    {["{cliente}", "{pedido}", "{valor}", "{status}", "{notaFiscal}"].map((v) => (
+                      <Badge key={v} variant="outline" className="text-xs">
                         {v}
-                      </Badge>)}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
 
                 {/* Botão de Enviar Campanha */}
-                <Button onClick={() => setShowConfirmDialog(true)} className="w-full" size="lg" disabled={!whatsappConnected || selectedPedidos.size === 0 || sending}>
-                  {sending ? <>
+                <Button
+                  onClick={() => setShowConfirmDialog(true)}
+                  className="w-full"
+                  size="lg"
+                  disabled={!whatsappConnected || selectedPedidos.size === 0 || sending}
+                >
+                  {sending ? (
+                    <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Enviando...
-                    </> : <>
+                    </>
+                  ) : (
+                    <>
                       <Send className="mr-2 h-4 w-4" />
                       Enviar Campanha ({selectedPedidos.size} mensagens)
-                    </>}
+                    </>
+                  )}
                 </Button>
 
-                {!whatsappConnected && <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
+                {!whatsappConnected && (
+                  <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
                     <p className="text-sm text-warning">⚠️ Conecte o WhatsApp primeiro para poder enviar campanhas</p>
-                  </div>}
+                  </div>
+                )}
               </div>
             </ResizablePanel>
 
@@ -590,25 +634,64 @@ export const CampaignBuilder = ({
                       <SelectTrigger>
                         <SelectValue placeholder="Escolha uma carga" />
                       </SelectTrigger>
-                      <SelectContent className="bg-background z-50 max-h-[400px] max-w-[500px]" onCloseAutoFocus={e => e.preventDefault()} position="popper">
-                        <div className="p-2 border-b bg-background" onPointerDown={e => e.stopPropagation()}>
+                      <SelectContent
+                        className="bg-background z-50 max-h-[400px] max-w-[500px]"
+                        onCloseAutoFocus={(e) => e.preventDefault()}
+                        position="popper"
+                      >
+                        <div className="p-2 border-b bg-background" onPointerDown={(e) => e.stopPropagation()}>
                           <div className="relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                            <Input placeholder="Buscar carga..." value={cargaSearch} onChange={e => setCargaSearch(e.target.value)} className="pl-9 h-9" onKeyDown={e => {
-                            e.stopPropagation();
-                          }} onPointerDown={e => {
-                            e.stopPropagation();
-                          }} />
+                            <Input
+                              placeholder="Buscar carga..."
+                              value={cargaSearch}
+                              onChange={(e) => setCargaSearch(e.target.value)}
+                              className="pl-9 h-9"
+                              onKeyDown={(e) => {
+                                e.stopPropagation();
+                              }}
+                              onPointerDown={(e) => {
+                                e.stopPropagation();
+                              }}
+                            />
                           </div>
                         </div>
-                        {loading ? <div className="p-4 text-center">
+                        {loading ? (
+                          <div className="p-4 text-center">
                             <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                          </div> : <ScrollArea className="h-[300px]">
-                            {filteredCargas.filter(carga => cargaSearch === "" || carga.id.toString().includes(cargaSearch) || formatDate(carga.data).includes(cargaSearch) || statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) || carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase())).length === 0 ? <div className="p-4 text-center text-sm text-muted-foreground">Nenhuma carga encontrada</div> : filteredCargas.filter(carga => cargaSearch === "" || carga.id.toString().includes(cargaSearch) || formatDate(carga.data).includes(cargaSearch) || statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) || carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase())).map(carga => <SelectItem key={carga.id} value={carga.id.toString()} className="text-xs">
+                          </div>
+                        ) : (
+                          <ScrollArea className="h-[300px]">
+                            {filteredCargas.filter(
+                              (carga) =>
+                                cargaSearch === "" ||
+                                carga.id.toString().includes(cargaSearch) ||
+                                formatDate(carga.data).includes(cargaSearch) ||
+                                statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) ||
+                                carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase()),
+                            ).length === 0 ? (
+                              <div className="p-4 text-center text-sm text-muted-foreground">
+                                Nenhuma carga encontrada
+                              </div>
+                            ) : (
+                              filteredCargas
+                                .filter(
+                                  (carga) =>
+                                    cargaSearch === "" ||
+                                    carga.id.toString().includes(cargaSearch) ||
+                                    formatDate(carga.data).includes(cargaSearch) ||
+                                    statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) ||
+                                    carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase()),
+                                )
+                                .map((carga) => (
+                                  <SelectItem key={carga.id} value={carga.id.toString()} className="text-xs">
                                     Carga #{carga.id} - {formatDate(carga.data)} - {statusMap[carga.status]} (
                                     {carga.pedidos?.length || 0} pedidos)
-                                  </SelectItem>)}
-                          </ScrollArea>}
+                                  </SelectItem>
+                                ))
+                            )}
+                          </ScrollArea>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -626,9 +709,11 @@ export const CampaignBuilder = ({
                           <SelectValue placeholder="Escolha um template" />
                         </SelectTrigger>
                         <SelectContent>
-                          {savedTemplates.map(template => <SelectItem key={template.id} value={template.id}>
+                          {savedTemplates.map((template) => (
+                            <SelectItem key={template.id} value={template.id}>
                               {template.name}
-                            </SelectItem>)}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -636,7 +721,11 @@ export const CampaignBuilder = ({
                     <div className="space-y-2">
                       <Label>Salvar Novo Template</Label>
                       <div className="flex gap-2">
-                        <Input placeholder="Nome do template" value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} />
+                        <Input
+                          placeholder="Nome do template"
+                          value={newTemplateName}
+                          onChange={(e) => setNewTemplateName(e.target.value)}
+                        />
                         <Button onClick={handleSaveTemplate} variant="outline">
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -644,10 +733,20 @@ export const CampaignBuilder = ({
                     </div>
 
                     <div className="flex gap-2">
-                      <Button onClick={handleUpdateTemplate} variant="outline" size="sm" disabled={selectedTemplateId === "default"}>
+                      <Button
+                        onClick={handleUpdateTemplate}
+                        variant="outline"
+                        size="sm"
+                        disabled={selectedTemplateId === "default"}
+                      >
                         Atualizar Template Atual
                       </Button>
-                      <Button onClick={handleDeleteTemplate} variant="outline" size="sm" disabled={selectedTemplateId === "default"}>
+                      <Button
+                        onClick={handleDeleteTemplate}
+                        variant="outline"
+                        size="sm"
+                        disabled={selectedTemplateId === "default"}
+                      >
                         Deletar Template
                       </Button>
                     </div>
@@ -655,7 +754,8 @@ export const CampaignBuilder = ({
                 </div>
 
                 {/* Lista de Pedidos */}
-                {selectedCarga && selectedCarga.pedidos && selectedCarga.pedidos.length > 0 && <div className="space-y-3">
+                {selectedCarga && selectedCarga.pedidos && selectedCarga.pedidos.length > 0 && (
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <Label className="flex items-center gap-2">
                         <Users className="h-4 w-4" />
@@ -683,21 +783,32 @@ export const CampaignBuilder = ({
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {selectedCarga.pedidos.map(pedido => <TableRow key={pedido.id}>
+                          {selectedCarga.pedidos.map((pedido) => (
+                            <TableRow key={pedido.id}>
                               <TableCell>
-                                <Checkbox checked={selectedPedidos.has(pedido.id)} onCheckedChange={() => togglePedido(pedido.id)} />
+                                <Checkbox
+                                  checked={selectedPedidos.has(pedido.id)}
+                                  onCheckedChange={() => togglePedido(pedido.id)}
+                                />
                               </TableCell>
                               <TableCell className="font-medium">{pedido.pedido}</TableCell>
                               <TableCell>{pedido.cliente?.nome || "N/A"}</TableCell>
                               <TableCell>
-                                <Input value={getPhone(pedido)} onChange={e => updatePhone(pedido.id, e.target.value)} placeholder="Telefone" className="h-8" />
+                                <Input
+                                  value={getPhone(pedido)}
+                                  onChange={(e) => updatePhone(pedido.id, e.target.value)}
+                                  placeholder="Telefone"
+                                  className="h-8"
+                                />
                               </TableCell>
                               <TableCell>R$ {pedido.valor?.toFixed(2) || "0.00"}</TableCell>
-                            </TableRow>)}
+                            </TableRow>
+                          ))}
                         </TableBody>
                       </Table>
                     </div>
-                  </div>}
+                  </div>
+                )}
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>
@@ -734,7 +845,7 @@ export const CampaignBuilder = ({
                       {sendProgress.current} / {sendProgress.total}
                     </span>
                   </div>
-                  <Progress value={sendProgress.current / sendProgress.total * 100} />
+                  <Progress value={(sendProgress.current / sendProgress.total) * 100} />
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 text-center">
@@ -757,14 +868,17 @@ export const CampaignBuilder = ({
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Aguarde enquanto as mensagens são enviadas...</span>
                   </div>
-                  {countdown > 0 && <div className="flex items-center gap-2 text-primary font-medium">
+                  {countdown > 0 && (
+                    <div className="flex items-center gap-2 text-primary font-medium">
                       <span>Próxima mensagem em {countdown}s</span>
-                    </div>}
+                    </div>
+                  )}
                 </div>
               </div>
             </DialogContent>
           </Dialog>
         </CardContent>
       </Card>
-    </div>;
+    </div>
+  );
 };
