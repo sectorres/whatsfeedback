@@ -112,11 +112,12 @@ export const EvolutionApiConfig = () => {
     setSaving(true);
 
     try {
+      // Sempre salvar os dados da instância oficial, independente do tipo selecionado
       const configData: Partial<EvolutionConfig> = {
         config_type: configType,
-        api_url: configType === 'official' ? apiUrl : null,
-        api_key: configType === 'official' ? apiKey : null,
-        instance_name: configType === 'official' ? instanceName : null,
+        api_url: apiUrl || null,
+        api_key: apiKey || null,
+        instance_name: instanceName || null,
         is_active: true
       };
 
