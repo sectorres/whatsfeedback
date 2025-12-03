@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { getEvolutionCredentials } from "../_shared/evolution-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,13 +13,9 @@ serve(async (req) => {
 
   try {
     const { action } = await req.json();
-    const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
-    const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
-    const EVOLUTION_INSTANCE_NAME = Deno.env.get('EVOLUTION_INSTANCE_NAME');
-
-    if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY || !EVOLUTION_INSTANCE_NAME) {
-      throw new Error('Evolution API credentials not configured');
-    }
+    
+    // Buscar credenciais da Evolution API (do banco ou secrets)
+    const { apiUrl: EVOLUTION_API_URL, apiKey: EVOLUTION_API_KEY, instanceName: EVOLUTION_INSTANCE_NAME } = await getEvolutionCredentials();
 
     console.log('Evolution API Request:', { action, instance: EVOLUTION_INSTANCE_NAME });
 

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { getEvolutionCredentials } from "../_shared/evolution-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,17 +21,8 @@ serve(async (req) => {
       );
     }
 
-    const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
-    const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
-    const EVOLUTION_INSTANCE_NAME = Deno.env.get('EVOLUTION_INSTANCE_NAME');
-
-    if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY || !EVOLUTION_INSTANCE_NAME) {
-      console.error('Evolution API credentials not configured');
-      return new Response(
-        JSON.stringify({ error: 'Evolution API not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Buscar credenciais da Evolution API (do banco ou secrets)
+    const { apiUrl: EVOLUTION_API_URL, apiKey: EVOLUTION_API_KEY, instanceName: EVOLUTION_INSTANCE_NAME } = await getEvolutionCredentials();
 
     // Normalizar o número de telefone (adicionar @s.whatsapp.net se necessário)
     const formattedPhone = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`;

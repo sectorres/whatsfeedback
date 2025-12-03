@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { formatPhoneForWhatsApp } from "../_shared/phone-utils.ts";
+import { getEvolutionCredentials } from "../_shared/evolution-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,13 +17,8 @@ serve(async (req) => {
     
     console.log('Sending media via WhatsApp:', { phone, mediaType, fileName });
 
-    const evolutionApiUrl = Deno.env.get('EVOLUTION_API_URL');
-    const evolutionApiKey = Deno.env.get('EVOLUTION_API_KEY');
-    const instanceName = Deno.env.get('EVOLUTION_INSTANCE_NAME');
-
-    if (!evolutionApiUrl || !evolutionApiKey || !instanceName) {
-      throw new Error('Evolution API credentials not configured');
-    }
+    // Buscar credenciais da Evolution API (do banco ou secrets)
+    const { apiUrl: evolutionApiUrl, apiKey: evolutionApiKey, instanceName } = await getEvolutionCredentials();
 
     // Formatar telefone para WhatsApp
     const cleanPhone = formatPhoneForWhatsApp(phone);

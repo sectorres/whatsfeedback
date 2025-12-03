@@ -412,6 +412,39 @@ export type Database = {
         }
         Relationships: []
       }
+      evolution_api_config: {
+        Row: {
+          api_key: string | null
+          api_url: string | null
+          config_type: string
+          created_at: string
+          id: string
+          instance_name: string | null
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          api_key?: string | null
+          api_url?: string | null
+          config_type?: string
+          created_at?: string
+          id?: string
+          instance_name?: string | null
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string | null
+          api_url?: string | null
+          config_type?: string
+          created_at?: string
+          id?: string
+          instance_name?: string | null
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           conversation_id: string
