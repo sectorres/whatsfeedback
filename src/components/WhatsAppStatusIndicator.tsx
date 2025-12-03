@@ -10,13 +10,13 @@ export function WhatsAppStatusIndicator() {
         <TooltipTrigger asChild>
           <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/20 hover:bg-white/20 transition-all duration-200">
             <div className="relative">
-              <div 
+              <div
                 className={`h-2.5 w-2.5 rounded-full ${
-                  isChecking 
-                    ? 'bg-gray-300' 
-                    : isConnected 
-                      ? 'bg-green-400 animate-pulse shadow-lg shadow-green-400/50' 
-                      : 'bg-red-400 shadow-lg shadow-red-400/50'
+                  isChecking
+                    ? "bg-gray-300"
+                    : isConnected
+                      ? "bg-green-400 animate-pulse shadow-lg shadow-green-400/50"
+                      : "bg-red-400 shadow-lg shadow-red-400/50"
                 }`}
               />
               {isConnected && (
@@ -24,17 +24,17 @@ export function WhatsAppStatusIndicator() {
               )}
             </div>
             <span className="text-xs font-medium text-white hidden sm:inline">
-              {isChecking ? 'Verificando...' : isConnected ? 'WhatsApp' : 'WhatsApp Desconectado'}
+              {isChecking ? "Verificando..." : isConnected ? "WhatsApp" : "WhatsApp"}
             </span>
           </div>
         </TooltipTrigger>
         <TooltipContent>
           <p>
-            {isChecking 
-              ? 'Verificando status da conexão' 
-              : isConnected 
-                ? 'WhatsApp conectado e pronto para enviar mensagens' 
-                : 'WhatsApp não conectado. Vá em Configurações para conectar'}
+            {isChecking
+              ? "Verificando status da conexão"
+              : isConnected
+                ? "WhatsApp conectado e pronto para enviar mensagens"
+                : "WhatsApp não conectado. Vá em Configurações para conectar"}
           </p>
         </TooltipContent>
       </Tooltip>
