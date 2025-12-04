@@ -9,6 +9,9 @@ verify_jwt = true
 [functions.whatsapp-send]
 verify_jwt = true
 
+[functions.whatsapp-send-template]
+verify_jwt = true
+
 [functions.whatsapp-webhook]
 verify_jwt = false
 
@@ -40,4 +43,25 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.sync-order-details]
+verify_jwt = true
+
+[functions.whatsapp-send-media]
+verify_jwt = true
+
+[functions.fetch-profile-picture]
+verify_jwt = true
+
+[functions.clear-data]
+verify_jwt = true
+
+[functions.monitor-delivered-orders]
+verify_jwt = true
+
+[functions.generate-satisfaction-insights]
+verify_jwt = true
+
+[functions.finalize-pending-surveys]
+verify_jwt = true
+
+[functions.abort-survey-send]
 verify_jwt = true

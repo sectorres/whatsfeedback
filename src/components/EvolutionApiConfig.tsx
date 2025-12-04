@@ -14,6 +14,8 @@ interface EvolutionConfig {
   api_url: string | null;
   api_key: string | null;
   instance_name: string | null;
+  template_name: string | null;
+  template_language: string | null;
   is_active: boolean;
 }
 
@@ -22,6 +24,8 @@ export const EvolutionApiConfig = () => {
   const [apiUrl, setApiUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [instanceName, setInstanceName] = useState("");
+  const [templateName, setTemplateName] = useState("");
+  const [templateLanguage, setTemplateLanguage] = useState("pt_BR");
   const [showApiKey, setShowApiKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -49,6 +53,8 @@ export const EvolutionApiConfig = () => {
         setApiUrl(data.api_url || "");
         setApiKey(data.api_key || "");
         setInstanceName(data.instance_name || "");
+        setTemplateName((data as any).template_name || "");
+        setTemplateLanguage((data as any).template_language || "pt_BR");
       }
     } catch (error) {
       console.error('Erro ao carregar configuração:', error);
@@ -104,8 +110,8 @@ export const EvolutionApiConfig = () => {
   };
 
   const handleSaveConfig = async () => {
-    if (configType === 'official' && (!apiUrl || !apiKey || !instanceName)) {
-      toast.error("Preencha todos os campos da API oficial antes de salvar");
+    if (configType === 'official' && (!apiUrl || !apiKey || !instanceName || !templateName)) {
+      toast.error("Preencha todos os campos da API oficial antes de salvar (incluindo nome do template)");
       return;
     }
 
@@ -113,11 +119,13 @@ export const EvolutionApiConfig = () => {
 
     try {
       // Sempre salvar os dados da instância oficial, independente do tipo selecionado
-      const configData: Partial<EvolutionConfig> = {
+      const configData = {
         config_type: configType,
         api_url: apiUrl || null,
         api_key: apiKey || null,
         instance_name: instanceName || null,
+        template_name: templateName || null,
+        template_language: templateLanguage || 'pt_BR',
         is_active: true
       };
 
@@ -252,6 +260,34 @@ export const EvolutionApiConfig = () => {
                   )}
                 </Button>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="evolution-template" className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Nome do Template (Meta)
+              </Label>
+              <Input
+                id="evolution-template"
+                placeholder="nome_do_template_aprovado"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Nome exato do template aprovado na Meta Business
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="evolution-template-lang">
+                Idioma do Template
+              </Label>
+              <Input
+                id="evolution-template-lang"
+                placeholder="pt_BR"
+                value={templateLanguage}
+                onChange={(e) => setTemplateLanguage(e.target.value)}
+              />
             </div>
           </div>
         )}
