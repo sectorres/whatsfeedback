@@ -48,16 +48,21 @@ serve(async (req) => {
     });
 
     // Montar payload do template
-    // Se o template não usa parâmetros numerados ({{1}}, {{2}}), enviar sem components
+    // Para templates com parâmetros numerados ({{1}}, {{2}}), enviar os components
     const templatePayload: Record<string, unknown> = {
       number: whatsappPhone,
       name: templateName,
       language: templateLanguage || "pt_BR",
+      components: [
+        {
+          type: "body",
+          parameters: [
+            { type: "text", text: customerName || "Cliente" },
+            { type: "text", text: pedidoNumero || "seu pedido" }
+          ]
+        }
+      ]
     };
-
-    // Só adiciona components se houver parâmetros para enviar
-    // O template atual do usuário não usa parâmetros numerados
-    // Para templates com parâmetros, o usuário precisaria cadastrar com {{1}}, {{2}}, etc.
 
     // Enviar template via Evolution API
     const templateResponse = await fetch(`${apiUrl}/message/sendTemplate/${instanceName}`, {
