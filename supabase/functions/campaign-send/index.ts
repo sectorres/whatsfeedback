@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizePhone } from "../_shared/phone-utils.ts";
+import { getEvolutionCredentials } from "../_shared/evolution-config.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const campaignSendSchema = z.object({
@@ -64,16 +65,6 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    // Carregar mensagem de confirmação configurada
-    const { data: confirmConfig } = await supabase
-      .from('app_config')
-      .select('config_value')
-      .eq('config_key', 'bot_message_campaign_confirmation')
-      .maybeSingle();
-
-    const confirmationMessage = confirmConfig?.config_value || 
-      "Por favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação";
 
     const body = await req.json();
 
@@ -169,16 +160,53 @@ serve(async (req) => {
       throw insertError || new Error("Falha ao criar registro de envio");
     }
 
-    // 2) Preparar mensagem completa com confirmação
-    const fullMessage = `${message}\n\n${confirmationMessage}`;
+    // 2) Verificar qual tipo de API está sendo usada
+    const credentials = await getEvolutionCredentials();
+    
+    let sendError: Error | null = null;
+    
+    if (credentials.isOfficial && credentials.templateName) {
+      // API Oficial: enviar template
+      console.log("Using official API - sending template:", credentials.templateName);
+      
+      const { error } = await supabase.functions.invoke("whatsapp-send-template", {
+        body: {
+          phone: normalizedPhone,
+          customerName: customerName || "Cliente",
+          pedidoNumero: pedido_numero || "",
+        },
+      });
+      
+      if (error) {
+        sendError = error;
+      }
+    } else {
+      // API Não Oficial: enviar mensagem de texto normal
+      console.log("Using unofficial API - sending text message");
+      
+      // Carregar mensagem de confirmação configurada
+      const { data: confirmConfig } = await supabase
+        .from('app_config')
+        .select('config_value')
+        .eq('config_key', 'bot_message_campaign_confirmation')
+        .maybeSingle();
 
-    // 3) Disparar WhatsApp via função dedicada (reaproveita normalização e blacklist)
-    const { error: sendError } = await supabase.functions.invoke("whatsapp-send", {
-      body: {
-        phone: normalizedPhone,
-        message: fullMessage,
-      },
-    });
+      const confirmationMessage = confirmConfig?.config_value || 
+        "Por favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação";
+
+      const fullMessage = `${message}\n\n${confirmationMessage}`;
+
+      const { error } = await supabase.functions.invoke("whatsapp-send", {
+        body: {
+          phone: normalizedPhone,
+          message: fullMessage,
+        },
+      });
+      
+      if (error) {
+        sendError = error;
+      }
+    }
 
     if (sendError) {
       // 4a) Atualizar para failed

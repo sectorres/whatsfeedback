@@ -4,6 +4,9 @@ export interface EvolutionCredentials {
   apiUrl: string;
   apiKey: string;
   instanceName: string;
+  isOfficial: boolean;
+  templateName?: string;
+  templateLanguage?: string;
 }
 
 /**
@@ -37,7 +40,10 @@ export async function getEvolutionCredentials(): Promise<EvolutionCredentials> {
     return {
       apiUrl: config.api_url,
       apiKey: config.api_key,
-      instanceName: config.instance_name
+      instanceName: config.instance_name,
+      isOfficial: true,
+      templateName: config.template_name || undefined,
+      templateLanguage: config.template_language || 'pt_BR'
     };
   }
 
@@ -54,6 +60,7 @@ export async function getEvolutionCredentials(): Promise<EvolutionCredentials> {
   return {
     apiUrl,
     apiKey,
-    instanceName
+    instanceName,
+    isOfficial: false
   };
 }
