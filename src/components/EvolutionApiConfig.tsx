@@ -291,7 +291,7 @@ export const EvolutionApiConfig = () => {
                   onChange={(e) => setTemplateName(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Nome exato do template aprovado na Meta Business para *Aviso de Entrega*. Deve ter placeholders para nome ({{1}}) e pedido ({{2}}).
+                  Nome exato do template aprovado na Meta Business para *Aviso de Entrega*. Deve ter placeholders para nome ({"{{1}}"}) e pedido ({"{{2}}"})
                 </p>
               </div>
 
@@ -325,7 +325,7 @@ export const EvolutionApiConfig = () => {
                   onChange={(e) => setSurveyTemplateName(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Nome exato do template aprovado na Meta Business para *Pesquisa de Satisfação*. Deve ter o placeholder {{1}} para o nome do cliente.
+                  Nome exato do template aprovado na Meta Business para *Pesquisa de Satisfação*. Deve ter o placeholder {"{{1}}"} para o nome do cliente.
                 </p>
               </div>
 
