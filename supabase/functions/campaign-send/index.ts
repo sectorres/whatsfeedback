@@ -1,5 +1,5 @@
+// v3 - Unificando lógica
 // @ts-nocheck
-// v2 - Forçar reimplantação
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizePhone } from "../_shared/phone-utils.ts";
@@ -12,32 +12,15 @@ const campaignSendSchema = z.object({
   message: z.string().min(1).max(4096),
   customerName: z.string().max(255).nullish(),
   driverName: z.string().max(255).nullish(),
-  quantidade_entregas: z
-    .number()
-    .min(0)
-    .max(10000)
-    .transform((val) => Math.round(val))
-    .nullish(),
-  quantidade_skus: z
-    .number()
-    .min(0)
-    .max(10000)
-    .transform((val) => Math.round(val))
-    .nullish(),
-  quantidade_itens: z
-    .number()
-    .min(0)
-    .max(100000)
-    .transform((val) => Math.round(val))
-    .nullish(),
+  quantidade_entregas: z.number().min(0).max(10000).transform((val) => Math.round(val)).nullish(),
+  quantidade_skus: z.number().min(0).max(10000).transform((val) => Math.round(val)).nullish(),
+  quantidade_itens: z.number().min(0).max(100000).transform((val) => Math.round(val)).nullish(),
   peso_total: z.number().min(0).max(1000000).nullish(),
   valor_total: z.number().min(0).max(10000000).nullish(),
   pedido_id: z.number().int().positive().nullish(),
   pedido_numero: z.string().max(50).nullish(),
   carga_id: z.number().int().positive().nullish(),
-  // Nova variável de data de entrega
   deliveryDate: z.string().max(20).nullish(),
-  // Dados completos do pedido
   nota_fiscal: z.string().max(50).nullish(),
   data_pedido: z.string().max(20).nullish(),
   rota: z.string().max(255).nullish(),
@@ -69,11 +52,9 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
     const body = await req.json();
-
-    // Validate input
     const validationResult = campaignSendSchema.safeParse(body);
+
     if (!validationResult.success) {
       return new Response(JSON.stringify({ error: "Dados inválidos", details: validationResult.error.errors }), {
         status: 400,
@@ -82,174 +63,104 @@ serve(async (req) => {
     }
 
     const {
-      campaignId,
-      customerName,
-      customerPhone,
-      message,
-      driverName,
-      peso_total,
-      valor_total,
-      quantidade_entregas,
-      quantidade_skus,
-      quantidade_itens,
-      pedido_id,
-      pedido_numero,
-      carga_id,
-      deliveryDate, // Nova variável
-      nota_fiscal,
-      data_pedido,
-      rota,
-      endereco_completo,
-      bairro,
-      cep,
-      cidade,
-      estado,
-      referencia,
-      produtos,
+      campaignId, customerName, customerPhone, message, driverName,
+      peso_total, valor_total, quantidade_entregas, quantidade_skus,
+      quantidade_itens, pedido_id, pedido_numero, carga_id, deliveryDate,
+      nota_fiscal, data_pedido, rota, endereco_completo, bairro, cep,
+      cidade, estado, referencia, produtos,
     } = validationResult.data;
 
-    if (!campaignId || !customerPhone || !message) {
-      return new Response(
-        JSON.stringify({ error: "Parâmetros obrigatórios ausentes (campaignId, customerPhone, message)" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    // Normalizar telefone para garantir formato consistente
     const normalizedPhone = normalizePhone(customerPhone);
 
-    console.log("campaign-send: prepared insert", {
-      campaignId,
-      customerPhone,
-      normalizedPhone,
-      deliveryDate,
-      quantidade_entregas,
-      quantidade_skus,
-      quantidade_itens,
-      peso_total,
-      valor_total,
-    });
-
-    // 1) Inserir registro como pending com dados completos do pedido
     const { data: sendRow, error: insertError } = await supabase
       .from("campaign_sends")
       .insert({
-        campaign_id: campaignId,
-        customer_name: customerName ?? "Cliente",
-        customer_phone: normalizedPhone,
-        message_sent: message,
-        status: "pending",
-        driver_name: driverName ?? null,
-        peso_total: peso_total ?? 0,
-        valor_total: valor_total ?? 0,
-        quantidade_entregas: quantidade_entregas ?? 1,
-        quantidade_skus: quantidade_skus ?? 0,
-        quantidade_itens: quantidade_itens ?? 0,
-        pedido_id: pedido_id ?? null,
-        pedido_numero: pedido_numero ?? null,
-        carga_id: carga_id ?? null,
-        nota_fiscal: nota_fiscal ?? null,
-        data_pedido: data_pedido ?? null,
-        rota: rota ?? null,
-        endereco_completo: endereco_completo ?? null,
-        bairro: bairro ?? null,
-        cep: cep ?? null,
-        cidade: cidade ?? null,
-        estado: estado ?? null,
-        referencia: referencia ?? null,
-        produtos: produtos ?? null,
+        campaign_id: campaignId, customer_name: customerName ?? "Cliente",
+        customer_phone: normalizedPhone, message_sent: message, status: "pending",
+        driver_name: driverName ?? null, peso_total: peso_total ?? 0,
+        valor_total: valor_total ?? 0, quantidade_entregas: quantidade_entregas ?? 1,
+        quantidade_skus: quantidade_skus ?? 0, quantidade_itens: quantidade_itens ?? 0,
+        pedido_id: pedido_id ?? null, pedido_numero: pedido_numero ?? null,
+        carga_id: carga_id ?? null, nota_fiscal: nota_fiscal ?? null,
+        data_pedido: data_pedido ?? null, rota: rota ?? null,
+        endereco_completo: endereco_completo ?? null, bairro: bairro ?? null,
+        cep: cep ?? null, cidade: cidade ?? null, estado: estado ?? null,
+        referencia: referencia ?? null, produtos: produtos ?? null,
       })
-      .select()
-      .single();
+      .select().single();
 
     if (insertError || !sendRow) {
       throw insertError || new Error("Falha ao criar registro de envio");
     }
 
-    // 2) Verificar qual tipo de API está sendo usada
     const credentials = await getEvolutionCredentials();
-    
     let sendError: Error | null = null;
-    
-    if (credentials.isOfficial && credentials.templateName) {
-      // API Oficial: enviar template
-      console.log("Using official API - sending template:", credentials.templateName);
-      
-      const bodyForTemplate = {
-        phone: normalizedPhone,
-        customerName: customerName || "Cliente",
-        pedidoNumero: pedido_numero || "",
-        deliveryDate: deliveryDate || "", // Passando a nova variável
-      };
-      console.log("Invoking whatsapp-send-template with body:", JSON.stringify(bodyForTemplate));
 
-      const { error } = await supabase.functions.invoke("whatsapp-send-template", {
-        body: bodyForTemplate,
-      });
-      
-      if (error) {
-        sendError = error;
-      }
-    } else {
-      // API Não Oficial: enviar mensagem de texto normal
-      console.log("Using unofficial API - sending text message");
-      
-      // Re-formatar a mensagem no backend para garantir que as variáveis sejam substituídas
-      const fullMessage = message
-        .replace(/{cliente}/g, customerName || "Cliente")
-        .replace(/{pedido}/g, pedido_numero || "")
-        .replace(/{data_entrega}/g, deliveryDate || "em breve")
-        .replace(/{valor}/g, `${valor_total?.toFixed(2) || "0.00"}`)
-        .replace(/{notaFiscal}/g, nota_fiscal || "");
+    try {
+      if (credentials.isOfficial) {
+        const TEMPLATE_NAME = "aviso_entrega_2";
+        const TEMPLATE_LANGUAGE = credentials.templateLanguage || "pt_BR";
+        const whatsappPhone = `55${normalizedPhone}`;
 
-      const { error } = await supabase.functions.invoke("whatsapp-send", {
-        body: {
-          phone: normalizedPhone,
-          message: fullMessage,
-        },
-      });
-      
-      if (error) {
-        sendError = error;
+        console.log("Sending template directly:", { phone: whatsappPhone, templateName: TEMPLATE_NAME, deliveryDate });
+
+        const templatePayload = {
+          number: whatsappPhone, name: TEMPLATE_NAME, language: TEMPLATE_LANGUAGE,
+          components: [{
+            type: "body",
+            parameters: [
+              { type: "text", text: customerName || "Cliente" },
+              { type: "text", text: pedido_numero || "seu pedido" },
+              { type: "text", text: deliveryDate || "em breve" }
+            ]
+          }]
+        };
+
+        const templateResponse = await fetch(`${credentials.apiUrl}/message/sendTemplate/${credentials.instanceName}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "apikey": credentials.apiKey },
+          body: JSON.stringify(templatePayload),
+        });
+
+        const templateResult = await templateResponse.json();
+        if (!templateResponse.ok) throw new Error(templateResult.message || "Failed to send template");
+        console.log("Template sent successfully:", templateResult);
+
+      } else {
+        const fullMessage = message
+          .replace(/{cliente}/g, customerName || "Cliente")
+          .replace(/{pedido}/g, pedido_numero || "")
+          .replace(/{data_entrega}/g, deliveryDate || "em breve")
+          .replace(/{valor}/g, `${valor_total?.toFixed(2) || "0.00"}`)
+          .replace(/{notaFiscal}/g, nota_fiscal || "");
+
+        const { error } = await supabase.functions.invoke("whatsapp-send", {
+          body: { phone: normalizedPhone, message: fullMessage },
+        });
+        if (error) throw error;
       }
+    } catch (error) {
+      sendError = error;
     }
 
     if (sendError) {
-      // 4a) Atualizar para failed
-      await supabase
-        .from("campaign_sends")
+      await supabase.from("campaign_sends")
         .update({ status: "failed", error_message: sendError.message || String(sendError) })
         .eq("id", sendRow.id);
-
-      return new Response(
-        JSON.stringify({
-          success: false,
-          send_id: sendRow.id,
-          status: "failed",
-          error: sendError.message || String(sendError),
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      throw sendError;
     }
 
-    // 4b) Atualizar para success
-    await supabase
-      .from("campaign_sends")
+    await supabase.from("campaign_sends")
       .update({ status: "success", error_message: null, sent_at: new Date().toISOString() })
       .eq("id", sendRow.id);
-
 
     return new Response(JSON.stringify({ success: true, send_id: sendRow.id, status: "success" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
   } catch (error) {
     console.error("Erro em campaign-send:", error);
-    const message =
-      error && typeof error === "object" && "message" in (error as any)
-        ? (error as any).message
-        : error instanceof Error
-          ? error.message
-          : "Erro desconhecido";
+    const message = error instanceof Error ? error.message : "Erro desconhecido";
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
