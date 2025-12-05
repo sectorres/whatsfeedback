@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizePhone, comparePhones } from "../_shared/phone-utils.ts";
+import { getEvolutionCredentials } from "../_shared/evolution-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -611,9 +612,14 @@ serve(async (req) => {
           let finalMediaUrl = mediaUrl;
           if (mediaType !== 'text') {
             try {
-              const EVOLUTION_API_URL = Deno.env.get('EVOLUTION_API_URL');
-              const EVOLUTION_API_KEY = Deno.env.get('EVOLUTION_API_KEY');
-              const EVOLUTION_INSTANCE_NAME = Deno.env.get('EVOLUTION_INSTANCE_NAME');
+              // Usar credenciais do banco de dados (suporta API oficial e não oficial)
+              const evoCreds = await getEvolutionCredentials();
+              const EVOLUTION_API_URL = evoCreds.apiUrl;
+              const EVOLUTION_API_KEY = evoCreds.apiKey;
+              const EVOLUTION_INSTANCE_NAME = evoCreds.instanceName;
+              
+              console.log(`Downloading media using ${evoCreds.isOfficial ? 'official' : 'unofficial'} API config`);
+              
               if (EVOLUTION_API_URL && EVOLUTION_API_KEY && EVOLUTION_INSTANCE_NAME) {
                 // Tentativas de endpoints conhecidos para obter a mídia como base64
                 let evoResp: Response | null = null;
@@ -681,7 +687,7 @@ serve(async (req) => {
                   }
                 }
               } else {
-                console.warn('Evolution API env vars not set; skipping media download');
+                console.warn('Evolution API credentials not found; skipping media download');
               }
             } catch (err) {
               console.error('Error downloading media via Evolution:', err);
