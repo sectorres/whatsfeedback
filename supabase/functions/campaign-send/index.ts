@@ -53,6 +53,12 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const body = await req.json();
+    
+    // Log do payload recebido
+    console.log("--- CAMPAIGN-SEND PAYLOAD RECEIVED ---");
+    console.log(JSON.stringify(body, null, 2));
+    console.log("------------------------------------");
+
     const validationResult = campaignSendSchema.safeParse(body);
 
     if (!validationResult.success) {
@@ -102,8 +108,6 @@ serve(async (req) => {
         const TEMPLATE_LANGUAGE = credentials.templateLanguage || "pt_BR";
         const whatsappPhone = `55${normalizedPhone}`;
 
-        console.log("Sending template directly:", { phone: whatsappPhone, templateName: TEMPLATE_NAME, deliveryDate });
-
         const templatePayload = {
           number: whatsappPhone, name: TEMPLATE_NAME, language: TEMPLATE_LANGUAGE,
           components: [{
@@ -115,6 +119,11 @@ serve(async (req) => {
             ]
           }]
         };
+
+        // Log do payload que será enviado
+        console.log("--- TEMPLATE PAYLOAD TO BE SENT ---");
+        console.log(JSON.stringify(templatePayload, null, 2));
+        console.log("-----------------------------------");
 
         const templateResponse = await fetch(`${credentials.apiUrl}/message/sendTemplate/${credentials.instanceName}`, {
           method: "POST",
