@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { phone, customerName, pedidoNumero, skip_message_save, conversation_id } = await req.json();
+    const { phone, customerName, pedidoNumero, deliveryDate, skip_message_save, conversation_id } = await req.json();
 
     if (!phone) {
       return new Response(JSON.stringify({ error: "Phone number is required" }), {
@@ -44,11 +44,11 @@ serve(async (req) => {
       templateName,
       templateLanguage,
       customerName,
-      pedidoNumero
+      pedidoNumero,
+      deliveryDate
     });
 
-    // Montar payload do template
-    // Para templates com parâmetros numerados ({{1}}, {{2}}), enviar os components
+    // Montar payload do template com 3 parâmetros: {{1}} cliente, {{2}} pedido, {{3}} data
     const templatePayload: Record<string, unknown> = {
       number: whatsappPhone,
       name: templateName,
@@ -58,7 +58,8 @@ serve(async (req) => {
           type: "body",
           parameters: [
             { type: "text", text: customerName || "Cliente" },
-            { type: "text", text: pedidoNumero || "seu pedido" }
+            { type: "text", text: pedidoNumero || "seu pedido" },
+            { type: "text", text: deliveryDate || "em breve" } // Novo parâmetro {{3}}
           ]
         }
       ]
@@ -98,7 +99,7 @@ serve(async (req) => {
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
         
         // Construir texto do template para exibição
-        const templateText = `Olá ${customerName || "Cliente"},\n\n*Seu pedido ${pedidoNumero || ""} será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega\n\nPor favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação`;
+        const templateText = `Olá ${customerName || "Cliente"},\n\n*Seu pedido ${pedidoNumero || ""} será dia ${deliveryDate || "em breve"}*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega\n\nPor favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação`;
 
         // Buscar ou criar conversa
         let convId = conversation_id;

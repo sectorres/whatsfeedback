@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus, Send, Filter, Users, MessageSquare, CalendarIcon, Search } from "lucide-react";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "./ui/resizable";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -31,6 +32,7 @@ import {
 } from "./ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Progress } from "./ui/progress";
+
 interface Carga {
   id: number;
   data: string;
@@ -71,18 +73,22 @@ interface PedidoWithEditablePhone extends Pedido {
 interface CampaignBuilderProps {
   whatsappConnected: boolean;
 }
+
+// Novo template padrão com a variável de data
+const DEFAULT_MESSAGE_TEMPLATE = 
+  " Olá {cliente},\n\n*Seu pedido {pedido} será dia {data_entrega}*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega";
+
 export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => {
-  const [messageTemplate, setMessageTemplate] = useState(
-    " Olá {cliente},\n\n*Seu pedido {pedido} será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega",
-  );
+  const [messageTemplate, setMessageTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
+  
   const defaultTemplates = [
     {
       id: "default",
       name: "Padrão - Notificação de Entrega",
-      template:
-        " Olá {cliente},\n\n*Seu pedido {pedido} será entregue amanhã no horário comercial.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega",
+      template: DEFAULT_MESSAGE_TEMPLATE,
     },
   ];
+  
   const [savedTemplates, setSavedTemplates] = useState<
     Array<{
       id: string;
@@ -90,6 +96,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       template: string;
     }>
   >(defaultTemplates);
+  
   const [selectedTemplateId, setSelectedTemplateId] = useState("default");
   const [newTemplateName, setNewTemplateName] = useState("");
   const [cargas, setCargas] = useState<Carga[]>([]);
@@ -110,6 +117,9 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     blocked: 0,
   });
   const [countdown, setCountdown] = useState<number>(0);
+  
+  // Novo estado para a data de entrega
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
 
   // Datas padrão: primeiro dia do mês corrente até o último dia do mês
   const [startDate, setStartDate] = useState<Date>(() => {
@@ -140,12 +150,15 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   useEffect(() => {
     localStorage.setItem("whatsapp-templates", JSON.stringify(savedTemplates));
   }, [savedTemplates]);
+  
   useEffect(() => {
     fetchCargas();
   }, [startDate, endDate]);
+  
   const formatDateForAPI = (date: Date) => {
     return format(date, "yyyyMMdd");
   };
+  
   const fetchCargas = async () => {
     try {
       setLoading(true);
@@ -166,6 +179,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       setLoading(false);
     }
   };
+  
   const filteredCargas = statusFilter === "all" ? cargas : cargas.filter((c) => c.status === statusFilter);
   const selectedCarga = cargas.find((c) => c.id.toString() === selectedCargaId);
 
@@ -176,6 +190,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       setSelectedPedidos(allIds);
     }
   }, [selectedCargaId, selectedCarga]);
+  
   const togglePedido = (pedidoId: number) => {
     const newSelected = new Set(selectedPedidos);
     if (newSelected.has(pedidoId)) {
@@ -185,27 +200,33 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     }
     setSelectedPedidos(newSelected);
   };
+  
   const selectAllPedidos = () => {
     if (!selectedCarga) return;
     const allIds = new Set(selectedCarga.pedidos.map((p) => p.id));
     setSelectedPedidos(allIds);
   };
+  
   const deselectAllPedidos = () => {
     setSelectedPedidos(new Set());
   };
+  
   const formatPhone = (phone: string) => {
     // Usar normalização consistente em toda a aplicação
     return normalizePhone(phone);
   };
+  
   const updatePhone = (pedidoId: number, phone: string) => {
     setEditedPhones((prev) => ({
       ...prev,
       [pedidoId]: phone,
     }));
   };
+  
   const getPhone = (pedido: Pedido) => {
     return editedPhones[pedido.id] || pedido.cliente?.celular || pedido.cliente?.telefone || "";
   };
+  
   const handleSendCampaign = async () => {
     if (!whatsappConnected) {
       toast.error("Conecte o WhatsApp primeiro para enviar campanhas");
@@ -223,6 +244,11 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       toast.error("Selecione pelo menos um pedido");
       return;
     }
+    if (!deliveryDate) {
+      toast.error("Selecione a data de entrega");
+      return;
+    }
+    
     setShowConfirmDialog(false);
     setSending(true);
     setShowProgressDialog(true);
@@ -263,7 +289,9 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       console.error("Falha ao inserir campaign_sends após retentativas:", lastError, payload);
       return false;
     };
+    
     const pedidosParaEnviar = selectedCarga?.pedidos.filter((p) => selectedPedidos.has(p.id)) || [];
+    
     setSendProgress({
       current: 0,
       total: pedidosParaEnviar.length,
@@ -296,21 +324,30 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         .select()
         .single();
       if (campaignError) throw campaignError;
-      toast.success(`Enviando ${pedidosParaEnviar.length} mensagens...`);
+      
+      toast.success(`Iniciando envio de ${pedidosParaEnviar.length} mensagens...`);
+      
       let successCount = 0;
       let errorCount = 0;
       let blockedCount = 0;
+      
+      // Formatar a data de entrega para o template
+      const formattedDeliveryDate = format(deliveryDate, "dd/MM/yyyy", { locale: ptBR });
+
       for (let i = 0; i < pedidosParaEnviar.length; i++) {
         const pedido = pedidosParaEnviar[i];
         const rawPhone = getPhone(pedido);
         const phone = formatPhone(rawPhone); // normalizado sem DDI e sem zeros à esquerda
 
+        // Substituir variáveis na mensagem para salvar no banco (para histórico)
         const formattedMessage = messageTemplate
           .replace(/{cliente}/g, pedido.cliente?.nome || "Cliente")
           .replace(/{pedido}/g, pedido.pedido || "")
+          .replace(/{data_entrega}/g, formattedDeliveryDate) // Nova variável
           .replace(/{valor}/g, `${pedido.valor?.toFixed(2) || "0.00"}`)
           .replace(/{status}/g, statusMap[selectedCarga?.status || ""] || "")
           .replace(/{notaFiscal}/g, pedido.notaFiscal || "");
+          
         if (!phone || phone.length < 10) {
           errorCount++;
           console.error(`✗ Telefone inválido para ${pedido.cliente?.nome}: ${rawPhone}`);
@@ -372,6 +409,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           }));
           continue;
         }
+        
         try {
           // Enviar e registrar de forma atômica no backend com dados completos
           const { data, error } = await supabase.functions.invoke("campaign-send", {
@@ -379,7 +417,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               campaignId: campaign.id,
               customerName: pedido.cliente?.nome || "Cliente",
               customerPhone: phone,
-              message: formattedMessage,
+              message: formattedMessage, // Mensagem completa para histórico
               driverName: selectedCarga?.nomeMotorista || null,
               peso_total: pedido.pesoBruto || 0,
               valor_total: pedido.valor || 0,
@@ -389,6 +427,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               pedido_id: pedido.id,
               pedido_numero: pedido.pedido,
               carga_id: selectedCarga.id,
+              // Nova variável de data de entrega
+              deliveryDate: formattedDeliveryDate, 
               // Dados completos do pedido
               nota_fiscal: pedido.notaFiscal || null,
               data_pedido: pedido.data || null,
@@ -402,10 +442,12 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               produtos: pedido.produtos || [],
             },
           });
+          
           if (error) throw error;
           if (data?.status !== "success") {
             throw new Error(data?.error || "Falha no envio");
           }
+          
           successCount++;
           setSendProgress((prev) => ({
             ...prev,
@@ -444,6 +486,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             failed: prev.failed + 1,
           }));
         }
+        
         if (i < pedidosParaEnviar.length - 1) {
           // Delay de 5 segundos entre envios
           const delaySeconds = 5;
@@ -466,13 +509,16 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           sent_count: successCount,
         })
         .eq("id", campaign.id);
+        
       setSending(false);
       setShowProgressDialog(false);
+      
       if (errorCount === 0 && blockedCount === 0) {
         toast.success(`Campanha enviada com sucesso! ${successCount} mensagens enviadas`);
       } else {
         toast.error(`Campanha concluída: ${successCount} enviadas, ${blockedCount} bloqueadas, ${errorCount} falharam`);
       }
+      
       setSelectedPedidos(new Set());
       setEditedPhones({});
     } catch (error) {
@@ -482,6 +528,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       setShowProgressDialog(false);
     }
   };
+  
   const formatDate = (dateStr: string) => {
     if (!dateStr || dateStr.length !== 8) return dateStr;
     const day = dateStr.slice(6, 8);
@@ -489,11 +536,13 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     const year = dateStr.slice(0, 4);
     return `${day}/${month}/${year}`;
   };
+  
   const statusMap: Record<string, string> = {
     ABER: "Aberta",
     SEPA: "Em Separação",
     FATU: "Faturada",
   };
+  
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplateId(templateId);
     const template = savedTemplates.find((t) => t.id === templateId);
@@ -501,6 +550,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       setMessageTemplate(template.template);
     }
   };
+  
   const handleSaveTemplate = () => {
     if (!newTemplateName.trim()) {
       toast.error("Digite um nome para o template");
@@ -516,6 +566,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     setNewTemplateName("");
     toast.success("Template salvo com sucesso!");
   };
+  
   const handleUpdateTemplate = () => {
     const updatedTemplates = savedTemplates.map((t) =>
       t.id === selectedTemplateId
@@ -528,6 +579,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     setSavedTemplates(updatedTemplates);
     toast.success("Template atualizado!");
   };
+  
   const handleDeleteTemplate = () => {
     if (selectedTemplateId === "default") {
       toast.error("Não é possível deletar o template padrão");
@@ -538,6 +590,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     setMessageTemplate(savedTemplates[0].template);
     toast.success("Template deletado!");
   };
+  
   return (
     <div className="space-y-6">
       <Card>
@@ -552,6 +605,40 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             {/* Coluna Esquerda - Mensagem */}
             <ResizablePanel defaultSize={30} minSize={20}>
               <div className="h-full p-6 space-y-6 overflow-auto">
+                {/* Data de Entrega */}
+                <div className="space-y-2">
+                  <Label htmlFor="delivery-date" className="text-base font-semibold flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4" />
+                    Data de Entrega
+                  </Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !deliveryDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {deliveryDate ? format(deliveryDate, "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={deliveryDate}
+                        onSelect={setDeliveryDate}
+                        initialFocus
+                        locale={ptBR}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <p className="text-xs text-muted-foreground">
+                    Esta data será usada na variável {"{data_entrega}"}
+                  </p>
+                </div>
+
                 {/* Mensagem da Campanha */}
                 <div className="space-y-2">
                   <Label htmlFor="message-template" className="text-base font-semibold">
@@ -567,7 +654,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                   />
                   <div className="flex flex-wrap gap-2">
                     <p className="text-xs text-muted-foreground w-full">Variáveis disponíveis:</p>
-                    {["{cliente}", "{pedido}", "{valor}", "{status}", "{notaFiscal}"].map((v) => (
+                    {["{cliente}", "{pedido}", "{data_entrega}", "{valor}", "{status}", "{notaFiscal}"].map((v) => (
                       <Badge key={v} variant="outline" className="text-xs">
                         {v}
                       </Badge>
@@ -580,7 +667,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                   onClick={() => setShowConfirmDialog(true)}
                   className="w-full"
                   size="lg"
-                  disabled={!whatsappConnected || selectedPedidos.size === 0 || sending}
+                  disabled={!whatsappConnected || selectedPedidos.size === 0 || sending || !deliveryDate}
                 >
                   {sending ? (
                     <>

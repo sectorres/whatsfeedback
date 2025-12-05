@@ -33,6 +33,8 @@ const campaignSendSchema = z.object({
   pedido_id: z.number().int().positive().nullish(),
   pedido_numero: z.string().max(50).nullish(),
   carga_id: z.number().int().positive().nullish(),
+  // Nova variável de data de entrega
+  deliveryDate: z.string().max(20).nullish(),
   // Dados completos do pedido
   nota_fiscal: z.string().max(50).nullish(),
   data_pedido: z.string().max(20).nullish(),
@@ -91,6 +93,7 @@ serve(async (req) => {
       pedido_id,
       pedido_numero,
       carga_id,
+      deliveryDate, // Nova variável
       nota_fiscal,
       data_pedido,
       rota,
@@ -117,6 +120,7 @@ serve(async (req) => {
       campaignId,
       customerPhone,
       normalizedPhone,
+      deliveryDate,
       quantidade_entregas,
       quantidade_skus,
       quantidade_itens,
@@ -174,6 +178,7 @@ serve(async (req) => {
           phone: normalizedPhone,
           customerName: customerName || "Cliente",
           pedidoNumero: pedido_numero || "",
+          deliveryDate: deliveryDate || "", // Passando a nova variável
         },
       });
       
