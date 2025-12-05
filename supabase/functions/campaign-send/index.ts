@@ -1,11 +1,8 @@
-/// <reference types="https://raw.githubusercontent.com/denoland/deno/main/cli/tsc/dts/lib.deno.d.ts" />
-// @ts-ignore
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-// @ts-ignore
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizePhone } from "../_shared/phone-utils.ts";
 import { getEvolutionCredentials } from "../_shared/evolution-config.ts";
-// @ts-ignore
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const campaignSendSchema = z.object({
@@ -177,13 +174,16 @@ serve(async (req) => {
       // API Oficial: enviar template
       console.log("Using official API - sending template:", credentials.templateName);
       
+      const bodyForTemplate = {
+        phone: normalizedPhone,
+        customerName: customerName || "Cliente",
+        pedidoNumero: pedido_numero || "",
+        deliveryDate: deliveryDate || "", // Passando a nova variável
+      };
+      console.log("Invoking whatsapp-send-template with body:", JSON.stringify(bodyForTemplate));
+
       const { error } = await supabase.functions.invoke("whatsapp-send-template", {
-        body: {
-          phone: normalizedPhone,
-          customerName: customerName || "Cliente",
-          pedidoNumero: pedido_numero || "",
-          deliveryDate: deliveryDate || "", // Passando a nova variável
-        },
+        body: bodyForTemplate,
       });
       
       if (error) {

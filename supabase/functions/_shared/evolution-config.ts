@@ -1,5 +1,4 @@
-/// <reference types="https://raw.githubusercontent.com/denoland/deno/main/cli/tsc/dts/lib.deno.d.ts" />
-// @ts-ignore
+// @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 export interface EvolutionCredentials {
@@ -9,8 +8,6 @@ export interface EvolutionCredentials {
   isOfficial: boolean;
   templateName?: string;
   templateLanguage?: string;
-  // Removido: surveyTemplateName?: string;
-  // Removido: surveyTemplateLanguage?: string;
 }
 
 /**
@@ -48,8 +45,6 @@ export async function getEvolutionCredentials(): Promise<EvolutionCredentials> {
       isOfficial: true,
       templateName: config.template_name || undefined,
       templateLanguage: config.template_language || 'pt_BR',
-      // Removido: surveyTemplateName: config.survey_template_name || undefined,
-      // Removido: surveyTemplateLanguage: config.survey_template_language || 'pt_BR'
     };
   }
 
