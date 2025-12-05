@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
-import { MessageSquare, Key, Link, Server, Eye, EyeOff, CheckCircle, XCircle, Loader2, Save } from "lucide-react";
+import { MessageSquare, Key, Link, Server, Eye, EyeOff, CheckCircle, XCircle, Loader2, Save, Star } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
@@ -16,6 +16,8 @@ interface EvolutionConfig {
   instance_name: string | null;
   template_name: string | null;
   template_language: string | null;
+  survey_template_name: string | null;
+  survey_template_language: string | null;
   is_active: boolean;
 }
 
@@ -26,6 +28,8 @@ export const EvolutionApiConfig = () => {
   const [instanceName, setInstanceName] = useState("");
   const [templateName, setTemplateName] = useState("");
   const [templateLanguage, setTemplateLanguage] = useState("pt_BR");
+  const [surveyTemplateName, setSurveyTemplateName] = useState("");
+  const [surveyTemplateLanguage, setSurveyTemplateLanguage] = useState("pt_BR");
   const [showApiKey, setShowApiKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -53,8 +57,10 @@ export const EvolutionApiConfig = () => {
         setApiUrl(data.api_url || "");
         setApiKey(data.api_key || "");
         setInstanceName(data.instance_name || "");
-        setTemplateName((data as any).template_name || "");
-        setTemplateLanguage((data as any).template_language || "pt_BR");
+        setTemplateName(data.template_name || "");
+        setTemplateLanguage(data.template_language || "pt_BR");
+        setSurveyTemplateName(data.survey_template_name || "");
+        setSurveyTemplateLanguage(data.survey_template_language || "pt_BR");
       }
     } catch (error) {
       console.error('Erro ao carregar configuração:', error);
@@ -110,8 +116,8 @@ export const EvolutionApiConfig = () => {
   };
 
   const handleSaveConfig = async () => {
-    if (configType === 'official' && (!apiUrl || !apiKey || !instanceName || !templateName)) {
-      toast.error("Preencha todos os campos da API oficial antes de salvar (incluindo nome do template)");
+    if (configType === 'official' && (!apiUrl || !apiKey || !instanceName || !templateName || !surveyTemplateName)) {
+      toast.error("Preencha todos os campos da API oficial antes de salvar (incluindo nomes dos templates)");
       return;
     }
 
@@ -126,6 +132,8 @@ export const EvolutionApiConfig = () => {
         instance_name: instanceName || null,
         template_name: templateName || null,
         template_language: templateLanguage || 'pt_BR',
+        survey_template_name: surveyTemplateName || null,
+        survey_template_language: surveyTemplateLanguage || 'pt_BR',
         is_active: true
       };
 
@@ -205,89 +213,133 @@ export const EvolutionApiConfig = () => {
         </div>
 
         {configType === 'official' && (
-          <div className="space-y-4 pt-2 border-t">
-            <div className="space-y-2">
-              <Label htmlFor="evolution-url" className="flex items-center gap-2">
-                <Link className="h-4 w-4" />
-                URL da API
-              </Label>
-              <Input
-                id="evolution-url"
-                placeholder="https://evl.torrescabral.com.br"
-                value={apiUrl}
-                onChange={(e) => setApiUrl(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="evolution-instance" className="flex items-center gap-2">
-                <Server className="h-4 w-4" />
-                Nome da Instância
-              </Label>
-              <Input
-                id="evolution-instance"
-                placeholder="nome-da-instancia"
-                value={instanceName}
-                onChange={(e) => setInstanceName(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="evolution-key" className="flex items-center gap-2">
-                <Key className="h-4 w-4" />
-                API Key / Token
-              </Label>
-              <div className="relative">
+          <div className="space-y-6 pt-2 border-t">
+            {/* Configurações de Conexão */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">Credenciais de Conexão</h3>
+              <div className="space-y-2">
+                <Label htmlFor="evolution-url" className="flex items-center gap-2">
+                  <Link className="h-4 w-4" />
+                  URL da API
+                </Label>
                 <Input
-                  id="evolution-key"
-                  type={showApiKey ? "text" : "password"}
-                  placeholder="Digite sua chave de API"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  className="pr-10"
+                  id="evolution-url"
+                  placeholder="https://evl.torrescabral.com.br"
+                  value={apiUrl}
+                  onChange={(e) => setApiUrl(e.target.value)}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                >
-                  {showApiKey ? (
-                    <EyeOff className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="evolution-instance" className="flex items-center gap-2">
+                  <Server className="h-4 w-4" />
+                  Nome da Instância
+                </Label>
+                <Input
+                  id="evolution-instance"
+                  placeholder="nome-da-instancia"
+                  value={instanceName}
+                  onChange={(e) => setInstanceName(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="evolution-key" className="flex items-center gap-2">
+                  <Key className="h-4 w-4" />
+                  API Key / Token
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="evolution-key"
+                    type={showApiKey ? "text" : "password"}
+                    placeholder="Digite sua chave de API"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                  >
+                    {showApiKey ? (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="evolution-template" className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" />
-                Nome do Template (Meta)
-              </Label>
-              <Input
-                id="evolution-template"
-                placeholder="nome_do_template_aprovado"
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Nome exato do template aprovado na Meta Business
-              </p>
+            {/* Configurações de Template de Campanha */}
+            <div className="space-y-4 pt-4 border-t">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-primary" />
+                Template de Aviso de Entrega
+              </h3>
+              <div className="space-y-2">
+                <Label htmlFor="evolution-template">
+                  Nome do Template (Meta)
+                </Label>
+                <Input
+                  id="evolution-template"
+                  placeholder="nome_do_template_aprovado"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Nome exato do template aprovado na Meta Business para *Aviso de Entrega*
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="evolution-template-lang">
+                  Idioma do Template
+                </Label>
+                <Input
+                  id="evolution-template-lang"
+                  placeholder="pt_BR"
+                  value={templateLanguage}
+                  onChange={(e) => setTemplateLanguage(e.target.value)}
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="evolution-template-lang">
-                Idioma do Template
-              </Label>
-              <Input
-                id="evolution-template-lang"
-                placeholder="pt_BR"
-                value={templateLanguage}
-                onChange={(e) => setTemplateLanguage(e.target.value)}
-              />
+            {/* Configurações de Template de Pesquisa */}
+            <div className="space-y-4 pt-4 border-t">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Star className="h-5 w-5 text-yellow-600" />
+                Template de Pesquisa de Satisfação
+              </h3>
+              <div className="space-y-2">
+                <Label htmlFor="survey-template">
+                  Nome do Template (Meta)
+                </Label>
+                <Input
+                  id="survey-template"
+                  placeholder="nome_do_template_pesquisa"
+                  value={surveyTemplateName}
+                  onChange={(e) => setSurveyTemplateName(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Nome exato do template aprovado na Meta Business para *Pesquisa de Satisfação*
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="survey-template-lang">
+                  Idioma do Template
+                </Label>
+                <Input
+                  id="survey-template-lang"
+                  placeholder="pt_BR"
+                  value={surveyTemplateLanguage}
+                  onChange={(e) => setSurveyTemplateLanguage(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         )}

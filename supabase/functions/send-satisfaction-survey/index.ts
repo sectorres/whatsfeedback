@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { getEvolutionCredentials } from "../_shared/evolution-config.ts";
 
 const surveySendSchema = z.object({
   campaignSendIds: z.array(z.string().uuid()).optional(),
@@ -23,6 +24,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // Buscar credenciais da Evolution API
+    const credentials = await getEvolutionCredentials();
+    const isOfficialApi = credentials.isOfficial && !!credentials.surveyTemplateName;
 
     // Buscar delays configurados ou usar padrão
     let delayStages = [2, 5, 7, 9, 11, 13, 17];
@@ -64,6 +69,7 @@ serve(async (req) => {
     const { campaignSendIds, campaignId, runId: providedRunId } = validationResult.data;
 
     console.log('=== INÍCIO SEND-SATISFACTION-SURVEY ===');
+    console.log('API Type:', isOfficialApi ? 'Official (Template)' : 'Unofficial (Text)');
     console.log('campaignSendIds recebidos:', JSON.stringify(campaignSendIds));
     console.log('campaignId recebido:', campaignId || null);
     console.log('Quantidade de IDs:', campaignSendIds?.length || 0);
@@ -107,7 +113,7 @@ serve(async (req) => {
       );
     }
     
-    // Buscar mensagem configurada ou usar padrão
+    // Buscar mensagem configurada ou usar padrão (apenas para API não oficial)
     let surveyMessageTemplate = `Olá{NOME}!
 
 De uma nota de 1 a 5 para a entrega de seus produtos.
@@ -120,22 +126,26 @@ De uma nota de 1 a 5 para a entrega de seus produtos.
 
 Responda apenas com o número da sua avaliação.`;
 
-    try {
-      const { data: configData } = await supabaseClient
-        .from('app_config')
-        .select('config_value')
-        .eq('config_key', 'satisfaction_survey_message')
-        .maybeSingle();
+    if (!isOfficialApi) {
+      try {
+        const { data: configData } = await supabaseClient
+          .from('app_config')
+          .select('config_value')
+          .eq('config_key', 'satisfaction_survey_message')
+          .maybeSingle();
 
-      if (configData?.config_value) {
-        surveyMessageTemplate = configData.config_value;
+        if (configData?.config_value) {
+          surveyMessageTemplate = configData.config_value;
+        }
+      } catch (error) {
+        console.error('Erro ao buscar mensagem configurada, usando padrão:', error);
       }
-    } catch (error) {
-      console.error('Erro ao buscar mensagem configurada, usando padrão:', error);
     }
 
-    // Função para aplicar o nome do cliente na mensagem
+    // Função para aplicar o nome do cliente na mensagem (apenas para API não oficial)
     const getSurveyMessage = (customerName?: string) => {
+      if (isOfficialApi) return ''; // Não usado para template
+      
       if (customerName && surveyMessageTemplate.includes('{NOME}')) {
         return surveyMessageTemplate.replace('{NOME}', ' ' + customerName);
       } else if (customerName) {
@@ -283,20 +293,39 @@ Responda apenas com o número da sua avaliação.`;
         }
 
         // Enviar mensagem via WhatsApp
-        const surveyMessage = getSurveyMessage(updatedSend.customer_name);
-        const { error: whatsappError } = await supabaseClient.functions.invoke('whatsapp-send', {
-          body: {
-            phone: updatedSend.customer_phone,
-            message: surveyMessage
-          }
-        });
+        if (isOfficialApi) {
+          // API Oficial: Enviar Template de Pesquisa
+          const { error: whatsappError } = await supabaseClient.functions.invoke('whatsapp-send-survey-template', {
+            body: {
+              phone: updatedSend.customer_phone,
+              customerName: updatedSend.customer_name
+            }
+          });
 
-        if (whatsappError) {
-          await supabaseClient
-            .from('satisfaction_surveys')
-            .update({ status: 'failed' })
-            .eq('id', survey.id);
-          throw whatsappError;
+          if (whatsappError) {
+            await supabaseClient
+              .from('satisfaction_surveys')
+              .update({ status: 'failed' })
+              .eq('id', survey.id);
+            throw whatsappError;
+          }
+        } else {
+          // API Não Oficial: Enviar Mensagem de Texto
+          const surveyMessage = getSurveyMessage(updatedSend.customer_name);
+          const { error: whatsappError } = await supabaseClient.functions.invoke('whatsapp-send', {
+            body: {
+              phone: updatedSend.customer_phone,
+              message: surveyMessage
+            }
+          });
+
+          if (whatsappError) {
+            await supabaseClient
+              .from('satisfaction_surveys')
+              .update({ status: 'failed' })
+              .eq('id', survey.id);
+            throw whatsappError;
+          }
         }
 
         // Atualizar status para enviado
@@ -352,6 +381,13 @@ Responda apenas com o número da sua avaliação.`;
         );
       }
 
+      // Janela de segurança: bloquear reenvio para o mesmo telefone no último minuto
+      const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000).toISOString();
+      const uniquePhones = Array.from(new Set(allowedIds.map(id => {
+        const send = campaignSendIds.find(s => s === id);
+        return send?.customer_phone; // Precisa buscar o telefone do campaign_send
+      }).filter(Boolean)));
+      
       // Buscar dados dos envios permitidos
       console.log('Buscando campaign_sends com IDs permitidos:', allowedIds);
       const { data: selectedSends, error: selectedError } = await supabaseClient
@@ -360,30 +396,7 @@ Responda apenas com o número da sua avaliação.`;
         .in('id', allowedIds)
         .in('status', ['success', 'sent', 'confirmed', 'reschedule_requested']);
       if (selectedError) throw selectedError;
-      console.log('campaign_sends encontrados:', selectedSends?.length || 0);
-      if (selectedSends && selectedSends.length > 0) {
-        const uniqueCampaignIds = [...new Set(selectedSends.map(s => s.campaign_id))];
-        console.log('IDs de campanhas nos envios:', uniqueCampaignIds);
-      }
-
-      if (!selectedSends || selectedSends.length === 0) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            surveys_sent: 0,
-            new_surveys: 0,
-            resent_surveys: 0,
-            failed_surveys: 0,
-            errors: [],
-            message: 'Nenhum envio elegível encontrado'
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Janela de segurança: bloquear reenvio para o mesmo telefone no último minuto
-      const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000).toISOString();
-      const uniquePhones = Array.from(new Set(selectedSends.map(s => s.customer_phone)));
+      
       let filteredByTimeWindow = selectedSends;
       
       if (uniquePhones.length > 0) {
@@ -397,8 +410,8 @@ Responda apenas com o número da sua avaliação.`;
         if (recentErr) throw recentErr;
 
         const recentPhones = new Set((recentSurveys || []).map(s => s.customer_phone));
-        const beforeCount = filteredByTimeWindow.length;
-        filteredByTimeWindow = filteredByTimeWindow.filter(s => !recentPhones.has(s.customer_phone));
+        const beforeCount = filteredByTimeWindow?.length || 0;
+        filteredByTimeWindow = (filteredByTimeWindow || []).filter(s => !recentPhones.has(s.customer_phone));
         
         if (beforeCount > filteredByTimeWindow.length) {
           console.log(`Bloqueados ${beforeCount - filteredByTimeWindow.length} envios por janela de 1 minuto (mesmo telefone)`);
