@@ -98,8 +98,8 @@ serve(async (req) => {
       if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
         
-        // Construir texto do template para exibição
-        const templateText = `Olá ${customerName || "Cliente"},\n\n*Seu pedido ${pedidoNumero || ""} será dia ${deliveryDate || "em breve"}*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega\n\nPor favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação`;
+        // Construir texto do template para exibição (AJUSTADO)
+        const templateText = `Olá ${customerName || "Cliente"},\n\n*Seu pedido ${pedidoNumero || ""} será entregue dia ${deliveryDate || "em breve"}.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega\n\nPor favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação`;
 
         // Buscar ou criar conversa
         let convId = conversation_id;
