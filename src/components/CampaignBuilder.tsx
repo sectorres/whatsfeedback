@@ -76,7 +76,7 @@ interface CampaignBuilderProps {
 
 // Novo template padrão com a variável de data
 const DEFAULT_MESSAGE_TEMPLATE = 
-  " Olá {cliente},\n\n*Seu pedido {pedido} será entregue dia {data_entrega}.*\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega";
+  "Olá {cliente},\n\nSeu pedido {pedido} será entregue dia *{data_entrega}*.\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega\n\nPor favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação";
 
 export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => {
   const [messageTemplate, setMessageTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);

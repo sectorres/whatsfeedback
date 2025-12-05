@@ -189,17 +189,8 @@ serve(async (req) => {
       // API Não Oficial: enviar mensagem de texto normal
       console.log("Using unofficial API - sending text message");
       
-      // Carregar mensagem de confirmação configurada
-      const { data: confirmConfig } = await supabase
-        .from('app_config')
-        .select('config_value')
-        .eq('config_key', 'bot_message_campaign_confirmation')
-        .maybeSingle();
-
-      const confirmationMessage = confirmConfig?.config_value || 
-        "Por favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação";
-
-      const fullMessage = `${message}\n\n${confirmationMessage}`;
+      // A mensagem completa (incluindo confirmação) já está em 'message'
+      const fullMessage = message;
 
       const { error } = await supabase.functions.invoke("whatsapp-send", {
         body: {
