@@ -1,7 +1,11 @@
+/// <reference types="https://raw.githubusercontent.com/denoland/deno/main/cli/tsc/dts/lib.deno.d.ts" />
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-ignore
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizePhone } from "../_shared/phone-utils.ts";
 import { getEvolutionCredentials } from "../_shared/evolution-config.ts";
+// @ts-ignore
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const campaignSendSchema = z.object({
@@ -189,8 +193,13 @@ serve(async (req) => {
       // API Não Oficial: enviar mensagem de texto normal
       console.log("Using unofficial API - sending text message");
       
-      // A mensagem completa (incluindo confirmação) já está em 'message'
-      const fullMessage = message;
+      // Re-formatar a mensagem no backend para garantir que as variáveis sejam substituídas
+      const fullMessage = message
+        .replace(/{cliente}/g, customerName || "Cliente")
+        .replace(/{pedido}/g, pedido_numero || "")
+        .replace(/{data_entrega}/g, deliveryDate || "em breve")
+        .replace(/{valor}/g, `${valor_total?.toFixed(2) || "0.00"}`)
+        .replace(/{notaFiscal}/g, nota_fiscal || "");
 
       const { error } = await supabase.functions.invoke("whatsapp-send", {
         body: {
