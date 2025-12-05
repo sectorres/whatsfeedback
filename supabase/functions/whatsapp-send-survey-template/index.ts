@@ -47,7 +47,7 @@ serve(async (req) => {
     });
 
     // Montar payload do template
-    // O template de pesquisa de satisfação geralmente tem apenas um parâmetro: o nome do cliente
+    // O template de pesquisa de satisfação deve usar {{1}} para o nome do cliente
     const templatePayload: Record<string, unknown> = {
       number: whatsappPhone,
       name: surveyTemplateName,
@@ -56,6 +56,7 @@ serve(async (req) => {
         {
           type: "body",
           parameters: [
+            // Parâmetro {{1}} para o nome do cliente
             { type: "text", text: customerName || "Cliente" },
           ]
         }
