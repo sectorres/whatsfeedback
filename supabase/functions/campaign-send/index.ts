@@ -1,4 +1,4 @@
-// v3 - Unificando lógica
+// v4 - Fix 3 params template
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -55,7 +55,7 @@ serve(async (req) => {
     const body = await req.json();
     
     // Log do payload recebido
-    console.log("--- CAMPAIGN-SEND PAYLOAD RECEIVED ---");
+    console.log("--- CAMPAIGN-SEND V4 PAYLOAD RECEIVED ---");
     console.log(JSON.stringify(body, null, 2));
     console.log("------------------------------------");
 
@@ -121,7 +121,7 @@ serve(async (req) => {
         };
 
         // Log do payload que será enviado
-        console.log("--- TEMPLATE PAYLOAD TO BE SENT ---");
+        console.log("--- TEMPLATE PAYLOAD TO BE SENT V4 ---");
         console.log(JSON.stringify(templatePayload, null, 2));
         console.log("-----------------------------------");
 
