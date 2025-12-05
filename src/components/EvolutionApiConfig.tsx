@@ -289,7 +289,7 @@ export const EvolutionApiConfig = () => {
                   onChange={(e) => setTemplateName(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Nome exato do template aprovado na Meta Business para *Aviso de Entrega*. Deve ter placeholders para nome ({"{{1}}"}) e pedido ({"{{2}}"})
+                  Nome exato do template aprovado na Meta Business para *Aviso de Entrega*. (Valor fixo no backend: `aviso_entrega_2`)
                 </p>
               </div>
 
@@ -306,15 +306,20 @@ export const EvolutionApiConfig = () => {
               </div>
             </div>
 
-            {/* Configurações de Template de Pesquisa (REMOVIDO TEMPORARIAMENTE) */}
-            <div className="space-y-4 pt-4 border-t opacity-50 pointer-events-none">
+            {/* Configurações de Template de Pesquisa (FIXO) */}
+            <div className="space-y-4 pt-4 border-t">
               <h3 className="font-semibold text-lg flex items-center gap-2">
                 <Star className="h-5 w-5 text-yellow-600" />
-                Template de Pesquisa de Satisfação (Indisponível)
+                Template de Pesquisa de Satisfação
               </h3>
-              <p className="text-sm text-muted-foreground">
-                Esta seção está temporariamente desabilitada devido a um erro de sincronização do banco de dados.
-              </p>
+              <div className="bg-muted p-3 rounded-lg">
+                <p className="text-sm font-medium">
+                  Nome do Template (Meta): <span className="font-mono text-primary">entrega_realizada</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Este template está fixo no backend devido a problemas de infraestrutura.
+                </p>
+              </div>
             </div>
           </div>
         )}
