@@ -39,28 +39,28 @@ const Index = () => {
           <TabsList className="flex w-full h-10 gap-0">
             <TabsTrigger 
               value="dashboard" 
-              className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
+              className="flex items-center gap-1.5 text-sm sm:text-base text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
               <LayoutDashboard className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
               <span className="hidden sm:inline font-medium truncate">Dashboard</span>
             </TabsTrigger>
             <TabsTrigger 
               value="campaigns" 
-              className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
+              className="flex items-center gap-1.5 text-sm sm:text-base text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
               <Calendar className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
               <span className="hidden sm:inline font-medium truncate">Avisos</span>
             </TabsTrigger>
             <TabsTrigger 
               value="satisfaction" 
-              className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
+              className="flex items-center gap-1.5 text-sm sm:text-base text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
               <Star className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
               <span className="hidden sm:inline font-medium truncate">Pesquisas</span>
             </TabsTrigger>
             <TabsTrigger 
               value="atendimento" 
-              className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
+              className="flex items-center gap-1.5 text-sm sm:text-base text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
               <Headphones className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
               <span className="hidden sm:inline font-medium truncate">Atendimento</span>
@@ -70,21 +70,21 @@ const Index = () => {
             </TabsTrigger>
             <TabsTrigger 
               value="desempenho" 
-              className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
+              className="flex items-center gap-1.5 text-sm sm:text-base text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
               <BarChart3 className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
               <span className="hidden sm:inline font-medium truncate">Desempenho</span>
             </TabsTrigger>
             <TabsTrigger 
               value="orders" 
-              className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
+              className="flex items-center gap-1.5 text-sm sm:text-base text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
               <Package className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
               <span className="hidden sm:inline font-medium truncate">Pedidos</span>
             </TabsTrigger>
             <TabsTrigger 
               value="config" 
-              className="flex items-center gap-1.5 text-xs text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
+              className="flex items-center gap-1.5 text-sm sm:text-base text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
               <Settings className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
               <span className="hidden sm:inline font-medium truncate">Config</span>
