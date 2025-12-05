@@ -115,7 +115,7 @@ serve(async (req) => {
             parameters: [
               { type: "text", text: customerName || "Cliente" },
               { type: "text", text: pedido_numero || "seu pedido" },
-              { type: "text", text: deliveryDate || "em breve" }
+              { type: "text", text: deliveryDate || "em breve" } // ESTE É O TERCEIRO PARÂMETRO
             ]
           }]
         };
