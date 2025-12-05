@@ -26,14 +26,18 @@ serve(async (req) => {
     // Obter credenciais da Evolution API
     const credentials = await getEvolutionCredentials();
     
-    if (!credentials.isOfficial || !credentials.templateName) {
+    // FIXO: Usar o nome do template fornecido pelo usuário
+    const TEMPLATE_NAME = "aviso_entrega_2";
+    const TEMPLATE_LANGUAGE = credentials.templateLanguage || "pt_BR";
+    
+    if (!credentials.isOfficial) {
       return new Response(JSON.stringify({ error: "Template sending only available for official API" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { apiUrl, apiKey, instanceName, templateName, templateLanguage } = credentials;
+    const { apiUrl, apiKey, instanceName } = credentials;
 
     // Normalizar telefone e formatar para WhatsApp (com código do país)
     const normalizedPhone = normalizePhone(phone);
@@ -41,8 +45,8 @@ serve(async (req) => {
 
     console.log("Sending template message:", {
       phone: whatsappPhone,
-      templateName,
-      templateLanguage,
+      templateName: TEMPLATE_NAME,
+      templateLanguage: TEMPLATE_LANGUAGE,
       customerName,
       pedidoNumero,
       deliveryDate
@@ -51,8 +55,8 @@ serve(async (req) => {
     // Montar payload do template com 3 parâmetros: {{1}} cliente, {{2}} pedido, {{3}} data
     const templatePayload: Record<string, unknown> = {
       number: whatsappPhone,
-      name: templateName,
-      language: templateLanguage || "pt_BR",
+      name: TEMPLATE_NAME,
+      language: TEMPLATE_LANGUAGE,
       components: [
         {
           type: "body",

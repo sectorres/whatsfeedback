@@ -26,14 +26,18 @@ serve(async (req) => {
     // Obter credenciais da Evolution API
     const credentials = await getEvolutionCredentials();
     
-    if (!credentials.isOfficial || !credentials.surveyTemplateName) {
+    // FIXO: Usar o nome do template fornecido pelo usuário
+    const SURVEY_TEMPLATE_NAME = "entrega_realizada";
+    const SURVEY_TEMPLATE_LANGUAGE = credentials.templateLanguage || "pt_BR";
+    
+    if (!credentials.isOfficial) {
       return new Response(JSON.stringify({ error: "Survey template sending only available for official API" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { apiUrl, apiKey, instanceName, surveyTemplateName, surveyTemplateLanguage } = credentials;
+    const { apiUrl, apiKey, instanceName } = credentials;
 
     // Normalizar telefone e formatar para WhatsApp (com código do país)
     const normalizedPhone = normalizePhone(phone);
@@ -41,8 +45,8 @@ serve(async (req) => {
 
     console.log("Sending survey template message:", {
       phone: whatsappPhone,
-      templateName: surveyTemplateName,
-      templateLanguage: surveyTemplateLanguage,
+      templateName: SURVEY_TEMPLATE_NAME,
+      templateLanguage: SURVEY_TEMPLATE_LANGUAGE,
       customerName,
     });
 
@@ -50,8 +54,8 @@ serve(async (req) => {
     // O template de pesquisa de satisfação deve usar {{1}} para o nome do cliente
     const templatePayload: Record<string, unknown> = {
       number: whatsappPhone,
-      name: surveyTemplateName,
-      language: surveyTemplateLanguage || "pt_BR",
+      name: SURVEY_TEMPLATE_NAME,
+      language: SURVEY_TEMPLATE_LANGUAGE,
       components: [
         {
           type: "body",
