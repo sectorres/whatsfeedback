@@ -16,8 +16,6 @@ interface EvolutionConfig {
   instance_name: string | null;
   template_name: string | null;
   template_language: string | null;
-  survey_template_name: string | null;
-  survey_template_language: string | null;
   is_active: boolean;
 }
 
@@ -28,8 +26,8 @@ export const EvolutionApiConfig = () => {
   const [instanceName, setInstanceName] = useState("");
   const [templateName, setTemplateName] = useState("");
   const [templateLanguage, setTemplateLanguage] = useState("pt_BR");
-  const [surveyTemplateName, setSurveyTemplateName] = useState("");
-  const [surveyTemplateLanguage, setSurveyTemplateLanguage] = useState("pt_BR");
+  // Removido: [surveyTemplateName, setSurveyTemplateName]
+  // Removido: [surveyTemplateLanguage, setSurveyTemplateLanguage]
   const [showApiKey, setShowApiKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -59,8 +57,8 @@ export const EvolutionApiConfig = () => {
         setInstanceName(data.instance_name || "");
         setTemplateName(data.template_name || "");
         setTemplateLanguage(data.template_language || "pt_BR");
-        setSurveyTemplateName(data.survey_template_name || "");
-        setSurveyTemplateLanguage(data.survey_template_language || "pt_BR");
+        // Removido: setSurveyTemplateName(data.survey_template_name || "");
+        // Removido: setSurveyTemplateLanguage(data.survey_template_language || "pt_BR");
       }
     } catch (error) {
       console.error('Erro ao carregar configuração:', error);
@@ -116,8 +114,8 @@ export const EvolutionApiConfig = () => {
   };
 
   const handleSaveConfig = async () => {
-    if (configType === 'official' && (!apiUrl || !apiKey || !instanceName || !templateName || !surveyTemplateName)) {
-      toast.error("Preencha todos os campos da API oficial antes de salvar (incluindo nome dos templates)");
+    if (configType === 'official' && (!apiUrl || !apiKey || !instanceName || !templateName)) {
+      toast.error("Preencha todos os campos da API oficial antes de salvar (incluindo nome do template de aviso)");
       return;
     }
 
@@ -132,8 +130,8 @@ export const EvolutionApiConfig = () => {
         instance_name: instanceName || null,
         template_name: templateName || null,
         template_language: templateLanguage || 'pt_BR',
-        survey_template_name: surveyTemplateName || null,
-        survey_template_language: surveyTemplateLanguage || 'pt_BR',
+        // Removido: survey_template_name: surveyTemplateName || null,
+        // Removido: survey_template_language: surveyTemplateLanguage || 'pt_BR',
         is_active: true
       };
 
@@ -308,38 +306,15 @@ export const EvolutionApiConfig = () => {
               </div>
             </div>
 
-            {/* Configurações de Template de Pesquisa */}
-            <div className="space-y-4 pt-4 border-t">
+            {/* Configurações de Template de Pesquisa (REMOVIDO TEMPORARIAMENTE) */}
+            <div className="space-y-4 pt-4 border-t opacity-50 pointer-events-none">
               <h3 className="font-semibold text-lg flex items-center gap-2">
                 <Star className="h-5 w-5 text-yellow-600" />
-                Template de Pesquisa de Satisfação
+                Template de Pesquisa de Satisfação (Indisponível)
               </h3>
-              <div className="space-y-2">
-                <Label htmlFor="survey-template">
-                  Nome do Template (Meta)
-                </Label>
-                <Input
-                  id="survey-template"
-                  placeholder="nome_do_template_pesquisa"
-                  value={surveyTemplateName}
-                  onChange={(e) => setSurveyTemplateName(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Nome exato do template aprovado na Meta Business para *Pesquisa de Satisfação*. Deve ter placeholder para nome ({"{{1}}"})
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="survey-template-lang">
-                  Idioma do Template
-                </Label>
-                <Input
-                  id="survey-template-lang"
-                  placeholder="pt_BR"
-                  value={surveyTemplateLanguage}
-                  onChange={(e) => setSurveyTemplateLanguage(e.target.value)}
-                />
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Esta seção está temporariamente desabilitada devido a um erro de sincronização do banco de dados.
+              </p>
             </div>
           </div>
         )}
