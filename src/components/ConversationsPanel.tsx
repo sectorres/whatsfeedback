@@ -249,10 +249,12 @@ export function ConversationsPanel({
         filter: `conversation_id=eq.${selectedConversation.id}`
       }, payload => {
         setMessages(prev => [...prev, payload.new as Message]);
-        // Incrementar contador de não lidas se for mensagem do cliente
+        // Se o usuário está vendo a conversa, manter unread_count em 0
+        // O webhook já incrementa, mas precisamos zerar porque o usuário está lendo
         if (payload.new.sender_type === 'customer') {
           supabase.from('conversations').update({
-            unread_count: selectedConversation.unread_count + 1
+            unread_count: 0,
+            last_read_at: new Date().toISOString()
           }).eq('id', selectedConversation.id);
         }
       }).subscribe();
