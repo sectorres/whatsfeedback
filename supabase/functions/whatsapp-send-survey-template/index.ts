@@ -1,4 +1,6 @@
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-ignore
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { normalizePhone } from "../_shared/phone-utils.ts";
 import { getEvolutionCredentials } from "../_shared/evolution-config.ts";
@@ -53,7 +55,7 @@ serve(async (req) => {
     });
 
     // Montar payload do template
-    // O erro indica que apenas 1 parâmetro é esperado. Usaremos o nome do cliente.
+    // CORREÇÃO: Enviar APENAS 1 parâmetro (nome do cliente)
     const templatePayload: Record<string, unknown> = {
       number: whatsappPhone,
       name: SURVEY_TEMPLATE_NAME,
