@@ -23,12 +23,12 @@ serve(async (req) => {
       });
     }
 
-    // Obter credenciais da Evolution API
+    // Obter credenciais da Evolution API (inclui survey template config)
     const credentials = await getEvolutionCredentials();
     
-    // FIXO: Usar o nome do template fornecido pelo usuário
-    const SURVEY_TEMPLATE_NAME = "entrega_realizada";
-    const SURVEY_TEMPLATE_LANGUAGE = credentials.templateLanguage || "pt_BR";
+    // Usar o template configurado no banco ou fallback para o padrão
+    const SURVEY_TEMPLATE_NAME = credentials.surveyTemplateName || "entrega_realizada";
+    const SURVEY_TEMPLATE_LANGUAGE = credentials.surveyTemplateLanguage || credentials.templateLanguage || "pt_BR";
     
     if (!credentials.isOfficial) {
       return new Response(JSON.stringify({ error: "Survey template sending only available for official API" }), {
