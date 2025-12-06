@@ -27,7 +27,7 @@ serve(async (req) => {
 
     // Buscar credenciais da Evolution API
     const credentials = await getEvolutionCredentials();
-    const isOfficialApi = credentials.isOfficial && !!credentials.surveyTemplateName;
+    const isOfficialApi = credentials.isOfficial && !!credentials.templateName;
 
     // Buscar delays configurados ou usar padrão
     let delayStages = [2, 5, 7, 9, 11, 13, 17];
@@ -298,7 +298,9 @@ Responda apenas com o número da sua avaliação.`;
           const { error: whatsappError } = await supabaseClient.functions.invoke('whatsapp-send-survey-template', {
             body: {
               phone: updatedSend.customer_phone,
-              customerName: updatedSend.customer_name
+              customerName: updatedSend.customer_name,
+              pedidoNumero: updatedSend.pedido_numero || '',
+              driverName: updatedSend.driver_name || ''
             }
           });
 
@@ -383,19 +385,20 @@ Responda apenas com o número da sua avaliação.`;
 
       // Janela de segurança: bloquear reenvio para o mesmo telefone no último minuto
       const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000).toISOString();
-      const uniquePhones = Array.from(new Set(allowedIds.map(id => {
-        const send = campaignSendIds.find(s => s === id);
-        return send?.customer_phone; // Precisa buscar o telefone do campaign_send
-      }).filter(Boolean)));
+      // Nota: uniquePhones será preenchido após buscar os dados dos sends
+      let uniquePhones: string[] = [];
       
       // Buscar dados dos envios permitidos
       console.log('Buscando campaign_sends com IDs permitidos:', allowedIds);
       const { data: selectedSends, error: selectedError } = await supabaseClient
         .from('campaign_sends')
-        .select('id, customer_phone, campaign_id, status, customer_name, pedido_id, driver_name')
+        .select('id, customer_phone, campaign_id, status, customer_name, pedido_id, driver_name, pedido_numero')
         .in('id', allowedIds)
         .in('status', ['success', 'sent', 'confirmed', 'reschedule_requested']);
       if (selectedError) throw selectedError;
+      
+      // Preencher uniquePhones para verificação de janela de tempo
+      uniquePhones = Array.from(new Set((selectedSends || []).map(s => s.customer_phone).filter(Boolean)));
       
       let filteredByTimeWindow = selectedSends;
       
