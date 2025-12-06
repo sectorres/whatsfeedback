@@ -118,8 +118,11 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   });
   const [countdown, setCountdown] = useState<number>(0);
   
-  // Novo estado para a data de entrega
-  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(new Date());
+  // Novo estado para a data de entrega (em branco por padrão, mas obrigatório)
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(undefined);
+  
+  // Estado para saber se está usando API oficial (template)
+  const [isOfficialApi, setIsOfficialApi] = useState(false);
 
   // Datas padrão: primeiro dia do mês corrente até o último dia do mês
   const [startDate, setStartDate] = useState<Date>(() => {
@@ -144,6 +147,25 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         console.error("Error loading templates:", error);
       }
     }
+  }, []);
+
+  // Verificar se está usando API oficial
+  useEffect(() => {
+    const checkApiType = async () => {
+      try {
+        const { data } = await supabase
+          .from("evolution_api_config")
+          .select("config_type, template_name")
+          .eq("is_active", true)
+          .maybeSingle();
+        
+        const isOfficial = data?.config_type === "official" && !!data?.template_name;
+        setIsOfficialApi(isOfficial);
+      } catch (error) {
+        console.error("Erro ao verificar tipo de API:", error);
+      }
+    };
+    checkApiType();
   }, []);
 
   // Save templates to localStorage whenever they change
@@ -642,24 +664,46 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                 {/* Mensagem da Campanha */}
                 <div className="space-y-2">
                   <Label htmlFor="message-template" className="text-base font-semibold">
-                    Mensagem da Campanha
+                    {isOfficialApi ? "Template Meta (API Oficial)" : "Mensagem da Campanha"}
                   </Label>
-                  <Textarea
-                    id="message-template"
-                    placeholder="Digite sua mensagem..."
-                    value={messageTemplate}
-                    onChange={(e) => setMessageTemplate(e.target.value)}
-                    rows={15}
-                    className="resize-none"
-                  />
-                  <div className="flex flex-wrap gap-2">
-                    <p className="text-xs text-muted-foreground w-full">Variáveis disponíveis:</p>
-                    {["{cliente}", "{pedido}", "{data_entrega}", "{valor}", "{status}", "{notaFiscal}"].map((v) => (
-                      <Badge key={v} variant="outline" className="text-xs">
-                        {v}
-                      </Badge>
-                    ))}
-                  </div>
+                  {isOfficialApi ? (
+                    // API Oficial: Mostrar preview do template sem edição
+                    <div className="space-y-2">
+                      <div className="bg-muted/50 border rounded-lg p-4 text-sm whitespace-pre-wrap">
+                        <p className="text-muted-foreground mb-2 text-xs font-medium">
+                          Preview do template que será enviado:
+                        </p>
+                        <div className="bg-background rounded p-3 border">
+                          Olá <span className="text-primary font-medium">{"{{nome_cliente}}"}</span>,{"\n\n"}
+                          Seu pedido <span className="text-primary font-medium">{"{{numero_pedido}}"}</span> será entregue pelo motorista <span className="text-primary font-medium">{"{{nome_motorista}}"}</span>.{"\n\n"}
+                          Por favor, avalie nossa entrega respondendo de 1 a 5.
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        ℹ️ Usando API oficial da Meta. O template configurado será enviado automaticamente.
+                      </p>
+                    </div>
+                  ) : (
+                    // API Não Oficial: Textarea editável
+                    <>
+                      <Textarea
+                        id="message-template"
+                        placeholder="Digite sua mensagem..."
+                        value={messageTemplate}
+                        onChange={(e) => setMessageTemplate(e.target.value)}
+                        rows={15}
+                        className="resize-none"
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <p className="text-xs text-muted-foreground w-full">Variáveis disponíveis:</p>
+                        {["{cliente}", "{pedido}", "{data_entrega}", "{valor}", "{status}", "{notaFiscal}"].map((v) => (
+                          <Badge key={v} variant="outline" className="text-xs">
+                            {v}
+                          </Badge>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Botão de Enviar Campanha */}
