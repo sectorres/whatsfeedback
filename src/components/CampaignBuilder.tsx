@@ -124,6 +124,13 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   // Estado para saber se está usando API oficial (template)
   const [isOfficialApi, setIsOfficialApi] = useState(false);
 
+  // Estado para dados de preview
+  const [previewData, setPreviewData] = useState({
+    cliente: "João da Silva",
+    pedido: "000/0000000-P",
+    data_entrega: "XX/XX/XXXX",
+  });
+
   // Datas padrão: primeiro dia do mês corrente até o último dia do mês
   const [startDate, setStartDate] = useState<Date>(() => {
     const date = new Date();
@@ -205,13 +212,28 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   const filteredCargas = statusFilter === "all" ? cargas : cargas.filter((c) => c.status === statusFilter);
   const selectedCarga = cargas.find((c) => c.id.toString() === selectedCargaId);
 
-  // Selecionar automaticamente todos os pedidos quando uma carga é escolhida
+  // Atualizar preview e selecionar todos os pedidos quando uma carga é escolhida
   useEffect(() => {
     if (selectedCarga && selectedCarga.pedidos) {
       const allIds = new Set(selectedCarga.pedidos.map((p) => p.id));
       setSelectedPedidos(allIds);
+
+      const firstPedido = selectedCarga.pedidos[0];
+      if (firstPedido) {
+        setPreviewData({
+          cliente: firstPedido.cliente?.nome || "Cliente Exemplo",
+          pedido: firstPedido.pedido || "000/0000000-P",
+          data_entrega: deliveryDate ? format(deliveryDate, "dd/MM/yyyy", { locale: ptBR }) : "XX/XX/XXXX",
+        });
+      }
+    } else {
+      setPreviewData({
+        cliente: "João da Silva",
+        pedido: "000/0000000-P",
+        data_entrega: deliveryDate ? format(deliveryDate, "dd/MM/yyyy", { locale: ptBR }) : "XX/XX/XXXX",
+      });
     }
-  }, [selectedCargaId, selectedCarga]);
+  }, [selectedCargaId, selectedCarga, deliveryDate]);
   
   const togglePedido = (pedidoId: number) => {
     const newSelected = new Set(selectedPedidos);
@@ -612,6 +634,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     setMessageTemplate(savedTemplates[0].template);
     toast.success("Template deletado!");
   };
+
+  const previewMessage = `Olá ${previewData.cliente},\n\n*Seu pedido ${previewData.pedido} será entregue dia ${previewData.data_entrega}*`;
   
   return (
     <div className="space-y-6">
@@ -674,8 +698,8 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                           Preview do template que será enviado:
                         </p>
                         <div className="bg-background rounded p-3 border">
-                          Olá <span className="text-primary font-medium">{"{{cliente}}"}</span>,{"\n\n"}
-                          *Seu pedido <span className="text-primary font-medium">{"{{pedido}}"}</span> será entregue dia XX/XX/XXXX*{"\n\n"}
+                          {previewMessage}
+                          {"\n\n"}
                           IMPORTANTE:{"\n"}
                           ✅ Ter alguém maior de 18 anos para receber{"\n"}
                           ✅ Conferir a mercadoria no ato da entrega
