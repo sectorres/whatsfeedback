@@ -53,7 +53,7 @@ serve(async (req) => {
     });
 
     // Montar payload do template
-    // O template de pesquisa de satisfação deve usar {{1}}, {{2}}, {{3}} para os parâmetros
+    // O erro indica que apenas 1 parâmetro é esperado. Usaremos o nome do cliente.
     const templatePayload: Record<string, unknown> = {
       number: whatsappPhone,
       name: SURVEY_TEMPLATE_NAME,
@@ -62,12 +62,8 @@ serve(async (req) => {
         {
           type: "body",
           parameters: [
-            // Parâmetro {{1}} para o nome do cliente
+            // Parâmetro {{1}} para o nome do cliente (único parâmetro esperado)
             { type: "text", text: customerName || "Cliente" },
-            // Parâmetro {{2}} para o número do pedido
-            { type: "text", text: pedidoNumero || "Pedido" },
-            // Parâmetro {{3}} para o nome do motorista
-            { type: "text", text: driverName || "Motorista" },
           ]
         }
       ]
