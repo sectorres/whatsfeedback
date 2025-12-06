@@ -26,8 +26,8 @@ export const EvolutionApiConfig = () => {
   const [instanceName, setInstanceName] = useState("");
   const [templateName, setTemplateName] = useState("");
   const [templateLanguage, setTemplateLanguage] = useState("pt_BR");
-  // Removido: [surveyTemplateName, setSurveyTemplateName]
-  // Removido: [surveyTemplateLanguage, setSurveyTemplateLanguage]
+  const [surveyTemplateName, setSurveyTemplateName] = useState("entrega_realizada");
+  const [surveyTemplateLanguage, setSurveyTemplateLanguage] = useState("pt_BR");
   const [showApiKey, setShowApiKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -57,8 +57,8 @@ export const EvolutionApiConfig = () => {
         setInstanceName(data.instance_name || "");
         setTemplateName(data.template_name || "");
         setTemplateLanguage(data.template_language || "pt_BR");
-        // Removido: setSurveyTemplateName(data.survey_template_name || "");
-        // Removido: setSurveyTemplateLanguage(data.survey_template_language || "pt_BR");
+        setSurveyTemplateName(data.survey_template_name || "entrega_realizada");
+        setSurveyTemplateLanguage(data.survey_template_language || "pt_BR");
       }
     } catch (error) {
       console.error('Erro ao carregar configuração:', error);
@@ -130,8 +130,8 @@ export const EvolutionApiConfig = () => {
         instance_name: instanceName || null,
         template_name: templateName || null,
         template_language: templateLanguage || 'pt_BR',
-        // Removido: survey_template_name: surveyTemplateName || null,
-        // Removido: survey_template_language: surveyTemplateLanguage || 'pt_BR',
+        survey_template_name: surveyTemplateName || null,
+        survey_template_language: surveyTemplateLanguage || 'pt_BR',
         is_active: true
       };
 
@@ -306,19 +306,37 @@ export const EvolutionApiConfig = () => {
               </div>
             </div>
 
-            {/* Configurações de Template de Pesquisa (FIXO) */}
+            {/* Configurações de Template de Pesquisa */}
             <div className="space-y-4 pt-4 border-t">
               <h3 className="font-semibold text-lg flex items-center gap-2">
                 <Star className="h-5 w-5 text-yellow-600" />
                 Template de Pesquisa de Satisfação
               </h3>
-              <div className="bg-muted p-3 rounded-lg">
-                <p className="text-sm font-medium">
-                  Nome do Template (Meta): <span className="font-mono text-primary">entrega_realizada</span>
+              <div className="space-y-2">
+                <Label htmlFor="survey-template">
+                  Nome do Template (Meta)
+                </Label>
+                <Input
+                  id="survey-template"
+                  placeholder="entrega_realizada"
+                  value={surveyTemplateName}
+                  onChange={(e) => setSurveyTemplateName(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Nome exato do template aprovado na Meta Business para *Pesquisa de Satisfação*.
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Este template está fixo no backend devido a problemas de infraestrutura.
-                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="survey-template-lang">
+                  Idioma do Template
+                </Label>
+                <Input
+                  id="survey-template-lang"
+                  placeholder="pt_BR"
+                  value={surveyTemplateLanguage}
+                  onChange={(e) => setSurveyTemplateLanguage(e.target.value)}
+                />
               </div>
             </div>
           </div>
