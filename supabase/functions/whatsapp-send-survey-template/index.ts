@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { phone, customerName } = await req.json();
+    const { phone, customerName, pedidoNumero, driverName } = await req.json();
 
     if (!phone) {
       return new Response(JSON.stringify({ error: "Phone number is required" }), {
@@ -48,10 +48,12 @@ serve(async (req) => {
       templateName: SURVEY_TEMPLATE_NAME,
       templateLanguage: SURVEY_TEMPLATE_LANGUAGE,
       customerName,
+      pedidoNumero,
+      driverName,
     });
 
     // Montar payload do template
-    // O template de pesquisa de satisfação deve usar {{1}} para o nome do cliente
+    // O template de pesquisa de satisfação deve usar {{1}}, {{2}}, {{3}} para os parâmetros
     const templatePayload: Record<string, unknown> = {
       number: whatsappPhone,
       name: SURVEY_TEMPLATE_NAME,
@@ -62,6 +64,10 @@ serve(async (req) => {
           parameters: [
             // Parâmetro {{1}} para o nome do cliente
             { type: "text", text: customerName || "Cliente" },
+            // Parâmetro {{2}} para o número do pedido
+            { type: "text", text: pedidoNumero || "Pedido" },
+            // Parâmetro {{3}} para o nome do motorista
+            { type: "text", text: driverName || "Motorista" },
           ]
         }
       ]
