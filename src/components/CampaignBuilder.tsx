@@ -674,9 +674,11 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                           Preview do template que será enviado:
                         </p>
                         <div className="bg-background rounded p-3 border">
-                          Olá <span className="text-primary font-medium">{"{{nome_cliente}}"}</span>,{"\n\n"}
-                          Seu pedido <span className="text-primary font-medium">{"{{numero_pedido}}"}</span> será entregue pelo motorista <span className="text-primary font-medium">{"{{nome_motorista}}"}</span>.{"\n\n"}
-                          Por favor, avalie nossa entrega respondendo de 1 a 5.
+                          Olá <span className="text-primary font-medium">{"{{cliente}}"}</span>,{"\n\n"}
+                          *Seu pedido <span className="text-primary font-medium">{"{{pedido}}"}</span> será entregue dia XX/XX/XXXX*{"\n\n"}
+                          IMPORTANTE:{"\n"}
+                          ✅ Ter alguém maior de 18 anos para receber{"\n"}
+                          ✅ Conferir a mercadoria no ato da entrega
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground">
