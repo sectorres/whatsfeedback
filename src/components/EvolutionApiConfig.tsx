@@ -50,15 +50,16 @@ export const EvolutionApiConfig = () => {
       if (error) throw error;
 
       if (data) {
-        setConfigId(data.id);
-        setConfigType(data.config_type as 'unofficial' | 'official');
-        setApiUrl(data.api_url || "");
-        setApiKey(data.api_key || "");
-        setInstanceName(data.instance_name || "");
-        setTemplateName(data.template_name || "");
-        setTemplateLanguage(data.template_language || "pt_BR");
-        setSurveyTemplateName(data.survey_template_name || "entrega_realizada");
-        setSurveyTemplateLanguage(data.survey_template_language || "pt_BR");
+        const config = data as any; // Cast para ignorar tipos desatualizados
+        setConfigId(config.id);
+        setConfigType(config.config_type as 'unofficial' | 'official');
+        setApiUrl(config.api_url || "");
+        setApiKey(config.api_key || "");
+        setInstanceName(config.instance_name || "");
+        setTemplateName(config.template_name || "");
+        setTemplateLanguage(config.template_language || "pt_BR");
+        setSurveyTemplateName(config.survey_template_name || "entrega_realizada");
+        setSurveyTemplateLanguage(config.survey_template_language || "pt_BR");
       }
     } catch (error) {
       console.error('Erro ao carregar configuração:', error);

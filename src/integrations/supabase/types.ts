@@ -421,6 +421,8 @@ export type Database = {
           id: string
           instance_name: string | null
           is_active: boolean
+          survey_template_language: string | null
+          survey_template_name: string | null
           template_language: string | null
           template_name: string | null
           updated_at: string
@@ -433,6 +435,8 @@ export type Database = {
           id?: string
           instance_name?: string | null
           is_active?: boolean
+          survey_template_language?: string | null
+          survey_template_name?: string | null
           template_language?: string | null
           template_name?: string | null
           updated_at?: string
@@ -445,6 +449,8 @@ export type Database = {
           id?: string
           instance_name?: string | null
           is_active?: boolean
+          survey_template_language?: string | null
+          survey_template_name?: string | null
           template_language?: string | null
           template_name?: string | null
           updated_at?: string

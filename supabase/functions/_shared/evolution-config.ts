@@ -8,6 +8,8 @@ export interface EvolutionCredentials {
   isOfficial: boolean;
   templateName?: string;
   templateLanguage?: string;
+  surveyTemplateName?: string;
+  surveyTemplateLanguage?: string;
 }
 
 /**
@@ -45,6 +47,8 @@ export async function getEvolutionCredentials(): Promise<EvolutionCredentials> {
       isOfficial: true,
       templateName: config.template_name || undefined,
       templateLanguage: config.template_language || 'pt_BR',
+      surveyTemplateName: config.survey_template_name || 'entrega_realizada',
+      surveyTemplateLanguage: config.survey_template_language || 'pt_BR',
     };
   }
 
