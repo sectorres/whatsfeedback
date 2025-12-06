@@ -27,11 +27,11 @@ serve(async (req) => {
 
     // Obter credenciais da Evolution API (inclui survey template config)
     const credentials = await getEvolutionCredentials();
-    
+
     // Usar o template configurado no banco ou fallback para o padrão
     const SURVEY_TEMPLATE_NAME = credentials.surveyTemplateName || "entrega_realizada";
     const SURVEY_TEMPLATE_LANGUAGE = credentials.surveyTemplateLanguage || credentials.templateLanguage || "pt_BR";
-    
+
     if (!credentials.isOfficial) {
       return new Response(JSON.stringify({ error: "Survey template sending only available for official API" }), {
         status: 400,
@@ -66,9 +66,9 @@ serve(async (req) => {
           parameters: [
             // Parâmetro {{1}} para o nome do cliente (único parâmetro esperado)
             { type: "text", text: customerName || "Cliente" },
-          ]
-        }
-      ]
+          ],
+        },
+      ],
     };
 
     // Enviar template via Evolution API
@@ -76,7 +76,7 @@ serve(async (req) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "apikey": apiKey,
+        apikey: apiKey,
       },
       body: JSON.stringify(templatePayload),
     });
@@ -85,31 +85,39 @@ serve(async (req) => {
 
     if (!templateResponse.ok) {
       console.error("Survey template send error:", templateResult);
-      return new Response(JSON.stringify({ 
-        error: "Failed to send survey template", 
-        details: templateResult 
-      }), {
-        status: templateResponse.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Failed to send survey template",
+          details: templateResult,
+        }),
+        {
+          status: templateResponse.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     console.log("Survey template sent successfully:", templateResult);
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      result: templateResult 
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        result: templateResult,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (error) {
     console.error("Error in whatsapp-send-survey-template:", error);
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : "Unknown error" 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error",
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });
