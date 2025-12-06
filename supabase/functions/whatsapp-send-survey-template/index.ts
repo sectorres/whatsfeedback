@@ -1,9 +1,13 @@
-// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-// @ts-ignore
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { normalizePhone } from "../_shared/phone-utils.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getEvolutionCredentials } from "../_shared/evolution-config.ts";
+
+const surveySendSchema = z.object({
+  campaignSendIds: z.array(z.string().uuid()).optional(),
+  campaignId: z.string().uuid().optional(),
+  runId: z.string().uuid().optional(),
+});
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,108 +20,549 @@ serve(async (req) => {
   }
 
   try {
-    const { phone, customerName, pedidoNumero, driverName } = await req.json();
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
 
-    if (!phone) {
-      return new Response(JSON.stringify({ error: "Phone number is required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Obter credenciais da Evolution API (inclui survey template config)
+    // Buscar credenciais da Evolution API
     const credentials = await getEvolutionCredentials();
+    const isOfficialApi = credentials.isOfficial && !!credentials.templateName;
 
-    // Usar o template configurado no banco ou fallback para o padrão
-    const SURVEY_TEMPLATE_NAME = credentials.surveyTemplateName || "entrega_realizada";
-    const SURVEY_TEMPLATE_LANGUAGE = credentials.surveyTemplateLanguage || credentials.templateLanguage || "pt_BR";
+    // Buscar delays configurados ou usar padrão
+    let delayStages = [2, 5, 7, 9, 11, 13, 17];
 
-    if (!credentials.isOfficial) {
-      return new Response(JSON.stringify({ error: "Survey template sending only available for official API" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    try {
+      const { data: configData } = await supabaseClient
+        .from("app_config")
+        .select("config_value")
+        .eq("config_key", "message_send_delays")
+        .maybeSingle();
+
+      if (configData?.config_value) {
+        const parsed = JSON.parse(configData.config_value);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          delayStages = parsed;
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao buscar delays configurados, usando padrão:", error);
     }
 
-    const { apiUrl, apiKey, instanceName } = credentials;
-
-    // Normalizar telefone e formatar para WhatsApp (com código do país)
-    const normalizedPhone = normalizePhone(phone);
-    const whatsappPhone = `55${normalizedPhone}`;
-
-    console.log("Sending survey template message:", {
-      phone: whatsappPhone,
-      templateName: SURVEY_TEMPLATE_NAME,
-      templateLanguage: SURVEY_TEMPLATE_LANGUAGE,
-      customerName,
-      pedidoNumero,
-      driverName,
-    });
-
-    // Montar payload do template
-    // CORREÇÃO: Enviar APENAS 1 parâmetro (nome do cliente)
-    const templatePayload: Record<string, unknown> = {
-      number: whatsappPhone,
-      name: SURVEY_TEMPLATE_NAME,
-      language: SURVEY_TEMPLATE_LANGUAGE,
-      components: [
-        {
-          type: "body",
-          parameters: [
-            // Parâmetro {{1}} para o nome do cliente (único parâmetro esperado)
-            { type: "text", text: customerName || "Cliente" },
-          ],
-        },
-      ],
+    const getProgressiveDelay = (messageIndex: number): number => {
+      const stageIndex = messageIndex % delayStages.length;
+      return delayStages[stageIndex];
     };
 
-    // Enviar template via Evolution API
-    const templateResponse = await fetch(`${apiUrl}/message/sendTemplate/${instanceName}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: apiKey,
-      },
-      body: JSON.stringify(templatePayload),
-    });
+    // Aceitar envio individual ou em lote
+    const body = await req.json().catch(() => ({}));
 
-    const templateResult = await templateResponse.json();
+    // Validate input
+    const validationResult = surveySendSchema.safeParse(body);
+    if (!validationResult.success) {
+      return new Response(JSON.stringify({ error: "Dados inválidos", details: validationResult.error.errors }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (!templateResponse.ok) {
-      console.error("Survey template send error:", templateResult);
+    const { campaignSendIds, campaignId, runId: providedRunId } = validationResult.data;
+
+    console.log("=== INÍCIO SEND-SATISFACTION-SURVEY ===");
+    console.log("API Type:", isOfficialApi ? "Official (Template)" : "Unofficial (Text)");
+    console.log("campaignSendIds recebidos:", JSON.stringify(campaignSendIds));
+    console.log("campaignId recebido:", campaignId || null);
+    console.log("Quantidade de IDs:", campaignSendIds?.length || 0);
+    console.log("Buscando envios de campanha elegíveis para pesquisa de satisfação...");
+
+    // Usar runId fornecido ou criar um novo
+    let runId = providedRunId as string | undefined;
+    if (!runId) {
+      const { data: runData, error: runError } = await supabaseClient
+        .from("survey_send_runs")
+        .insert({
+          campaign_id: campaignId || null,
+          status: "running",
+        })
+        .select()
+        .single();
+
+      if (runError) {
+        console.error("Erro ao criar run:", runError);
+        throw runError;
+      }
+
+      runId = runData.id;
+    }
+    console.log(`Run em uso: ${runId}`);
+
+    // Se o payload incluir campaignSendIds mas estiver vazio, NÃO deve enviar para todos
+    if (Array.isArray(campaignSendIds) && campaignSendIds.length === 0) {
+      console.log("Nenhum envio elegível — recebidos 0 IDs; abortando.");
       return new Response(
         JSON.stringify({
-          error: "Failed to send survey template",
-          details: templateResult,
+          success: false,
+          surveys_sent: 0,
+          new_surveys: 0,
+          resent_surveys: 0,
+          failed_surveys: 0,
+          errors: [],
+          message: "Nenhum envio elegível para a campanha selecionada",
         }),
-        {
-          status: templateResponse.status,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    console.log("Survey template sent successfully:", templateResult);
+    // Buscar mensagem configurada ou usar padrão (apenas para API não oficial)
+    let surveyMessageTemplate = `Olá{NOME}!
+
+De uma nota de 1 a 5 para a entrega de seus produtos.
+
+1️⃣ - Muito insatisfeito
+2️⃣ - Insatisfeito  
+3️⃣ - Neutro
+4️⃣ - Satisfeito
+5️⃣ - Muito satisfeito
+
+Responda apenas com o número da sua avaliação.`;
+
+    if (!isOfficialApi) {
+      try {
+        const { data: configData } = await supabaseClient
+          .from("app_config")
+          .select("config_value")
+          .eq("config_key", "satisfaction_survey_message")
+          .maybeSingle();
+
+        if (configData?.config_value) {
+          surveyMessageTemplate = configData.config_value;
+        }
+      } catch (error) {
+        console.error("Erro ao buscar mensagem configurada, usando padrão:", error);
+      }
+    }
+
+    // Função para aplicar o nome do cliente na mensagem (apenas para API não oficial)
+    const getSurveyMessage = (customerName?: string) => {
+      if (isOfficialApi) return ""; // Não usado para template
+
+      if (customerName && surveyMessageTemplate.includes("{NOME}")) {
+        return surveyMessageTemplate.replace("{NOME}", " " + customerName);
+      } else if (customerName) {
+        // Se não tem {NOME} no template, adiciona no início
+        return surveyMessageTemplate.replace("Olá!", `Olá ${customerName}!`).replace("Olá", `Olá ${customerName}`);
+      }
+      // Se não tem nome, remove o placeholder
+      return surveyMessageTemplate.replace("{NOME}", "");
+    };
+
+    // Função auxiliar para verificar e atualizar motorista via API usando pedido_id
+    const checkAndUpdateDriver = async (send: any) => {
+      try {
+        // Verificar se tem pedido_id
+        if (!send.pedido_id) {
+          console.log(`⚠️ Pedido sem pedido_id para ${send.customer_phone}`);
+          return send;
+        }
+
+        console.log(`🔍 Verificando motorista para pedido_id: ${send.pedido_id}`);
+
+        // Consultar API com range de 90 dias
+        const dataFinal = new Date();
+        const dataInicial = new Date();
+        dataInicial.setDate(dataInicial.getDate() - 90);
+
+        const dataInicialFormatada = dataInicial.toISOString().split("T")[0].replace(/-/g, "");
+        const dataFinalFormatada = dataFinal.toISOString().split("T")[0].replace(/-/g, "");
+
+        console.log(`Buscando cargas de ${dataInicialFormatada} até ${dataFinalFormatada}`);
+
+        const { data: apiData, error: apiError } = await supabaseClient.functions.invoke("fetch-cargas", {
+          body: {
+            dataInicial: dataInicialFormatada,
+            dataFinal: dataFinalFormatada,
+          },
+        });
+
+        if (apiError) {
+          console.error("❌ Erro ao consultar API:", apiError);
+          return send;
+        }
+
+        const totalCargas = apiData?.retorno?.cargas?.length || 0;
+        console.log(`API retornou ${totalCargas} cargas`);
+
+        // Procurar o pedido específico pelo ID
+        let pedidoEncontrado = null;
+        let motoristaAtual = null;
+        let cargaId = null;
+
+        if (apiData?.retorno?.cargas) {
+          for (const carga of apiData.retorno.cargas) {
+            if (carga.pedidos && Array.isArray(carga.pedidos)) {
+              const pedido = carga.pedidos.find((p: any) => p.id === send.pedido_id);
+
+              if (pedido) {
+                pedidoEncontrado = pedido;
+                motoristaAtual = carga.nomeMotorista;
+                cargaId = carga.id;
+                console.log(`✅ Pedido ${send.pedido_id} encontrado na carga ${cargaId}`);
+                console.log(`   Motorista na API: "${motoristaAtual}"`);
+                console.log(`   Motorista no registro: "${send.driver_name}"`);
+                break;
+              }
+            }
+          }
+        }
+
+        // Se encontrou o pedido e o motorista mudou, atualizar
+        if (pedidoEncontrado && motoristaAtual && motoristaAtual !== send.driver_name) {
+          console.log(`🔄 Atualizando motorista de "${send.driver_name}" para "${motoristaAtual}"`);
+
+          const { error: updateError } = await supabaseClient
+            .from("campaign_sends")
+            .update({ driver_name: motoristaAtual })
+            .eq("id", send.id);
+
+          if (updateError) {
+            console.error("❌ Erro ao atualizar motorista:", updateError);
+          } else {
+            console.log(`✅ Motorista atualizado com sucesso para ${send.customer_phone}`);
+            return { ...send, driver_name: motoristaAtual };
+          }
+        } else if (!pedidoEncontrado) {
+          console.log(`❌ Pedido ID ${send.pedido_id} não encontrado após buscar ${totalCargas} cargas`);
+        } else if (motoristaAtual === send.driver_name) {
+          console.log(`✓ Motorista não mudou (mantém: ${motoristaAtual})`);
+        }
+
+        return send;
+      } catch (error) {
+        console.error("❌ Erro ao verificar motorista:", error);
+        return send;
+      }
+    };
+
+    // Função auxiliar para enviar uma pesquisa
+    const sendSingleSurvey = async (send: any) => {
+      try {
+        // Verificar e atualizar motorista antes de enviar
+        const updatedSend = await checkAndUpdateDriver(send);
+
+        // Verificar se já existe pesquisa para este envio
+        const { data: existingSurvey } = await supabaseClient
+          .from("satisfaction_surveys")
+          .select("*")
+          .eq("campaign_send_id", updatedSend.id)
+          .maybeSingle();
+
+        let survey = existingSurvey;
+        let isNew = false;
+
+        if (!existingSurvey) {
+          // Criar nova pesquisa
+          const { data: newSurvey, error: surveyError } = await supabaseClient
+            .from("satisfaction_surveys")
+            .insert({
+              campaign_send_id: updatedSend.id,
+              customer_phone: updatedSend.customer_phone,
+              customer_name: updatedSend.customer_name,
+              status: "pending",
+              sent_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+          if (surveyError) throw surveyError;
+          survey = newSurvey;
+          isNew = true;
+        } else {
+          // Atualizar pesquisa existente para reenvio
+          const { data: updatedSurvey, error: updateError } = await supabaseClient
+            .from("satisfaction_surveys")
+            .update({
+              status: "pending",
+              sent_at: new Date().toISOString(),
+            })
+            .eq("id", existingSurvey.id)
+            .select()
+            .single();
+
+          if (updateError) throw updateError;
+          survey = updatedSurvey;
+        }
+
+        // Enviar mensagem via WhatsApp
+        if (isOfficialApi) {
+          // API Oficial: Enviar Template de Pesquisa
+          const { error: whatsappError } = await supabaseClient.functions.invoke("whatsapp-send-survey-template", {
+            body: {
+              phone: updatedSend.customer_phone,
+              customerName: updatedSend.customer_name,
+            },
+          });
+
+          if (whatsappError) {
+            await supabaseClient.from("satisfaction_surveys").update({ status: "failed" }).eq("id", survey.id);
+            throw whatsappError;
+          }
+        } else {
+          // API Não Oficial: Enviar Mensagem de Texto
+          const surveyMessage = getSurveyMessage(updatedSend.customer_name);
+          const { error: whatsappError } = await supabaseClient.functions.invoke("whatsapp-send", {
+            body: {
+              phone: updatedSend.customer_phone,
+              message: surveyMessage,
+            },
+          });
+
+          if (whatsappError) {
+            await supabaseClient.from("satisfaction_surveys").update({ status: "failed" }).eq("id", survey.id);
+            throw whatsappError;
+          }
+        }
+
+        // Atualizar status para enviado
+        await supabaseClient.from("satisfaction_surveys").update({ status: "sent" }).eq("id", survey.id);
+
+        console.log(`Pesquisa enviada para ${updatedSend.customer_phone}`);
+        return { success: true, isNew, survey };
+      } catch (error) {
+        console.error(`Erro ao enviar pesquisa para ${send.customer_phone}:`, error);
+        return { success: false, error, send };
+      }
+    };
+
+    let sendsToProcess: any[] = [];
+
+    // Se foram especificados IDs, buscar apenas esses envios
+    if (campaignSendIds && campaignSendIds.length > 0) {
+      console.log(`Processando ${campaignSendIds.length} envios específicos`);
+
+      // Verificar se algum desses envios já tem pesquisa enviada, respondida, expirada OU cancelada (bloqueio por campaign_send_id)
+      const { data: existingSurveys, error: existingError } = await supabaseClient
+        .from("satisfaction_surveys")
+        .select("campaign_send_id")
+        .in("campaign_send_id", campaignSendIds)
+        .in("status", ["sent", "responded", "expired", "cancelled"]);
+
+      if (existingError) throw existingError;
+
+      const existingSurveyIds = existingSurveys?.map((s) => s.campaign_send_id) || [];
+
+      if (existingSurveyIds.length > 0) {
+        console.log(
+          `Bloqueando ${existingSurveyIds.length} pesquisas já enviadas, respondidas, expiradas ou canceladas para mesma carga`,
+        );
+      }
+
+      // Filtrar apenas os IDs que NÃO foram enviados ou respondidos para mesma carga
+      const allowedIds = campaignSendIds.filter((id) => !existingSurveyIds.includes(id));
+
+      if (allowedIds.length === 0) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            surveys_sent: 0,
+            new_surveys: 0,
+            resent_surveys: 0,
+            failed_surveys: 0,
+            errors: [],
+            message: "Todas as pesquisas selecionadas já foram enviadas, respondidas, expiradas ou removidas",
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      // Janela de segurança: bloquear reenvio para o mesmo telefone no último minuto
+      const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000).toISOString();
+      // Nota: uniquePhones será preenchido após buscar os dados dos sends
+      let uniquePhones: string[] = [];
+
+      // Buscar dados dos envios permitidos
+      console.log("Buscando campaign_sends com IDs permitidos:", allowedIds);
+      const { data: selectedSends, error: selectedError } = await supabaseClient
+        .from("campaign_sends")
+        .select("id, customer_phone, campaign_id, status, customer_name, pedido_id, driver_name, pedido_numero")
+        .in("id", allowedIds)
+        .in("status", ["success", "sent", "confirmed", "reschedule_requested"]);
+      if (selectedError) throw selectedError;
+
+      // Preencher uniquePhones para verificação de janela de tempo
+      uniquePhones = Array.from(new Set((selectedSends || []).map((s) => s.customer_phone).filter(Boolean)));
+
+      let filteredByTimeWindow = selectedSends;
+
+      if (uniquePhones.length > 0) {
+        const { data: recentSurveys, error: recentErr } = await supabaseClient
+          .from("satisfaction_surveys")
+          .select("customer_phone")
+          .in("customer_phone", uniquePhones)
+          .in("status", ["sent", "responded", "expired"])
+          .gte("sent_at", oneMinuteAgo);
+
+        if (recentErr) throw recentErr;
+
+        const recentPhones = new Set((recentSurveys || []).map((s) => s.customer_phone));
+        const beforeCount = filteredByTimeWindow?.length || 0;
+        filteredByTimeWindow = (filteredByTimeWindow || []).filter((s) => !recentPhones.has(s.customer_phone));
+
+        if (beforeCount > filteredByTimeWindow.length) {
+          console.log(
+            `Bloqueados ${beforeCount - filteredByTimeWindow.length} envios por janela de 1 minuto (mesmo telefone)`,
+          );
+        }
+      }
+
+      sendsToProcess = filteredByTimeWindow || [];
+    } else {
+      // Buscar pesquisas já enviadas, respondidas, expiradas OU canceladas para mesma carga (bloqueio por campaign_send_id)
+      const { data: existingSurveys, error: existingError } = await supabaseClient
+        .from("satisfaction_surveys")
+        .select("campaign_send_id")
+        .in("status", ["sent", "responded", "expired", "cancelled"]);
+
+      if (existingError) throw existingError;
+
+      const existingSurveyIds = existingSurveys?.map((s) => s.campaign_send_id) || [];
+      console.log(
+        `Encontradas ${existingSurveys?.length || 0} pesquisas já enviadas, respondidas, expiradas ou canceladas (bloqueio por carga)`,
+      );
+
+      // Buscar envios elegíveis (status success, sent, confirmed ou reschedule_requested)
+      const { data: eligibleSends, error: sendsError } = await supabaseClient
+        .from("campaign_sends")
+        .select("*")
+        .in("status", ["success", "sent", "confirmed", "reschedule_requested"]);
+
+      if (sendsError) throw sendsError;
+
+      console.log(
+        `Encontrados ${eligibleSends?.length || 0} envios com status success/sent/confirmed/reschedule_requested`,
+      );
+
+      // Filtrar envios que não têm pesquisa enviada/respondida para mesma carga
+      let filteredSends = (eligibleSends || []).filter((s) => !existingSurveyIds.includes(s.id));
+      // Se campaignId foi enviado, restringir à campanha selecionada
+      if (campaignId) {
+        const before = filteredSends.length;
+        filteredSends = filteredSends.filter((s) => s.campaign_id === campaignId);
+        console.log(`Aplicado filtro por campaignId=${campaignId}. Antes: ${before}, depois: ${filteredSends.length}`);
+      }
+
+      // Janela de segurança: bloquear reenvio para o mesmo telefone no último minuto
+      const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000).toISOString();
+      const uniquePhones = Array.from(new Set(filteredSends.map((s) => s.customer_phone)));
+
+      if (uniquePhones.length > 0) {
+        const { data: recentSurveys, error: recentErr } = await supabaseClient
+          .from("satisfaction_surveys")
+          .select("customer_phone")
+          .in("customer_phone", uniquePhones)
+          .in("status", ["sent", "responded", "expired"])
+          .gte("sent_at", oneMinuteAgo);
+
+        if (recentErr) throw recentErr;
+
+        const recentPhones = new Set((recentSurveys || []).map((s) => s.customer_phone));
+        const beforeCount = filteredSends.length;
+        filteredSends = filteredSends.filter((s) => !recentPhones.has(s.customer_phone));
+
+        if (beforeCount > filteredSends.length) {
+          console.log(
+            `Bloqueados ${beforeCount - filteredSends.length} envios por janela de 1 minuto (mesmo telefone)`,
+          );
+        }
+      }
+
+      sendsToProcess = filteredSends;
+      console.log(`Encontrados ${sendsToProcess.length || 0} envios elegíveis após filtros`);
+    }
+
+    const results = {
+      sent: 0,
+      new: 0,
+      resent: 0,
+      failed: 0,
+      errors: [] as any[],
+    };
+
+    // Processar envios com delay, verificando cancelamento
+    for (let i = 0; i < sendsToProcess.length; i++) {
+      // Verificar se o run foi cancelado
+      const { data: currentRun } = await supabaseClient
+        .from("survey_send_runs")
+        .select("status")
+        .eq("id", runId)
+        .single();
+
+      if (currentRun?.status === "cancelled") {
+        console.log(`Run ${runId} foi cancelado - abortando envios`);
+
+        // Atualizar status final
+        await supabaseClient.from("survey_send_runs").update({ status: "cancelled" }).eq("id", runId);
+
+        return new Response(
+          JSON.stringify({
+            success: false,
+            cancelled: true,
+            surveys_sent: results.sent,
+            new_surveys: results.new,
+            resent_surveys: results.resent,
+            failed_surveys: results.failed,
+            message: `Envio cancelado após ${results.sent} pesquisas enviadas`,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const result = await sendSingleSurvey(sendsToProcess[i]);
+
+      if (result.success) {
+        results.sent++;
+        if (result.isNew) {
+          results.new++;
+        } else {
+          results.resent++;
+        }
+      } else {
+        results.failed++;
+        results.errors.push({
+          phone: result.send?.customer_phone,
+          error: result.error instanceof Error ? result.error.message : "Erro desconhecido",
+        });
+      }
+
+      // Delay progressivo: 2s → 5s → 7s → 9s → 11s → 13s → 17s
+      if (i < sendsToProcess.length - 1) {
+        const delaySeconds = getProgressiveDelay(i);
+        console.log(`Aguardando ${delaySeconds} segundos antes do próximo envio...`);
+        await new Promise((resolve) => setTimeout(resolve, delaySeconds * 1000));
+      }
+    }
+
+    // Marcar run como completo
+    await supabaseClient.from("survey_send_runs").update({ status: "completed" }).eq("id", runId);
 
     return new Response(
       JSON.stringify({
         success: true,
-        result: templateResult,
+        runId: runId,
+        surveys_sent: results.sent,
+        new_surveys: results.new,
+        resent_surveys: results.resent,
+        failed_surveys: results.failed,
+        errors: results.errors,
+        message: `${results.sent} pesquisas enviadas (${results.new} novas, ${results.resent} reenviadas, ${results.failed} falhas)`,
       }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error) {
-    console.error("Error in whatsapp-send-survey-template:", error);
-    return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    console.error("Erro na função send-satisfaction-survey:", error);
+
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Erro desconhecido" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
