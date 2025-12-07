@@ -355,4 +355,158 @@ Responda apenas com o número da sua avaliação.`;
         .in('campaign_send_id', campaignSendIds)
         .in('status', ['sent', 'responded', 'expired', 'cancelled']);
 
-      if
+      if (existingError) {
+        console.error('Erro ao verificar pesquisas existentes:', existingError);
+      }
+
+      // Filtrar IDs que já têm pesquisa
+      const existingIds = new Set((existingSurveys || []).map(s => s.campaign_send_id));
+      const eligibleIds = campaignSendIds.filter(id => !existingIds.has(id));
+
+      console.log(`IDs já com pesquisa: ${existingIds.size}`);
+      console.log(`IDs elegíveis para envio: ${eligibleIds.length}`);
+
+      if (eligibleIds.length === 0) {
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            surveys_sent: 0,
+            new_surveys: 0,
+            resent_surveys: 0,
+            failed_surveys: 0,
+            errors: [],
+            message: 'Todos os envios selecionados já possuem pesquisa'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Buscar apenas os envios elegíveis
+      const { data: sends, error: sendsError } = await supabaseClient
+        .from('campaign_sends')
+        .select('*')
+        .in('id', eligibleIds);
+
+      if (sendsError) throw sendsError;
+      sendsToProcess = sends || [];
+    } else if (campaignId) {
+      // Se foi especificada uma campanha, buscar todos os envios dela que ainda não têm pesquisa
+      const { data: allSends, error: sendsError } = await supabaseClient
+        .from('campaign_sends')
+        .select('*')
+        .eq('campaign_id', campaignId)
+        .eq('status', 'confirmed');
+
+      if (sendsError) throw sendsError;
+
+      // Filtrar os que já têm pesquisa
+      const sendIds = (allSends || []).map(s => s.id);
+      if (sendIds.length > 0) {
+        const { data: existingSurveys } = await supabaseClient
+          .from('satisfaction_surveys')
+          .select('campaign_send_id')
+          .in('campaign_send_id', sendIds)
+          .in('status', ['sent', 'responded', 'expired', 'cancelled']);
+
+        const existingIds = new Set((existingSurveys || []).map(s => s.campaign_send_id));
+        sendsToProcess = (allSends || []).filter(s => !existingIds.has(s.id));
+      }
+    }
+
+    console.log(`Total de envios a processar: ${sendsToProcess.length}`);
+
+    if (sendsToProcess.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          surveys_sent: 0,
+          new_surveys: 0,
+          resent_surveys: 0,
+          failed_surveys: 0,
+          errors: [],
+          message: 'Nenhum envio elegível encontrado'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Processar envios com delay progressivo
+    let surveysSent = 0;
+    let newSurveys = 0;
+    let resentSurveys = 0;
+    let failedSurveys = 0;
+    const errors: any[] = [];
+
+    for (let i = 0; i < sendsToProcess.length; i++) {
+      const send = sendsToProcess[i];
+      
+      // Verificar se o run foi cancelado
+      const { data: currentRun } = await supabaseClient
+        .from('survey_send_runs')
+        .select('status')
+        .eq('id', runId)
+        .single();
+
+      if (currentRun?.status === 'cancelled') {
+        console.log('Run cancelado, abortando envio de pesquisas');
+        break;
+      }
+
+      // Aplicar delay progressivo (exceto para a primeira mensagem)
+      if (i > 0) {
+        const delaySeconds = getProgressiveDelay(i);
+        console.log(`Aguardando ${delaySeconds}s antes de enviar pesquisa ${i + 1}/${sendsToProcess.length}`);
+        await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
+      }
+
+      const result = await sendSingleSurvey(send);
+      
+      if (result.success) {
+        surveysSent++;
+        if (result.isNew) {
+          newSurveys++;
+        } else {
+          resentSurveys++;
+        }
+      } else {
+        failedSurveys++;
+        errors.push({
+          phone: send.customer_phone,
+          error: result.error instanceof Error ? result.error.message : String(result.error)
+        });
+      }
+    }
+
+    // Atualizar status do run
+    await supabaseClient
+      .from('survey_send_runs')
+      .update({ status: 'completed' })
+      .eq('id', runId);
+
+    console.log(`=== FIM SEND-SATISFACTION-SURVEY ===`);
+    console.log(`Pesquisas enviadas: ${surveysSent} (novas: ${newSurveys}, reenviadas: ${resentSurveys})`);
+    console.log(`Falhas: ${failedSurveys}`);
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        surveys_sent: surveysSent,
+        new_surveys: newSurveys,
+        resent_surveys: resentSurveys,
+        failed_surveys: failedSurveys,
+        errors,
+        runId
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Erro geral no send-satisfaction-survey:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : 'Erro desconhecido',
+        surveys_sent: 0
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
