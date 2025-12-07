@@ -755,6 +755,63 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_templates: {
+        Row: {
+          approved_at: string | null
+          body_text: string
+          category: string
+          created_at: string
+          footer_text: string | null
+          header_text: string | null
+          id: string
+          language: string
+          meta_rejection_reason: string | null
+          meta_status: string | null
+          meta_template_id: string | null
+          submitted_at: string | null
+          template_name: string
+          template_type: string
+          updated_at: string
+          variables: Json | null
+        }
+        Insert: {
+          approved_at?: string | null
+          body_text: string
+          category: string
+          created_at?: string
+          footer_text?: string | null
+          header_text?: string | null
+          id?: string
+          language?: string
+          meta_rejection_reason?: string | null
+          meta_status?: string | null
+          meta_template_id?: string | null
+          submitted_at?: string | null
+          template_name: string
+          template_type?: string
+          updated_at?: string
+          variables?: Json | null
+        }
+        Update: {
+          approved_at?: string | null
+          body_text?: string
+          category?: string
+          created_at?: string
+          footer_text?: string | null
+          header_text?: string | null
+          id?: string
+          language?: string
+          meta_rejection_reason?: string | null
+          meta_status?: string | null
+          meta_template_id?: string | null
+          submitted_at?: string | null
+          template_name?: string
+          template_type?: string
+          updated_at?: string
+          variables?: Json | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
