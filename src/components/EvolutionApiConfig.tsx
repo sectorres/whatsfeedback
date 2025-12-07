@@ -3,10 +3,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
-import { MessageSquare, Key, Link, Server, Eye, EyeOff, CheckCircle, XCircle, Loader2, Save, Star } from "lucide-react";
+import { MessageSquare, Key, Link, Server, Eye, EyeOff, CheckCircle, XCircle, Loader2, Save, Star, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 
 interface EvolutionConfig {
   id?: string;
@@ -34,6 +35,12 @@ export const EvolutionApiConfig = () => {
   const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
   const [loading, setLoading] = useState(true);
   const [configId, setConfigId] = useState<string | null>(null);
+  
+  // Password protection state
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
+  const [tokenUnlocked, setTokenUnlocked] = useState(false);
 
   useEffect(() => {
     loadConfig();
@@ -69,13 +76,63 @@ export const EvolutionApiConfig = () => {
     }
   };
 
+  const handleUnlockToken = () => {
+    setPasswordDialogOpen(true);
+    setPassword("");
+  };
+
+  const handleVerifyPassword = async () => {
+    if (!password) {
+      toast.error("Digite sua senha");
+      return;
+    }
+
+    setVerifyingPassword(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) {
+        toast.error("Usuário não autenticado");
+        return;
+      }
+
+      // Try to sign in with the current user's email and provided password
+      const { error } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: password
+      });
+
+      if (error) {
+        toast.error("Senha incorreta");
+        return;
+      }
+
+      setTokenUnlocked(true);
+      setShowApiKey(true);
+      setPasswordDialogOpen(false);
+      toast.success("Token desbloqueado");
+    } catch (error) {
+      console.error('Erro ao verificar senha:', error);
+      toast.error("Erro ao verificar senha");
+    } finally {
+      setVerifyingPassword(false);
+      setPassword("");
+    }
+  };
+
+  const handleToggleApiKey = () => {
+    if (!showApiKey && !tokenUnlocked) {
+      handleUnlockToken();
+    } else {
+      setShowApiKey(!showApiKey);
+    }
+  };
+
   const handleTestConnection = async () => {
     let testUrl = apiUrl;
     let testKey = apiKey;
     let testInstance = instanceName;
 
     if (configType === 'unofficial') {
-      // For unofficial, we need to test using the secrets (can't access them from frontend)
       toast.info("Para testar a instância não oficial, a conexão será verificada pelo indicador de status no topo da página.");
       return;
     }
@@ -246,6 +303,9 @@ export const EvolutionApiConfig = () => {
                 <Label htmlFor="evolution-key" className="flex items-center gap-2">
                   <Key className="h-4 w-4" />
                   API Key / Token
+                  {!tokenUnlocked && apiKey && (
+                    <Lock className="h-3 w-3 text-yellow-500" />
+                  )}
                 </Label>
                 <div className="relative">
                   <Input
@@ -261,15 +321,23 @@ export const EvolutionApiConfig = () => {
                     variant="ghost"
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                    onClick={() => setShowApiKey(!showApiKey)}
+                    onClick={handleToggleApiKey}
+                    title={!tokenUnlocked && apiKey ? "Clique para desbloquear com senha" : showApiKey ? "Ocultar" : "Mostrar"}
                   >
-                    {showApiKey ? (
+                    {!tokenUnlocked && apiKey ? (
+                      <Lock className="h-4 w-4 text-yellow-500" />
+                    ) : showApiKey ? (
                       <EyeOff className="h-4 w-4 text-muted-foreground" />
                     ) : (
                       <Eye className="h-4 w-4 text-muted-foreground" />
                     )}
                   </Button>
                 </div>
+                {!tokenUnlocked && apiKey && (
+                  <p className="text-xs text-yellow-600">
+                    🔒 Token protegido. Clique no cadeado para visualizar (requer senha).
+                  </p>
+                )}
               </div>
             </div>
 
@@ -389,6 +457,47 @@ export const EvolutionApiConfig = () => {
             Salvar Configuração
           </Button>
         </div>
+
+        {/* Password verification dialog */}
+        <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+          <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5 text-primary" />
+                Verificação de Segurança
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <p className="text-sm text-muted-foreground">
+                Digite sua senha de administrador para visualizar o token da API.
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="admin-password">Senha</Label>
+                <Input
+                  id="admin-password"
+                  type="password"
+                  placeholder="Digite sua senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleVerifyPassword();
+                  }}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleVerifyPassword} disabled={verifyingPassword}>
+                {verifyingPassword ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : null}
+                Confirmar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
