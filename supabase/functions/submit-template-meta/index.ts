@@ -133,7 +133,10 @@ serve(async (req) => {
     console.log('Meta API response:', JSON.stringify(metaData, null, 2));
 
     if (!metaResponse.ok) {
-      const errorMessage = metaData.error?.message || 'Erro ao enviar para a Meta';
+      // Extract user-friendly error message from Meta response
+      const errorMessage = metaData.error?.error_user_msg || 
+                          metaData.error?.message || 
+                          'Erro ao enviar para a Meta';
       
       // Update template with error
       await supabase
