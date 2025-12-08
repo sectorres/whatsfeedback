@@ -87,7 +87,7 @@ export const WhatsAppTemplateManager = () => {
       
       setTemplates((data || []).map(t => ({
         ...t,
-        variables: (t.variables as Variable[]) || []
+        variables: (t.variables as unknown as Variable[]) || []
       })));
     } catch (error) {
       console.error('Erro ao carregar templates:', error);
@@ -128,19 +128,21 @@ export const WhatsAppTemplateManager = () => {
 
     setSaving(true);
     try {
+      const insertData = {
+        template_name: templateName.toLowerCase().replace(/\s+/g, '_'),
+        template_type: 'UTILITY',
+        category,
+        language,
+        header_text: headerText || null,
+        body_text: bodyText,
+        footer_text: footerText || null,
+        variables: variables as unknown as any,
+        meta_status: 'pending'
+      };
+
       const { error } = await supabase
         .from('whatsapp_templates')
-        .insert({
-          template_name: templateName.toLowerCase().replace(/\s+/g, '_'),
-          template_type: 'UTILITY',
-          category,
-          language,
-          header_text: headerText || null,
-          body_text: bodyText,
-          footer_text: footerText || null,
-          variables: variables,
-          meta_status: 'pending'
-        });
+        .insert(insertData);
 
       if (error) throw error;
 
