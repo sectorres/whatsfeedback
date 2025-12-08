@@ -19,7 +19,8 @@ import {
   AlertCircle,
   FileText,
   Trash2,
-  Download
+  Download,
+  Eye
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,6 +64,7 @@ export const WhatsAppTemplateManager = () => {
   const [syncing, setSyncing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [viewingTemplate, setViewingTemplate] = useState<WhatsAppTemplate | null>(null);
   
   // Form state
   const [templateName, setTemplateName] = useState("");
@@ -504,6 +506,14 @@ export const WhatsAppTemplateManager = () => {
                       <TableCell>{formatDate(template.submitted_at)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setViewingTemplate(template)}
+                          >
+                            <Eye className="h-3 w-3" />
+                            <span className="ml-1 hidden sm:inline">Ver</span>
+                          </Button>
                           {template.meta_status === 'pending' && (
                             <Button
                               size="sm"
@@ -534,6 +544,86 @@ export const WhatsAppTemplateManager = () => {
             </Table>
           </div>
         )}
+
+        {/* Dialog de visualização do template */}
+        <Dialog open={!!viewingTemplate} onOpenChange={(open) => !open && setViewingTemplate(null)}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                {viewingTemplate?.template_name}
+              </DialogTitle>
+            </DialogHeader>
+            {viewingTemplate && (
+              <div className="space-y-4 py-2">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Categoria:</span>
+                    <p className="font-medium">
+                      {viewingTemplate.category === 'delivery_notification' ? 'Notificação de Entrega' : 
+                       viewingTemplate.category === 'satisfaction_survey' ? 'Pesquisa de Satisfação' : 
+                       viewingTemplate.category}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Idioma:</span>
+                    <p className="font-medium">{viewingTemplate.language}</p>
+                  </div>
+                </div>
+
+                {viewingTemplate.header_text && (
+                  <div>
+                    <Label className="text-muted-foreground">Cabeçalho</Label>
+                    <div className="bg-muted p-3 rounded-lg mt-1">
+                      <p className="text-sm">{viewingTemplate.header_text}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <Label className="text-muted-foreground">Corpo da Mensagem</Label>
+                  <div className="bg-muted p-3 rounded-lg mt-1">
+                    <p className="text-sm whitespace-pre-wrap">{viewingTemplate.body_text}</p>
+                  </div>
+                </div>
+
+                {viewingTemplate.footer_text && (
+                  <div>
+                    <Label className="text-muted-foreground">Rodapé</Label>
+                    <div className="bg-muted p-3 rounded-lg mt-1">
+                      <p className="text-sm">{viewingTemplate.footer_text}</p>
+                    </div>
+                  </div>
+                )}
+
+                {viewingTemplate.variables && viewingTemplate.variables.length > 0 && (
+                  <div>
+                    <Label className="text-muted-foreground">Variáveis</Label>
+                    <div className="mt-1 space-y-2">
+                      {viewingTemplate.variables.map((v, i) => (
+                        <div key={i} className="flex gap-3 text-sm bg-muted/50 p-2 rounded">
+                          <Badge variant="secondary">{`{{${v.index}}}`}</Badge>
+                          <span>{v.description || v.example || '-'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {viewingTemplate.meta_template_id && (
+                  <div className="text-xs text-muted-foreground pt-2 border-t">
+                    <span>Meta Template ID: {viewingTemplate.meta_template_id}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setViewingTemplate(null)}>
+                Fechar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
