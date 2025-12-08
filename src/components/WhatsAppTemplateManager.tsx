@@ -18,7 +18,8 @@ import {
   Clock, 
   AlertCircle,
   FileText,
-  Trash2
+  Trash2,
+  Download
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,6 +61,7 @@ export const WhatsAppTemplateManager = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   
   // Form state
@@ -75,6 +77,27 @@ export const WhatsAppTemplateManager = () => {
   useEffect(() => {
     loadTemplates();
   }, []);
+
+  const handleImportFromMeta = async () => {
+    setImporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-meta-templates');
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast.success(`${data.imported} template(s) importado(s), ${data.updated} atualizado(s)`);
+        loadTemplates();
+      } else {
+        toast.error(data.error || "Erro ao importar templates");
+      }
+    } catch (error) {
+      console.error('Erro ao importar templates:', error);
+      toast.error("Erro ao importar templates da Meta");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const loadTemplates = async () => {
     try {
@@ -269,7 +292,11 @@ export const WhatsAppTemplateManager = () => {
               Crie e gerencie templates para envio via API oficial da Meta
             </CardDescription>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={handleImportFromMeta} disabled={importing}>
+              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              <span className="ml-2 hidden sm:inline">Importar da Meta</span>
+            </Button>
             <Button variant="outline" onClick={handleSyncStatus} disabled={syncing}>
               {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               <span className="ml-2 hidden sm:inline">Sincronizar Status</span>
