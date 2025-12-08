@@ -15,6 +15,7 @@ import { SendDelayConfig } from "@/components/SendDelayConfig";
 import { DataClearConfig } from "@/components/DataClearConfig";
 import { OrderSyncButton } from "@/components/OrderSyncButton";
 import { LogoManager } from "@/components/LogoManager";
+import { WhatsAppTemplateManager } from "@/components/WhatsAppTemplateManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -138,6 +139,7 @@ const Index = () => {
               <TabsContent value="integrations" className="space-y-6 mt-4">
                 <WhatsAppConnection onConnectionChange={setWhatsappConnected} />
                 <EvolutionApiConfig />
+                <WhatsAppTemplateManager />
                 <ApiConfiguration />
                 <WebhookConfiguration />
               </TabsContent>
