@@ -110,7 +110,8 @@ serve(async (req) => {
     const payload = {
       name: template.template_name,
       language: template.language,
-      category: "UTILITY", // Always UTILITY, never MARKETING
+      category: "UTILITY",
+      sub_category: "ORDER_STATUS", // Status do pedido
       components
     };
 
