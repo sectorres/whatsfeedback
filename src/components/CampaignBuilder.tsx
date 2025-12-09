@@ -123,6 +123,10 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   
   // Estado para saber se está usando API oficial (template)
   const [isOfficialApi, setIsOfficialApi] = useState(false);
+  
+  // Estado para o template body_text da Meta
+  const [officialTemplateBody, setOfficialTemplateBody] = useState("");
+  const [officialTemplateName, setOfficialTemplateName] = useState("");
 
   // Estado para dados de preview
   const [previewData, setPreviewData] = useState({
@@ -156,7 +160,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     }
   }, []);
 
-  // Verificar se está usando API oficial
+  // Verificar se está usando API oficial e carregar o template
   useEffect(() => {
     const checkApiType = async () => {
       try {
@@ -168,6 +172,21 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
         
         const isOfficial = data?.config_type === "official" && !!data?.template_name;
         setIsOfficialApi(isOfficial);
+        
+        if (isOfficial && data?.template_name) {
+          setOfficialTemplateName(data.template_name);
+          
+          // Buscar o body_text do template selecionado
+          const { data: templateData } = await supabase
+            .from("whatsapp_templates")
+            .select("body_text")
+            .eq("template_name", data.template_name)
+            .maybeSingle();
+          
+          if (templateData?.body_text) {
+            setOfficialTemplateBody(templateData.body_text);
+          }
+        }
       } catch (error) {
         console.error("Erro ao verificar tipo de API:", error);
       }
@@ -635,7 +654,16 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     toast.success("Template deletado!");
   };
 
-  const previewMessage = `Olá ${previewData.cliente},\n\n*Seu pedido ${previewData.pedido} será entregue dia ${previewData.data_entrega}*`;
+  // Gerar preview com base no template real
+  const getPreviewMessage = () => {
+    if (isOfficialApi && officialTemplateBody) {
+      return officialTemplateBody
+        .replace(/\{\{1\}\}/g, previewData.cliente)
+        .replace(/\{\{2\}\}/g, previewData.pedido)
+        .replace(/\{\{3\}\}/g, previewData.data_entrega);
+    }
+    return `Olá ${previewData.cliente},\n\n*Seu pedido ${previewData.pedido} será entregue dia ${previewData.data_entrega}*`;
+  };
   
   return (
     <div className="space-y-6">
@@ -688,7 +716,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                 {/* Mensagem da Campanha */}
                 <div className="space-y-2">
                   <Label htmlFor="message-template" className="text-base font-semibold">
-                    {isOfficialApi ? "Template Meta (API Oficial)" : "Mensagem da Campanha"}
+                    {isOfficialApi ? `Template Meta: ${officialTemplateName}` : "Mensagem da Campanha"}
                   </Label>
                   {isOfficialApi ? (
                     // API Oficial: Mostrar preview do template sem edição
@@ -698,15 +726,11 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                           Preview do template que será enviado:
                         </p>
                         <div className="bg-background rounded p-3 border">
-                          {previewMessage}
-                          {"\n\n"}
-                          IMPORTANTE:{"\n"}
-                          ✅ Ter alguém maior de 18 anos para receber{"\n"}
-                          ✅ Conferir a mercadoria no ato da entrega
+                          {getPreviewMessage()}
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        ℹ️ Usando API oficial da Meta. O template configurado será enviado automaticamente.
+                        ℹ️ Usando API oficial da Meta. O template "{officialTemplateName}" será enviado automaticamente.
                       </p>
                     </div>
                   ) : (

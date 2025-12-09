@@ -3,11 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
-import { MessageSquare, Key, Link, Server, Eye, EyeOff, CheckCircle, XCircle, Loader2, Save, Star, Lock } from "lucide-react";
+import { MessageSquare, Key, Link, Server, Eye, EyeOff, CheckCircle, XCircle, Loader2, Save, Star, Lock, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface EvolutionConfig {
   id?: string;
@@ -20,6 +21,15 @@ interface EvolutionConfig {
   is_active: boolean;
 }
 
+interface MetaTemplate {
+  id: string;
+  template_name: string;
+  body_text: string;
+  category: string;
+  language: string;
+  meta_status: string;
+}
+
 export const EvolutionApiConfig = () => {
   const [configType, setConfigType] = useState<'unofficial' | 'official'>('unofficial');
   const [apiUrl, setApiUrl] = useState("");
@@ -29,6 +39,10 @@ export const EvolutionApiConfig = () => {
   const [templateLanguage, setTemplateLanguage] = useState("pt_BR");
   const [surveyTemplateName, setSurveyTemplateName] = useState("entrega_realizada");
   const [surveyTemplateLanguage, setSurveyTemplateLanguage] = useState("pt_BR");
+  
+  // Templates da Meta
+  const [metaTemplates, setMetaTemplates] = useState<MetaTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -44,6 +58,7 @@ export const EvolutionApiConfig = () => {
 
   useEffect(() => {
     loadConfig();
+    loadMetaTemplates();
   }, []);
 
   const loadConfig = async () => {
@@ -57,7 +72,7 @@ export const EvolutionApiConfig = () => {
       if (error) throw error;
 
       if (data) {
-        const config = data as any; // Cast para ignorar tipos desatualizados
+        const config = data as any;
         setConfigId(config.id);
         setConfigType(config.config_type as 'unofficial' | 'official');
         setApiUrl(config.api_url || "");
@@ -73,6 +88,23 @@ export const EvolutionApiConfig = () => {
       toast.error("Erro ao carregar configuração da Evolution API");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMetaTemplates = async () => {
+    setLoadingTemplates(true);
+    try {
+      const { data, error } = await supabase
+        .from('whatsapp_templates')
+        .select('id, template_name, body_text, category, language, meta_status')
+        .order('template_name', { ascending: true });
+
+      if (error) throw error;
+      setMetaTemplates(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar templates:', error);
+    } finally {
+      setLoadingTemplates(false);
     }
   };
 
@@ -343,23 +375,64 @@ export const EvolutionApiConfig = () => {
 
             {/* Configurações de Template de Campanha */}
             <div className="space-y-4 pt-4 border-t">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-primary" />
-                Template de Aviso de Entrega
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-primary" />
+                  Template de Aviso de Entrega
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={loadMetaTemplates}
+                  disabled={loadingTemplates}
+                >
+                  <RefreshCw className={`h-4 w-4 ${loadingTemplates ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="evolution-template">
-                  Nome do Template (Meta)
+                  Selecione o Template (Meta)
                 </Label>
-                <Input
-                  id="evolution-template"
-                  placeholder="nome_do_template_aprovado"
+                <Select
                   value={templateName}
-                  onChange={(e) => setTemplateName(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Nome exato do template aprovado na Meta Business para *Aviso de Entrega*. (Valor fixo no backend: `aviso_entrega_2`)
-                </p>
+                  onValueChange={(value) => {
+                    setTemplateName(value);
+                    const template = metaTemplates.find(t => t.template_name === value);
+                    if (template) {
+                      setTemplateLanguage(template.language);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {metaTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.template_name}>
+                        <div className="flex items-center gap-2">
+                          <span>{template.template_name}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${
+                            template.meta_status === 'approved' 
+                              ? 'bg-green-100 text-green-700' 
+                              : template.meta_status === 'PENDING' 
+                              ? 'bg-yellow-100 text-yellow-700' 
+                              : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {template.meta_status}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {templateName && (
+                  <div className="bg-muted/50 border rounded-lg p-3 mt-2">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Preview do template:</p>
+                    <p className="text-sm whitespace-pre-wrap">
+                      {metaTemplates.find(t => t.template_name === templateName)?.body_text || 'Template não encontrado'}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -371,6 +444,8 @@ export const EvolutionApiConfig = () => {
                   placeholder="pt_BR"
                   value={templateLanguage}
                   onChange={(e) => setTemplateLanguage(e.target.value)}
+                  readOnly
+                  className="bg-muted"
                 />
               </div>
             </div>
@@ -383,17 +458,48 @@ export const EvolutionApiConfig = () => {
               </h3>
               <div className="space-y-2">
                 <Label htmlFor="survey-template">
-                  Nome do Template (Meta)
+                  Selecione o Template (Meta)
                 </Label>
-                <Input
-                  id="survey-template"
-                  placeholder="entrega_realizada"
+                <Select
                   value={surveyTemplateName}
-                  onChange={(e) => setSurveyTemplateName(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Nome exato do template aprovado na Meta Business para *Pesquisa de Satisfação*.
-                </p>
+                  onValueChange={(value) => {
+                    setSurveyTemplateName(value);
+                    const template = metaTemplates.find(t => t.template_name === value);
+                    if (template) {
+                      setSurveyTemplateLanguage(template.language);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {metaTemplates.map((template) => (
+                      <SelectItem key={template.id} value={template.template_name}>
+                        <div className="flex items-center gap-2">
+                          <span>{template.template_name}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${
+                            template.meta_status === 'approved' 
+                              ? 'bg-green-100 text-green-700' 
+                              : template.meta_status === 'PENDING' 
+                              ? 'bg-yellow-100 text-yellow-700' 
+                              : 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {template.meta_status}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {surveyTemplateName && (
+                  <div className="bg-muted/50 border rounded-lg p-3 mt-2">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Preview do template:</p>
+                    <p className="text-sm whitespace-pre-wrap">
+                      {metaTemplates.find(t => t.template_name === surveyTemplateName)?.body_text || 'Template não encontrado'}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -405,6 +511,8 @@ export const EvolutionApiConfig = () => {
                   placeholder="pt_BR"
                   value={surveyTemplateLanguage}
                   onChange={(e) => setSurveyTemplateLanguage(e.target.value)}
+                  readOnly
+                  className="bg-muted"
                 />
               </div>
             </div>
