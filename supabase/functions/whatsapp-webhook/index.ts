@@ -18,8 +18,8 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Carregar mensagens configuradas
-    const { data: messagesConfig } = await supabase
+    // Carregar mensagens configuradas e configurações de horário
+    const { data: appConfig } = await supabase
       .from('app_config')
       .select('config_key, config_value')
       .in('config_key', [
@@ -28,12 +28,68 @@ serve(async (req) => {
         'bot_message_campaign_reschedule_response',
         'bot_message_campaign_invalid_response',
         'bot_message_survey_feedback_request',
-        'bot_message_survey_invalid_rating'
+        'bot_message_survey_invalid_rating',
+        'business_hours_enabled',
+        'business_hours_start',
+        'business_hours_end',
+        'business_hours_message',
+        'business_hours_work_days'
       ]);
 
+    const getConfigValue = (key: string, defaultValue: string = '') => {
+      const config = appConfig?.find(c => c.config_key === key);
+      return config?.config_value || defaultValue;
+    };
+
     const getBotMessage = (key: string, defaultMsg: string) => {
-      const config = messagesConfig?.find(c => c.config_key === `bot_message_${key}`);
-      return config?.config_value || defaultMsg;
+      return getConfigValue(`bot_message_${key}`, defaultMsg);
+    };
+
+    // Função para verificar se está dentro do horário de atendimento
+    const isWithinBusinessHours = (): boolean => {
+      const enabled = getConfigValue('business_hours_enabled', 'false') === 'true';
+      if (!enabled) return true; // Se não habilitado, sempre está dentro do horário
+      
+      const startTime = getConfigValue('business_hours_start', '08:00');
+      const endTime = getConfigValue('business_hours_end', '18:00');
+      let workDays: number[] = [1, 2, 3, 4, 5]; // Default: Monday to Friday
+      
+      try {
+        const workDaysStr = getConfigValue('business_hours_work_days', '[1,2,3,4,5]');
+        workDays = JSON.parse(workDaysStr);
+      } catch {
+        workDays = [1, 2, 3, 4, 5];
+      }
+      
+      // Usar timezone de São Paulo (GMT-3)
+      const now = new Date();
+      const brazilOffset = -3 * 60; // GMT-3 in minutes
+      const localOffset = now.getTimezoneOffset();
+      const brazilTime = new Date(now.getTime() + (localOffset + brazilOffset) * 60 * 1000);
+      
+      const currentDay = brazilTime.getDay();
+      const currentHours = brazilTime.getHours();
+      const currentMinutes = brazilTime.getMinutes();
+      const currentTimeMinutes = currentHours * 60 + currentMinutes;
+      
+      // Verificar dia da semana
+      if (!workDays.includes(currentDay)) {
+        console.log(`Outside business hours: Day ${currentDay} not in work days ${workDays}`);
+        return false;
+      }
+      
+      // Verificar horário
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      const [endHour, endMin] = endTime.split(':').map(Number);
+      const startMinutes = startHour * 60 + startMin;
+      const endMinutes = endHour * 60 + endMin;
+      
+      if (currentTimeMinutes < startMinutes || currentTimeMinutes > endMinutes) {
+        console.log(`Outside business hours: Current time ${currentHours}:${currentMinutes} not between ${startTime} and ${endTime}`);
+        return false;
+      }
+      
+      return true;
     };
 
     const payload = await req.json();
@@ -766,6 +822,31 @@ serve(async (req) => {
             console.error('Error inserting message:', msgError);
           } else {
             console.log('Message inserted successfully with media:', { mediaType, mediaUrl });
+            
+            // Verificar se está fora do horário de atendimento e enviar aviso
+            if (!isWithinBusinessHours()) {
+              const outsideHoursMessage = getConfigValue(
+                'business_hours_message',
+                'Olá! Recebemos sua mensagem, mas estamos fora do horário de atendimento.\n\nNosso horário é de segunda a sexta, das 08:00 às 18:00.\n\nResponderemos assim que possível. Obrigado!'
+              );
+              
+              console.log(`Outside business hours - sending automatic message to ${customerPhone}`);
+              
+              try {
+                // Enviar mensagem de fora do horário
+                await supabase.functions.invoke('whatsapp-send', {
+                  body: {
+                    phone: customerPhone,
+                    message: outsideHoursMessage,
+                    conversation_id: conversation.id
+                  }
+                });
+                
+                console.log('Outside business hours message sent successfully');
+              } catch (outsideHoursError) {
+                console.error('Error sending outside business hours message:', outsideHoursError);
+              }
+            }
           }
         }
       } catch (err) {
