@@ -159,7 +159,8 @@ serve(async (req) => {
 
     try {
       if (credentials.isOfficial) {
-        const TEMPLATE_NAME = "aviso_entrega_2";
+        // Usar o template configurado na interface (evolution_api_config)
+        const TEMPLATE_NAME = credentials.templateName || "aviso_entrega_2";
         const TEMPLATE_LANGUAGE = credentials.templateLanguage || "pt_BR";
         const whatsappPhone = `55${normalizedPhone}`;
 
