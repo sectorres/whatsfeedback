@@ -20,19 +20,9 @@ import { Calendar } from "./ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
 import { normalizePhone } from "@/lib/phone-utils";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "./ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Progress } from "./ui/progress";
-
 interface Carga {
   id: number;
   data: string;
@@ -75,28 +65,21 @@ interface CampaignBuilderProps {
 }
 
 // Novo template padrão com a variável de data
-const DEFAULT_MESSAGE_TEMPLATE = 
-  "Olá {cliente},\n\nSeu pedido *{pedido}* será entregue dia *{data_entrega}*.\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega\n\nPor favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação";
-
-export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => {
+const DEFAULT_MESSAGE_TEMPLATE = "Olá {cliente},\n\nSeu pedido *{pedido}* será entregue dia *{data_entrega}*.\n\nIMPORTANTE:\n✅ Ter alguém maior de 18 anos para receber\n✅ Conferir a mercadoria no ato da entrega\n\nPor favor, confirme se poderá receber sua mercadoria:\n\n1️⃣  Confirmar\n2️⃣  Reagendar\n3️⃣  Parar de enviar notificação";
+export const CampaignBuilder = ({
+  whatsappConnected
+}: CampaignBuilderProps) => {
   const [messageTemplate, setMessageTemplate] = useState(DEFAULT_MESSAGE_TEMPLATE);
-  
-  const defaultTemplates = [
-    {
-      id: "default",
-      name: "Padrão - Notificação de Entrega",
-      template: DEFAULT_MESSAGE_TEMPLATE,
-    },
-  ];
-  
-  const [savedTemplates, setSavedTemplates] = useState<
-    Array<{
-      id: string;
-      name: string;
-      template: string;
-    }>
-  >(defaultTemplates);
-  
+  const defaultTemplates = [{
+    id: "default",
+    name: "Padrão - Notificação de Entrega",
+    template: DEFAULT_MESSAGE_TEMPLATE
+  }];
+  const [savedTemplates, setSavedTemplates] = useState<Array<{
+    id: string;
+    name: string;
+    template: string;
+  }>>(defaultTemplates);
   const [selectedTemplateId, setSelectedTemplateId] = useState("default");
   const [newTemplateName, setNewTemplateName] = useState("");
   const [cargas, setCargas] = useState<Carga[]>([]);
@@ -114,16 +97,16 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     total: 0,
     success: 0,
     failed: 0,
-    blocked: 0,
+    blocked: 0
   });
   const [countdown, setCountdown] = useState<number>(0);
-  
+
   // Novo estado para a data de entrega (em branco por padrão, mas obrigatório)
   const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(undefined);
-  
+
   // Estado para saber se está usando API oficial (template)
   const [isOfficialApi, setIsOfficialApi] = useState(false);
-  
+
   // Estado para o template body_text da Meta
   const [officialTemplateBody, setOfficialTemplateBody] = useState("");
   const [officialTemplateName, setOfficialTemplateName] = useState("");
@@ -132,7 +115,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   const [previewData, setPreviewData] = useState({
     cliente: "João da Silva",
     pedido: "000/0000000-P",
-    data_entrega: "XX/XX/XXXX",
+    data_entrega: "XX/XX/XXXX"
   });
 
   // Datas padrão: primeiro dia do mês corrente até o último dia do mês
@@ -164,25 +147,18 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   useEffect(() => {
     const checkApiType = async () => {
       try {
-        const { data } = await supabase
-          .from("evolution_api_config")
-          .select("config_type, template_name")
-          .eq("is_active", true)
-          .maybeSingle();
-        
+        const {
+          data
+        } = await supabase.from("evolution_api_config").select("config_type, template_name").eq("is_active", true).maybeSingle();
         const isOfficial = data?.config_type === "official" && !!data?.template_name;
         setIsOfficialApi(isOfficial);
-        
         if (isOfficial && data?.template_name) {
           setOfficialTemplateName(data.template_name);
-          
+
           // Buscar o body_text do template selecionado
-          const { data: templateData } = await supabase
-            .from("whatsapp_templates")
-            .select("body_text")
-            .eq("template_name", data.template_name)
-            .maybeSingle();
-          
+          const {
+            data: templateData
+          } = await supabase.from("whatsapp_templates").select("body_text").eq("template_name", data.template_name).maybeSingle();
           if (templateData?.body_text) {
             setOfficialTemplateBody(templateData.body_text);
           }
@@ -198,23 +174,23 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   useEffect(() => {
     localStorage.setItem("whatsapp-templates", JSON.stringify(savedTemplates));
   }, [savedTemplates]);
-  
   useEffect(() => {
     fetchCargas();
   }, [startDate, endDate]);
-  
   const formatDateForAPI = (date: Date) => {
     return format(date, "yyyyMMdd");
   };
-  
   const fetchCargas = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.functions.invoke("fetch-cargas", {
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke("fetch-cargas", {
         body: {
           dataInicial: formatDateForAPI(startDate),
-          dataFinal: formatDateForAPI(endDate),
-        },
+          dataFinal: formatDateForAPI(endDate)
+        }
       });
       if (error) throw error;
       if (data && data.status === "SUCESSO" && data.retorno?.cargas) {
@@ -227,33 +203,34 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       setLoading(false);
     }
   };
-  
-  const filteredCargas = statusFilter === "all" ? cargas : cargas.filter((c) => c.status === statusFilter);
-  const selectedCarga = cargas.find((c) => c.id.toString() === selectedCargaId);
+  const filteredCargas = statusFilter === "all" ? cargas : cargas.filter(c => c.status === statusFilter);
+  const selectedCarga = cargas.find(c => c.id.toString() === selectedCargaId);
 
   // Atualizar preview e selecionar todos os pedidos quando uma carga é escolhida
   useEffect(() => {
     if (selectedCarga && selectedCarga.pedidos) {
-      const allIds = new Set(selectedCarga.pedidos.map((p) => p.id));
+      const allIds = new Set(selectedCarga.pedidos.map(p => p.id));
       setSelectedPedidos(allIds);
-
       const firstPedido = selectedCarga.pedidos[0];
       if (firstPedido) {
         setPreviewData({
           cliente: firstPedido.cliente?.nome || "Cliente Exemplo",
           pedido: firstPedido.pedido || "000/0000000-P",
-          data_entrega: deliveryDate ? format(deliveryDate, "dd/MM/yyyy", { locale: ptBR }) : "XX/XX/XXXX",
+          data_entrega: deliveryDate ? format(deliveryDate, "dd/MM/yyyy", {
+            locale: ptBR
+          }) : "XX/XX/XXXX"
         });
       }
     } else {
       setPreviewData({
         cliente: "João da Silva",
         pedido: "000/0000000-P",
-        data_entrega: deliveryDate ? format(deliveryDate, "dd/MM/yyyy", { locale: ptBR }) : "XX/XX/XXXX",
+        data_entrega: deliveryDate ? format(deliveryDate, "dd/MM/yyyy", {
+          locale: ptBR
+        }) : "XX/XX/XXXX"
       });
     }
   }, [selectedCargaId, selectedCarga, deliveryDate]);
-  
   const togglePedido = (pedidoId: number) => {
     const newSelected = new Set(selectedPedidos);
     if (newSelected.has(pedidoId)) {
@@ -263,33 +240,27 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     }
     setSelectedPedidos(newSelected);
   };
-  
   const selectAllPedidos = () => {
     if (!selectedCarga) return;
-    const allIds = new Set(selectedCarga.pedidos.map((p) => p.id));
+    const allIds = new Set(selectedCarga.pedidos.map(p => p.id));
     setSelectedPedidos(allIds);
   };
-  
   const deselectAllPedidos = () => {
     setSelectedPedidos(new Set());
   };
-  
   const formatPhone = (phone: string) => {
     // Usar normalização consistente em toda a aplicação
     return normalizePhone(phone);
   };
-  
   const updatePhone = (pedidoId: number, phone: string) => {
-    setEditedPhones((prev) => ({
+    setEditedPhones(prev => ({
       ...prev,
-      [pedidoId]: phone,
+      [pedidoId]: phone
     }));
   };
-  
   const getPhone = (pedido: Pedido) => {
     return editedPhones[pedido.id] || pedido.cliente?.celular || pedido.cliente?.telefone || "";
   };
-  
   const handleSendCampaign = async () => {
     if (!whatsappConnected) {
       toast.error("Conecte o WhatsApp primeiro para enviar campanhas");
@@ -311,106 +282,90 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       toast.error("Selecione a data de entrega");
       return;
     }
-    
     setShowConfirmDialog(false);
     setSending(true);
     setShowProgressDialog(true);
 
     // Helper para gravar envios com retentativas (melhora confiabilidade)
-    const insertCampaignSendWithRetry = async (
-      payload: {
-        campaign_id: string;
-        customer_name: string | null;
-        customer_phone: string;
-        message_sent: string;
-        status: string;
-        error_message?: string | null;
-        driver_name?: string | null;
-        peso_total?: number | null;
-        valor_total?: number | null;
-        quantidade_entregas?: number | null;
-        quantidade_skus?: number | null;
-        quantidade_itens?: number | null;
-        pedido_id?: number | null;
-        pedido_numero?: string | null;
-        carga_id?: number | null;
-      },
-      retries = 2,
-      delayMs = 500,
-    ) => {
+    const insertCampaignSendWithRetry = async (payload: {
+      campaign_id: string;
+      customer_name: string | null;
+      customer_phone: string;
+      message_sent: string;
+      status: string;
+      error_message?: string | null;
+      driver_name?: string | null;
+      peso_total?: number | null;
+      valor_total?: number | null;
+      quantidade_entregas?: number | null;
+      quantidade_skus?: number | null;
+      quantidade_itens?: number | null;
+      pedido_id?: number | null;
+      pedido_numero?: string | null;
+      carga_id?: number | null;
+    }, retries = 2, delayMs = 500) => {
       let attempt = 0;
       let lastError: any = null;
       while (attempt <= retries) {
-        const { error } = await supabase.from("campaign_sends").insert(payload);
+        const {
+          error
+        } = await supabase.from("campaign_sends").insert(payload);
         if (!error) return true;
         lastError = error;
         attempt++;
         if (attempt <= retries) {
-          await new Promise((r) => setTimeout(r, delayMs));
+          await new Promise(r => setTimeout(r, delayMs));
         }
       }
       console.error("Falha ao inserir campaign_sends após retentativas:", lastError, payload);
       return false;
     };
-    
-    const pedidosParaEnviar = selectedCarga?.pedidos.filter((p) => selectedPedidos.has(p.id)) || [];
-    
+    const pedidosParaEnviar = selectedCarga?.pedidos.filter(p => selectedPedidos.has(p.id)) || [];
     setSendProgress({
       current: 0,
       total: pedidosParaEnviar.length,
       success: 0,
       failed: 0,
-      blocked: 0,
+      blocked: 0
     });
 
     // Gerar nome automático: Carga #numero - data hora
     const now = new Date();
-    const campaignName = `Carga #${selectedCarga.id} - ${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString(
-      "pt-BR",
-      {
-        hour: "2-digit",
-        minute: "2-digit",
-      },
-    )}`;
+    const campaignName = `Carga #${selectedCarga.id} - ${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit"
+    })}`;
 
     // Salvar campanha no banco
     try {
-      const { data: campaign, error: campaignError } = await supabase
-        .from("campaigns")
-        .insert({
-          name: campaignName,
-          message: messageTemplate,
-          status: "sending",
-          target_type: "carga",
-          sent_count: 0,
-        })
-        .select()
-        .single();
+      const {
+        data: campaign,
+        error: campaignError
+      } = await supabase.from("campaigns").insert({
+        name: campaignName,
+        message: messageTemplate,
+        status: "sending",
+        target_type: "carga",
+        sent_count: 0
+      }).select().single();
       if (campaignError) throw campaignError;
-      
       toast.success(`Iniciando envio de ${pedidosParaEnviar.length} mensagens...`);
-      
       let successCount = 0;
       let errorCount = 0;
       let blockedCount = 0;
-      
-      // Formatar a data de entrega para o template
-      const formattedDeliveryDate = format(deliveryDate, "dd/MM/yyyy", { locale: ptBR });
 
+      // Formatar a data de entrega para o template
+      const formattedDeliveryDate = format(deliveryDate, "dd/MM/yyyy", {
+        locale: ptBR
+      });
       for (let i = 0; i < pedidosParaEnviar.length; i++) {
         const pedido = pedidosParaEnviar[i];
         const rawPhone = getPhone(pedido);
         const phone = formatPhone(rawPhone); // normalizado sem DDI e sem zeros à esquerda
 
         // Substituir variáveis na mensagem para salvar no banco (para histórico)
-        const formattedMessage = messageTemplate
-          .replace(/{cliente}/g, pedido.cliente?.nome || "Cliente")
-          .replace(/{pedido}/g, pedido.pedido || "")
-          .replace(/{data_entrega}/g, formattedDeliveryDate) // Nova variável
-          .replace(/{valor}/g, `${pedido.valor?.toFixed(2) || "0.00"}`)
-          .replace(/{status}/g, statusMap[selectedCarga?.status || ""] || "")
-          .replace(/{notaFiscal}/g, pedido.notaFiscal || "");
-          
+        const formattedMessage = messageTemplate.replace(/{cliente}/g, pedido.cliente?.nome || "Cliente").replace(/{pedido}/g, pedido.pedido || "").replace(/{data_entrega}/g, formattedDeliveryDate) // Nova variável
+        .replace(/{valor}/g, `${pedido.valor?.toFixed(2) || "0.00"}`).replace(/{status}/g, statusMap[selectedCarga?.status || ""] || "").replace(/{notaFiscal}/g, pedido.notaFiscal || "");
         if (!phone || phone.length < 10) {
           errorCount++;
           console.error(`✗ Telefone inválido para ${pedido.cliente?.nome}: ${rawPhone}`);
@@ -431,18 +386,20 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0,
             pedido_id: pedido.id,
             pedido_numero: pedido.pedido,
-            carga_id: selectedCarga.id,
+            carga_id: selectedCarga.id
           });
-          setSendProgress((prev) => ({
+          setSendProgress(prev => ({
             ...prev,
             current: i + 1,
-            failed: prev.failed + 1,
+            failed: prev.failed + 1
           }));
           continue;
         }
 
         // Verificar se o número está na blacklist
-        const { data: blacklisted } = await supabase.from("blacklist").select("id").eq("phone", phone).maybeSingle();
+        const {
+          data: blacklisted
+        } = await supabase.from("blacklist").select("id").eq("phone", phone).maybeSingle();
         if (blacklisted) {
           blockedCount++;
           console.log(`⊘ Bloqueado por blacklist: ${pedido.cliente?.nome}`);
@@ -463,24 +420,27 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0,
             pedido_id: pedido.id,
             pedido_numero: pedido.pedido,
-            carga_id: selectedCarga.id,
+            carga_id: selectedCarga.id
           });
-          setSendProgress((prev) => ({
+          setSendProgress(prev => ({
             ...prev,
             current: i + 1,
-            blocked: prev.blocked + 1,
+            blocked: prev.blocked + 1
           }));
           continue;
         }
-        
         try {
           // Enviar e registrar de forma atômica no backend com dados completos
-          const { data, error } = await supabase.functions.invoke("campaign-send", {
+          const {
+            data,
+            error
+          } = await supabase.functions.invoke("campaign-send", {
             body: {
               campaignId: campaign.id,
               customerName: pedido.cliente?.nome || "Cliente",
               customerPhone: phone,
-              message: formattedMessage, // Mensagem completa para histórico
+              message: formattedMessage,
+              // Mensagem completa para histórico
               driverName: selectedCarga?.nomeMotorista || null,
               peso_total: pedido.pesoBruto || 0,
               valor_total: pedido.valor || 0,
@@ -491,7 +451,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               pedido_numero: pedido.pedido,
               carga_id: selectedCarga.id,
               // Nova variável de data de entrega
-              deliveryDate: formattedDeliveryDate, 
+              deliveryDate: formattedDeliveryDate,
               // Dados completos do pedido
               nota_fiscal: pedido.notaFiscal || null,
               data_pedido: pedido.data || null,
@@ -502,20 +462,18 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
               cidade: pedido.cliente?.cidade || null,
               estado: pedido.cliente?.estado || null,
               referencia: pedido.cliente?.referencia || null,
-              produtos: pedido.produtos || [],
-            },
+              produtos: pedido.produtos || []
+            }
           });
-          
           if (error) throw error;
           if (data?.status !== "success") {
             throw new Error(data?.error || "Falha no envio");
           }
-          
           successCount++;
-          setSendProgress((prev) => ({
+          setSendProgress(prev => ({
             ...prev,
             current: i + 1,
-            success: prev.success + 1,
+            success: prev.success + 1
           }));
           console.log(`✓ Enviado para ${pedido.cliente?.nome}`);
         } catch (error) {
@@ -538,18 +496,17 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
             quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0,
             pedido_id: pedido.id,
             pedido_numero: pedido.pedido,
-            carga_id: selectedCarga.id,
+            carga_id: selectedCarga.id
           });
           if (!inserted) {
             console.error("Erro ao salvar registro de falha (após retentativas).");
           }
-          setSendProgress((prev) => ({
+          setSendProgress(prev => ({
             ...prev,
             current: i + 1,
-            failed: prev.failed + 1,
+            failed: prev.failed + 1
           }));
         }
-        
         if (i < pedidosParaEnviar.length - 1) {
           // Delay de 5 segundos entre envios
           const delaySeconds = 5;
@@ -558,30 +515,24 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
           // Countdown visual
           for (let sec = delaySeconds; sec > 0; sec--) {
             setCountdown(sec);
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
           setCountdown(0);
         }
       }
 
       // Atualizar campanha com status final
-      await supabase
-        .from("campaigns")
-        .update({
-          status: errorCount === 0 ? "completed" : "completed_with_errors",
-          sent_count: successCount,
-        })
-        .eq("id", campaign.id);
-        
+      await supabase.from("campaigns").update({
+        status: errorCount === 0 ? "completed" : "completed_with_errors",
+        sent_count: successCount
+      }).eq("id", campaign.id);
       setSending(false);
       setShowProgressDialog(false);
-      
       if (errorCount === 0 && blockedCount === 0) {
         toast.success(`Campanha enviada com sucesso! ${successCount} mensagens enviadas`);
       } else {
         toast.error(`Campanha concluída: ${successCount} enviadas, ${blockedCount} bloqueadas, ${errorCount} falharam`);
       }
-      
       setSelectedPedidos(new Set());
       setEditedPhones({});
     } catch (error) {
@@ -591,7 +542,6 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
       setShowProgressDialog(false);
     }
   };
-  
   const formatDate = (dateStr: string) => {
     if (!dateStr || dateStr.length !== 8) return dateStr;
     const day = dateStr.slice(6, 8);
@@ -599,21 +549,18 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     const year = dateStr.slice(0, 4);
     return `${day}/${month}/${year}`;
   };
-  
   const statusMap: Record<string, string> = {
     ABER: "Aberta",
     SEPA: "Em Separação",
-    FATU: "Faturada",
+    FATU: "Faturada"
   };
-  
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplateId(templateId);
-    const template = savedTemplates.find((t) => t.id === templateId);
+    const template = savedTemplates.find(t => t.id === templateId);
     if (template) {
       setMessageTemplate(template.template);
     }
   };
-  
   const handleSaveTemplate = () => {
     if (!newTemplateName.trim()) {
       toast.error("Digite um nome para o template");
@@ -622,33 +569,27 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
     const newTemplate = {
       id: Date.now().toString(),
       name: newTemplateName,
-      template: messageTemplate,
+      template: messageTemplate
     };
     setSavedTemplates([...savedTemplates, newTemplate]);
     setSelectedTemplateId(newTemplate.id);
     setNewTemplateName("");
     toast.success("Template salvo com sucesso!");
   };
-  
   const handleUpdateTemplate = () => {
-    const updatedTemplates = savedTemplates.map((t) =>
-      t.id === selectedTemplateId
-        ? {
-            ...t,
-            template: messageTemplate,
-          }
-        : t,
-    );
+    const updatedTemplates = savedTemplates.map(t => t.id === selectedTemplateId ? {
+      ...t,
+      template: messageTemplate
+    } : t);
     setSavedTemplates(updatedTemplates);
     toast.success("Template atualizado!");
   };
-  
   const handleDeleteTemplate = () => {
     if (selectedTemplateId === "default") {
       toast.error("Não é possível deletar o template padrão");
       return;
     }
-    setSavedTemplates(savedTemplates.filter((t) => t.id !== selectedTemplateId));
+    setSavedTemplates(savedTemplates.filter(t => t.id !== selectedTemplateId));
     setSelectedTemplateId("default");
     setMessageTemplate(savedTemplates[0].template);
     toast.success("Template deletado!");
@@ -657,16 +598,11 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
   // Gerar preview com base no template real
   const getPreviewMessage = () => {
     if (isOfficialApi && officialTemplateBody) {
-      return officialTemplateBody
-        .replace(/\{\{1\}\}/g, previewData.cliente)
-        .replace(/\{\{2\}\}/g, previewData.pedido)
-        .replace(/\{\{3\}\}/g, previewData.data_entrega);
+      return officialTemplateBody.replace(/\{\{1\}\}/g, previewData.cliente).replace(/\{\{2\}\}/g, previewData.pedido).replace(/\{\{3\}\}/g, previewData.data_entrega);
     }
     return `Olá ${previewData.cliente},\n\n*Seu pedido ${previewData.pedido} será entregue dia ${previewData.data_entrega}*`;
   };
-  
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -687,25 +623,15 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                   </Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !deliveryDate && "text-muted-foreground"
-                        )}
-                      >
+                      <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !deliveryDate && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {deliveryDate ? format(deliveryDate, "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
+                        {deliveryDate ? format(deliveryDate, "PPP", {
+                        locale: ptBR
+                      }) : <span>Selecione a data</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={deliveryDate}
-                        onSelect={setDeliveryDate}
-                        initialFocus
-                        locale={ptBR}
-                      />
+                      <Calendar mode="single" selected={deliveryDate} onSelect={setDeliveryDate} initialFocus locale={ptBR} />
                     </PopoverContent>
                   </Popover>
                   <p className="text-xs text-muted-foreground">
@@ -718,9 +644,9 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                   <Label htmlFor="message-template" className="text-base font-semibold">
                     {isOfficialApi ? `Template Meta: ${officialTemplateName}` : "Mensagem da Campanha"}
                   </Label>
-                  {isOfficialApi ? (
-                    // API Oficial: Mostrar preview do template sem edição
-                    <div className="space-y-2">
+                  {isOfficialApi ?
+                // API Oficial: Mostrar preview do template sem edição
+                <div className="space-y-2">
                       <div className="bg-muted/50 border rounded-lg p-4 text-sm whitespace-pre-wrap">
                         <p className="text-muted-foreground mb-2 text-xs font-medium">
                           Preview do template que será enviado:
@@ -732,55 +658,33 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                       <p className="text-xs text-muted-foreground">
                         ℹ️ Usando API oficial da Meta. O template "{officialTemplateName}" será enviado automaticamente.
                       </p>
-                    </div>
-                  ) : (
-                    // API Não Oficial: Textarea editável
-                    <>
-                      <Textarea
-                        id="message-template"
-                        placeholder="Digite sua mensagem..."
-                        value={messageTemplate}
-                        onChange={(e) => setMessageTemplate(e.target.value)}
-                        rows={15}
-                        className="resize-none"
-                      />
+                    </div> :
+                // API Não Oficial: Textarea editável
+                <>
+                      <Textarea id="message-template" placeholder="Digite sua mensagem..." value={messageTemplate} onChange={e => setMessageTemplate(e.target.value)} rows={15} className="resize-none" />
                       <div className="flex flex-wrap gap-2">
                         <p className="text-xs text-muted-foreground w-full">Variáveis disponíveis:</p>
-                        {["{cliente}", "{pedido}", "{data_entrega}", "{valor}", "{status}", "{notaFiscal}"].map((v) => (
-                          <Badge key={v} variant="outline" className="text-xs">
+                        {["{cliente}", "{pedido}", "{data_entrega}", "{valor}", "{status}", "{notaFiscal}"].map(v => <Badge key={v} variant="outline" className="text-xs">
                             {v}
-                          </Badge>
-                        ))}
+                          </Badge>)}
                       </div>
-                    </>
-                  )}
+                    </>}
                 </div>
 
                 {/* Botão de Enviar Campanha */}
-                <Button
-                  onClick={() => setShowConfirmDialog(true)}
-                  className="w-full"
-                  size="lg"
-                  disabled={!whatsappConnected || selectedPedidos.size === 0 || sending || !deliveryDate}
-                >
-                  {sending ? (
-                    <>
+                <Button onClick={() => setShowConfirmDialog(true)} className="w-full" size="lg" disabled={!whatsappConnected || selectedPedidos.size === 0 || sending || !deliveryDate}>
+                  {sending ? <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Enviando...
-                    </>
-                  ) : (
-                    <>
+                    </> : <>
                       <Send className="mr-2 h-4 w-4" />
                       Enviar Campanha ({selectedPedidos.size} mensagens)
-                    </>
-                  )}
+                    </>}
                 </Button>
 
-                {!whatsappConnected && (
-                  <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
+                {!whatsappConnected && <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
                     <p className="text-sm text-warning">⚠️ Conecte o WhatsApp primeiro para poder enviar campanhas</p>
-                  </div>
-                )}
+                  </div>}
               </div>
             </ResizablePanel>
 
@@ -815,128 +719,37 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                       <SelectTrigger>
                         <SelectValue placeholder="Escolha uma carga" />
                       </SelectTrigger>
-                      <SelectContent
-                        className="bg-background z-50 max-h-[400px] max-w-[500px]"
-                        onCloseAutoFocus={(e) => e.preventDefault()}
-                        position="popper"
-                      >
-                        <div className="p-2 border-b bg-background" onPointerDown={(e) => e.stopPropagation()}>
+                      <SelectContent className="bg-background z-50 max-h-[400px] max-w-[500px]" onCloseAutoFocus={e => e.preventDefault()} position="popper">
+                        <div className="p-2 border-b bg-background" onPointerDown={e => e.stopPropagation()}>
                           <div className="relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                            <Input
-                              placeholder="Buscar carga..."
-                              value={cargaSearch}
-                              onChange={(e) => setCargaSearch(e.target.value)}
-                              className="pl-9 h-9"
-                              onKeyDown={(e) => {
-                                e.stopPropagation();
-                              }}
-                              onPointerDown={(e) => {
-                                e.stopPropagation();
-                              }}
-                            />
+                            <Input placeholder="Buscar carga..." value={cargaSearch} onChange={e => setCargaSearch(e.target.value)} className="pl-9 h-9" onKeyDown={e => {
+                            e.stopPropagation();
+                          }} onPointerDown={e => {
+                            e.stopPropagation();
+                          }} />
                           </div>
                         </div>
-                        {loading ? (
-                          <div className="p-4 text-center">
+                        {loading ? <div className="p-4 text-center">
                             <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                          </div>
-                        ) : (
-                          <ScrollArea className="h-[300px]">
-                            {filteredCargas.filter(
-                              (carga) =>
-                                cargaSearch === "" ||
-                                carga.id.toString().includes(cargaSearch) ||
-                                formatDate(carga.data).includes(cargaSearch) ||
-                                statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) ||
-                                carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase()),
-                            ).length === 0 ? (
-                              <div className="p-4 text-center text-sm text-muted-foreground">
+                          </div> : <ScrollArea className="h-[300px]">
+                            {filteredCargas.filter(carga => cargaSearch === "" || carga.id.toString().includes(cargaSearch) || formatDate(carga.data).includes(cargaSearch) || statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) || carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase())).length === 0 ? <div className="p-4 text-center text-sm text-muted-foreground">
                                 Nenhuma carga encontrada
-                              </div>
-                            ) : (
-                              filteredCargas
-                                .filter(
-                                  (carga) =>
-                                    cargaSearch === "" ||
-                                    carga.id.toString().includes(cargaSearch) ||
-                                    formatDate(carga.data).includes(cargaSearch) ||
-                                    statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) ||
-                                    carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase()),
-                                )
-                                .map((carga) => (
-                                  <SelectItem key={carga.id} value={carga.id.toString()} className="text-xs">
+                              </div> : filteredCargas.filter(carga => cargaSearch === "" || carga.id.toString().includes(cargaSearch) || formatDate(carga.data).includes(cargaSearch) || statusMap[carga.status].toLowerCase().includes(cargaSearch.toLowerCase()) || carga.nomeMotorista?.toLowerCase().includes(cargaSearch.toLowerCase())).map(carga => <SelectItem key={carga.id} value={carga.id.toString()} className="text-xs">
                                     Carga #{carga.id} - {formatDate(carga.data)} - {statusMap[carga.status]} (
                                     {carga.pedidos?.length || 0} pedidos)
-                                  </SelectItem>
-                                ))
-                            )}
-                          </ScrollArea>
-                        )}
+                                  </SelectItem>)}
+                          </ScrollArea>}
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
                 {/* Templates de Mensagem */}
-                <div className="space-y-4 pb-6 border-b">
-                  <Label className="text-base font-semibold">Templates de Mensagem</Label>
-
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <Label>Selecionar Template</Label>
-                      <Select value={selectedTemplateId} onValueChange={handleTemplateChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Escolha um template" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {savedTemplates.map((template) => (
-                            <SelectItem key={template.id} value={template.id}>
-                              {template.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Salvar Novo Template</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Nome do template"
-                          value={newTemplateName}
-                          onChange={(e) => setNewTemplateName(e.target.value)}
-                        />
-                        <Button onClick={handleSaveTemplate} variant="outline">
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleUpdateTemplate}
-                        variant="outline"
-                        size="sm"
-                        disabled={selectedTemplateId === "default"}
-                      >
-                        Atualizar Template Atual
-                      </Button>
-                      <Button
-                        onClick={handleDeleteTemplate}
-                        variant="outline"
-                        size="sm"
-                        disabled={selectedTemplateId === "default"}
-                      >
-                        Deletar Template
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                
 
                 {/* Lista de Pedidos */}
-                {selectedCarga && selectedCarga.pedidos && selectedCarga.pedidos.length > 0 && (
-                  <div className="space-y-3">
+                {selectedCarga && selectedCarga.pedidos && selectedCarga.pedidos.length > 0 && <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <Label className="flex items-center gap-2">
                         <Users className="h-4 w-4" />
@@ -964,32 +777,21 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {selectedCarga.pedidos.map((pedido) => (
-                            <TableRow key={pedido.id}>
+                          {selectedCarga.pedidos.map(pedido => <TableRow key={pedido.id}>
                               <TableCell>
-                                <Checkbox
-                                  checked={selectedPedidos.has(pedido.id)}
-                                  onCheckedChange={() => togglePedido(pedido.id)}
-                                />
+                                <Checkbox checked={selectedPedidos.has(pedido.id)} onCheckedChange={() => togglePedido(pedido.id)} />
                               </TableCell>
                               <TableCell className="font-medium">{pedido.pedido}</TableCell>
                               <TableCell>{pedido.cliente?.nome || "N/A"}</TableCell>
                               <TableCell>
-                                <Input
-                                  value={getPhone(pedido)}
-                                  onChange={(e) => updatePhone(pedido.id, e.target.value)}
-                                  placeholder="Telefone"
-                                  className="h-8"
-                                />
+                                <Input value={getPhone(pedido)} onChange={e => updatePhone(pedido.id, e.target.value)} placeholder="Telefone" className="h-8" />
                               </TableCell>
                               <TableCell>R$ {pedido.valor?.toFixed(2) || "0.00"}</TableCell>
-                            </TableRow>
-                          ))}
+                            </TableRow>)}
                         </TableBody>
                       </Table>
                     </div>
-                  </div>
-                )}
+                  </div>}
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>
@@ -1026,7 +828,7 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                       {sendProgress.current} / {sendProgress.total}
                     </span>
                   </div>
-                  <Progress value={(sendProgress.current / sendProgress.total) * 100} />
+                  <Progress value={sendProgress.current / sendProgress.total * 100} />
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 text-center">
@@ -1049,17 +851,14 @@ export const CampaignBuilder = ({ whatsappConnected }: CampaignBuilderProps) => 
                     <Loader2 className="h-4 w-4 animate-spin" />
                     <span>Aguarde enquanto as mensagens são enviadas...</span>
                   </div>
-                  {countdown > 0 && (
-                    <div className="flex items-center gap-2 text-primary font-medium">
+                  {countdown > 0 && <div className="flex items-center gap-2 text-primary font-medium">
                       <span>Próxima mensagem em {countdown}s</span>
-                    </div>
-                  )}
+                    </div>}
                 </div>
               </div>
             </DialogContent>
           </Dialog>
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>;
 };
