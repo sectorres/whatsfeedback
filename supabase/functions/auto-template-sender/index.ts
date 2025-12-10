@@ -146,17 +146,83 @@ serve(async (req) => {
     }
     const restrictedDriverNames = new Set(restrictedDrivers.map(d => d.name.toUpperCase()));
 
-    // Get template details to know how many variables each template expects
+    // Get template details to know how many variables each template expects and body text
     const { data: templateDetails } = await supabase
       .from("whatsapp_templates")
-      .select("template_name, variables")
+      .select("template_name, variables, body_text")
       .in("template_name", [TEMPLATE_ABER, TEMPLATE_FATU]);
 
     const templateVariablesMap: Record<string, number> = {};
+    const templateBodyMap: Record<string, string> = {};
     templateDetails?.forEach(t => {
       const vars = t.variables as any[] || [];
       templateVariablesMap[t.template_name] = vars.length;
+      templateBodyMap[t.template_name] = t.body_text || "";
     });
+
+    // Helper function to save message to conversation
+    async function saveToConversation(
+      phone: string,
+      customerName: string,
+      templateName: string,
+      templateParams: { type: string; text: string }[],
+      isTest: boolean
+    ) {
+      const normalizedPhone = normalizePhone(phone);
+      const bodyTemplate = templateBodyMap[templateName] || `[Template: ${templateName}]`;
+      
+      // Replace template variables with actual values
+      let messageText = bodyTemplate;
+      templateParams.forEach((param, index) => {
+        messageText = messageText.replace(`{{${index + 1}}}`, param.text);
+      });
+      
+      if (isTest) {
+        messageText = `[TESTE] ${messageText}`;
+      }
+
+      // Find or create conversation
+      let { data: conversation } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("customer_phone", normalizedPhone)
+        .maybeSingle();
+
+      if (!conversation) {
+        const { data: newConversation } = await supabase
+          .from("conversations")
+          .insert({
+            customer_phone: normalizedPhone,
+            customer_name: customerName || "Cliente",
+            status: "active",
+            last_message_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single();
+        conversation = newConversation;
+      } else {
+        // Update conversation last message time
+        await supabase
+          .from("conversations")
+          .update({ 
+            last_message_at: new Date().toISOString(),
+            status: "active"
+          })
+          .eq("id", conversation.id);
+      }
+
+      if (conversation) {
+        // Insert message
+        await supabase.from("messages").insert({
+          conversation_id: conversation.id,
+          sender_type: "bot",
+          sender_name: "Envio Automático",
+          message_text: messageText,
+          message_status: "sent",
+        });
+        console.log(`Message saved to conversation ${conversation.id}`);
+      }
+    }
 
     console.log("Config loaded:", { minDateValue, minDateFormatted, TEMPLATE_ABER, TEMPLATE_FATU, templateVariablesMap, restrictedDriversCount: restrictedDrivers.length });
 
@@ -290,6 +356,17 @@ serve(async (req) => {
 
         const sendResult = await sendResponse.json();
         console.log(`Test template send result:`, sendResult);
+
+        if (sendResponse.ok) {
+          // Save to conversation (test mode)
+          await saveToConversation(
+            testPhone,
+            specificOrder.clienteNome || "Cliente",
+            templateName,
+            templateParams,
+            true // isTest = true
+          );
+        }
 
         results.push({
           pedido: specificOrder.pedido,
@@ -430,6 +507,18 @@ serve(async (req) => {
 
           const sendResult = await sendResponse.json();
           console.log(`Template send result:`, sendResult);
+
+          // Save to conversation for all sends (including test mode)
+          if (sendResponse.ok) {
+            const phoneForConversation = testMode && testPhone ? testPhone : customerPhone;
+            await saveToConversation(
+              phoneForConversation,
+              pedido.cliente?.nome || "Cliente",
+              templateName,
+              templateParams,
+              testMode
+            );
+          }
 
           // Record the send (unless test mode with different phone)
           if (!testMode) {
