@@ -111,18 +111,24 @@ serve(async (req) => {
       );
     }
 
-    // Get min date config
-    const { data: minDateConfig } = await supabase
+    // Get min date config and template configs
+    const { data: appConfigs } = await supabase
       .from("app_config")
-      .select("config_value")
-      .eq("config_key", "auto_template_min_date")
-      .maybeSingle();
+      .select("config_key, config_value")
+      .in("config_key", ["auto_template_min_date", "auto_template_aber", "auto_template_fatu"]);
 
     // Convert min date from YYYY-MM-DD to YYYYMMDD for comparison
+    const minDateConfig = appConfigs?.find(c => c.config_key === "auto_template_min_date");
     const minDateValue = minDateConfig?.config_value || "";
     const minDateFormatted = minDateValue ? minDateValue.replace(/-/g, "") : "";
 
-    console.log("Min date config:", { minDateValue, minDateFormatted });
+    // Get template names from config (with defaults)
+    const templateAberConfig = appConfigs?.find(c => c.config_key === "auto_template_aber");
+    const templateFatuConfig = appConfigs?.find(c => c.config_key === "auto_template_fatu");
+    const TEMPLATE_ABER = templateAberConfig?.config_value || "em_processo_entrega";
+    const TEMPLATE_FATU = templateFatuConfig?.config_value || "status4";
+
+    console.log("Config loaded:", { minDateValue, minDateFormatted, TEMPLATE_ABER, TEMPLATE_FATU });
 
     // Fetch cargas from API (last 7 days to now + 30 days)
     const hoje = new Date();
@@ -202,7 +208,7 @@ serve(async (req) => {
       console.log("Test mode with specific order:", specificOrder);
 
       const cargaStatus = forceStatus || "ABER";
-      const templateName = cargaStatus === "ABER" ? "em_processo_entrega" : "status4";
+      const templateName = cargaStatus === "ABER" ? TEMPLATE_ABER : TEMPLATE_FATU;
       const formattedPhone = formatPhoneForWhatsApp(testPhone);
 
       // Format date for status4 template
@@ -299,15 +305,15 @@ serve(async (req) => {
         let shouldProcess = false;
         let templateName = "";
 
-        // Logic: Serie P + ABER → em_processo_entrega (all orders)
+        // Logic: Serie P + ABER → use TEMPLATE_ABER (all orders)
         if (cargaStatus === "ABER" && pedidoSerie === "P") {
           shouldProcess = true;
-          templateName = "em_processo_entrega";
+          templateName = TEMPLATE_ABER;
         }
-        // Logic: FATU + Serie N + notaFiscal starts with "050/" → status4
+        // Logic: FATU + Serie N + notaFiscal starts with "050/" → use TEMPLATE_FATU
         else if (cargaStatus === "FATU" && notaFiscalSerie === "N" && pedido.notaFiscal?.startsWith("050/")) {
           shouldProcess = true;
-          templateName = "status4";
+          templateName = TEMPLATE_FATU;
         }
 
         if (!shouldProcess) {

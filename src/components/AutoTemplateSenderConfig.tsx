@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Play, RefreshCw, Send, Clock, CheckCircle2, XCircle, Search, Package } from "lucide-react";
+import { Play, RefreshCw, Send, Clock, CheckCircle2, XCircle, Search, Package, Settings } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface SendResult {
@@ -30,6 +30,12 @@ interface PedidoItem {
   serie: string;
 }
 
+interface WhatsAppTemplate {
+  id: string;
+  template_name: string;
+  meta_status: string;
+}
+
 export function AutoTemplateSenderConfig() {
   const { toast } = useToast();
   const [enabled, setEnabled] = useState(false);
@@ -42,6 +48,11 @@ export function AutoTemplateSenderConfig() {
   const [testResults, setTestResults] = useState<SendResult[]>([]);
   const [minDate, setMinDate] = useState<string>("");
 
+  // Template configuration
+  const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
+  const [templateAber, setTemplateAber] = useState<string>("em_processo_entrega");
+  const [templateFatu, setTemplateFatu] = useState<string>("status4");
+
   // Orders for testing
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [availableOrders, setAvailableOrders] = useState<PedidoItem[]>([]);
@@ -50,13 +61,30 @@ export function AutoTemplateSenderConfig() {
   useEffect(() => {
     loadConfig();
     loadRecentSends();
+    loadTemplates();
   }, []);
+
+  const loadTemplates = async () => {
+    const { data } = await supabase
+      .from("whatsapp_templates")
+      .select("id, template_name, meta_status")
+      .eq("meta_status", "APPROVED")
+      .order("template_name");
+
+    setTemplates(data || []);
+  };
 
   const loadConfig = async () => {
     const { data } = await supabase
       .from("app_config")
       .select("config_key, config_value")
-      .in("config_key", ["auto_template_enabled", "auto_template_last_run", "auto_template_min_date"]);
+      .in("config_key", [
+        "auto_template_enabled",
+        "auto_template_last_run",
+        "auto_template_min_date",
+        "auto_template_aber",
+        "auto_template_fatu",
+      ]);
 
     data?.forEach((config) => {
       if (config.config_key === "auto_template_enabled") {
@@ -65,6 +93,10 @@ export function AutoTemplateSenderConfig() {
         setLastRun(config.config_value);
       } else if (config.config_key === "auto_template_min_date") {
         setMinDate(config.config_value || "");
+      } else if (config.config_key === "auto_template_aber") {
+        setTemplateAber(config.config_value || "em_processo_entrega");
+      } else if (config.config_key === "auto_template_fatu") {
+        setTemplateFatu(config.config_value || "status4");
       }
     });
   };
@@ -327,28 +359,63 @@ export function AutoTemplateSenderConfig() {
             )}
           </div>
 
-          {/* Status Explanation */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 border rounded-lg bg-muted/50">
-              <Badge variant="outline" className="mb-2">
-                ABER + Serie P
-              </Badge>
-              <p className="text-sm font-medium">Em Processo de Entrega</p>
-              <p className="text-xs text-muted-foreground">
-                Template: <code>em_processo_entrega</code>
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">Todos os pedidos com Serie P</p>
+          {/* Template Configuration */}
+          <div className="p-4 border rounded-lg space-y-4">
+            <div className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              <Label className="text-base font-medium">Configuração de Templates</Label>
             </div>
-            <div className="p-4 border rounded-lg bg-muted/50">
-              <Badge variant="outline" className="mb-2">
-                FATU + Serie N + NF 050/
-              </Badge>
-              <p className="text-sm font-medium">Faturado</p>
-              <p className="text-xs text-muted-foreground">
-                Template: <code>status4</code> (com data)
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">Apenas NF começando com 050/</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 border rounded-lg bg-muted/50 space-y-3">
+                <Badge variant="outline">ABER + Serie P</Badge>
+                <p className="text-sm text-muted-foreground">Todos os pedidos com Serie P</p>
+                <div className="space-y-2">
+                  <Label className="text-xs">Template:</Label>
+                  <Select value={templateAber} onValueChange={setTemplateAber}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map((t) => (
+                        <SelectItem key={t.id} value={t.template_name}>
+                          {t.template_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="p-4 border rounded-lg bg-muted/50 space-y-3">
+                <Badge variant="outline">FATU + Serie N + NF 050/</Badge>
+                <p className="text-sm text-muted-foreground">Apenas NF começando com 050/</p>
+                <div className="space-y-2">
+                  <Label className="text-xs">Template:</Label>
+                  <Select value={templateFatu} onValueChange={setTemplateFatu}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map((t) => (
+                        <SelectItem key={t.id} value={t.template_name}>
+                          {t.template_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                await saveConfig("auto_template_aber", templateAber);
+                await saveConfig("auto_template_fatu", templateFatu);
+                toast({ title: "Templates salvos" });
+              }}
+            >
+              Salvar Templates
+            </Button>
           </div>
 
           {/* Manual Run */}
