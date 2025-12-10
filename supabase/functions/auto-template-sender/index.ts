@@ -111,6 +111,19 @@ serve(async (req) => {
       );
     }
 
+    // Get min date config
+    const { data: minDateConfig } = await supabase
+      .from("app_config")
+      .select("config_value")
+      .eq("config_key", "auto_template_min_date")
+      .maybeSingle();
+
+    // Convert min date from YYYY-MM-DD to YYYYMMDD for comparison
+    const minDateValue = minDateConfig?.config_value || "";
+    const minDateFormatted = minDateValue ? minDateValue.replace(/-/g, "") : "";
+
+    console.log("Min date config:", { minDateValue, minDateFormatted });
+
     // Fetch cargas from API (last 7 days to now + 30 days)
     const hoje = new Date();
     const dataInicial = new Date();
@@ -141,9 +154,16 @@ serve(async (req) => {
     }
 
     const apiData = await apiResponse.json();
-    const cargas: Carga[] = apiData.retorno?.cargas || [];
+    let cargas: Carga[] = apiData.retorno?.cargas || [];
 
-    console.log(`Found ${cargas.length} cargas`);
+    // Filter cargas by min date if configured
+    if (minDateFormatted) {
+      const beforeFilter = cargas.length;
+      cargas = cargas.filter((carga) => carga.data >= minDateFormatted);
+      console.log(`Filtered cargas by min date: ${beforeFilter} → ${cargas.length}`);
+    }
+
+    console.log(`Found ${cargas.length} cargas after filtering`);
 
     // Get already sent records to avoid duplicates
     const { data: sentRecords } = await supabase
