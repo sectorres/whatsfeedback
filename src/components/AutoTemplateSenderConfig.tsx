@@ -40,6 +40,7 @@ export function AutoTemplateSenderConfig() {
   const [lastRun, setLastRun] = useState<string | null>(null);
   const [recentSends, setRecentSends] = useState<any[]>([]);
   const [testResults, setTestResults] = useState<SendResult[]>([]);
+  const [minDate, setMinDate] = useState<string>("");
 
   // Orders for testing
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -55,13 +56,15 @@ export function AutoTemplateSenderConfig() {
     const { data } = await supabase
       .from("app_config")
       .select("config_key, config_value")
-      .in("config_key", ["auto_template_enabled", "auto_template_last_run"]);
+      .in("config_key", ["auto_template_enabled", "auto_template_last_run", "auto_template_min_date"]);
 
     data?.forEach((config) => {
       if (config.config_key === "auto_template_enabled") {
         setEnabled(config.config_value === "true");
       } else if (config.config_key === "auto_template_last_run") {
         setLastRun(config.config_value);
+      } else if (config.config_key === "auto_template_min_date") {
+        setMinDate(config.config_value || "");
       }
     });
   };
@@ -94,9 +97,15 @@ export function AutoTemplateSenderConfig() {
       const cargas = data?.retorno?.cargas || [];
       const orders: PedidoItem[] = [];
 
+      // Convert minDate to YYYYMMDD format for comparison
+      const minDateFormatted = minDate ? minDate.replace(/-/g, "") : "";
+
       for (const carga of cargas) {
         // Only include ABER or FATU status
         if (carga.status !== "ABER" && carga.status !== "FATU") continue;
+
+        // Filter by min date if configured
+        if (minDateFormatted && carga.data < minDateFormatted) continue;
 
         for (const pedido of carga.pedidos || []) {
           const pedidoSerie = extractSerie(pedido.pedido);
@@ -272,6 +281,50 @@ export function AutoTemplateSenderConfig() {
               <p className="text-sm text-muted-foreground">Executa a cada 10 minutos automaticamente</p>
             </div>
             <Switch checked={enabled} onCheckedChange={handleToggleEnabled} />
+          </div>
+
+          {/* Min Date Filter */}
+          <div className="p-4 border rounded-lg space-y-2">
+            <Label className="text-base font-medium">Data mínima para coleta</Label>
+            <p className="text-sm text-muted-foreground">
+              Apenas cargas com data igual ou posterior serão processadas
+            </p>
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={minDate}
+                onChange={(e) => setMinDate(e.target.value)}
+                className="w-48"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  await saveConfig("auto_template_min_date", minDate);
+                  toast({ title: "Data mínima salva" });
+                }}
+              >
+                Salvar
+              </Button>
+              {minDate && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    setMinDate("");
+                    await saveConfig("auto_template_min_date", "");
+                    toast({ title: "Filtro de data removido" });
+                  }}
+                >
+                  Limpar
+                </Button>
+              )}
+            </div>
+            {minDate && (
+              <p className="text-xs text-muted-foreground">
+                Processando apenas cargas a partir de: {new Date(minDate + "T00:00:00").toLocaleDateString("pt-BR")}
+              </p>
+            )}
           </div>
 
           {/* Status Explanation */}
