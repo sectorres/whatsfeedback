@@ -20,8 +20,10 @@ import {
   FileText,
   Trash2,
   Download,
-  Eye
+  Eye,
+  Ban
 } from "lucide-react";
+import { Switch } from "./ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -41,6 +43,7 @@ interface WhatsAppTemplate {
   submitted_at: string | null;
   approved_at: string | null;
   created_at: string;
+  is_disabled: boolean;
 }
 
 interface Variable {
@@ -260,6 +263,23 @@ export const WhatsAppTemplateManager = () => {
     }
   };
 
+  const handleToggleDisabled = async (id: string, currentValue: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('whatsapp_templates')
+        .update({ is_disabled: !currentValue })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success(currentValue ? "Template habilitado" : "Template inibido");
+      loadTemplates();
+    } catch (error) {
+      console.error('Erro ao atualizar template:', error);
+      toast.error("Erro ao atualizar template");
+    }
+  };
+
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('pt-BR', {
@@ -473,10 +493,12 @@ export const WhatsAppTemplateManager = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Categoria</TableHead>
                   <TableHead>Idioma</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Enviado em</TableHead>
+                  <TableHead>Ativo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -484,13 +506,28 @@ export const WhatsAppTemplateManager = () => {
                 {templates.map((template) => {
                   const statusConfig = STATUS_CONFIG[template.meta_status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
                   const StatusIcon = statusConfig.icon;
+                  const isMarketing = template.template_type?.toUpperCase() === 'MARKETING';
                   
                   return (
-                    <TableRow key={template.id}>
-                      <TableCell className="font-medium">{template.template_name}</TableCell>
+                    <TableRow key={template.id} className={template.is_disabled ? "opacity-50" : ""}>
+                      <TableCell className="font-medium">
+                        {template.template_name}
+                        {template.is_disabled && (
+                          <Badge variant="destructive" className="ml-2 text-xs">
+                            <Ban className="h-3 w-3 mr-1" />
+                            Inibido
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={isMarketing ? "destructive" : "default"}>
+                          {template.template_type?.toUpperCase() === 'MARKETING' ? 'Marketing' : 'Utilidade'}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline">
-                          {template.category === 'delivery_notification' ? 'Entrega' : 'Satisfação'}
+                          {template.category === 'delivery_notification' ? 'Entrega' : 
+                           template.category === 'satisfaction_survey' ? 'Satisfação' : template.category}
                         </Badge>
                       </TableCell>
                       <TableCell>{template.language}</TableCell>
@@ -504,6 +541,12 @@ export const WhatsAppTemplateManager = () => {
                         )}
                       </TableCell>
                       <TableCell>{formatDate(template.submitted_at)}</TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={!template.is_disabled}
+                          onCheckedChange={() => handleToggleDisabled(template.id, template.is_disabled)}
+                        />
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button

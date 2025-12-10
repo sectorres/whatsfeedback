@@ -37,6 +37,8 @@ interface WhatsAppTemplate {
   category: string;
   language: string;
   meta_status: string | null;
+  template_type: string;
+  is_disabled: boolean;
 }
 
 export function AutoTemplateSenderConfig() {
@@ -70,7 +72,8 @@ export function AutoTemplateSenderConfig() {
   const loadTemplates = async () => {
     const { data } = await supabase
       .from("whatsapp_templates")
-      .select("id, template_name, body_text, category, language, meta_status")
+      .select("id, template_name, body_text, category, language, meta_status, template_type, is_disabled")
+      .eq("is_disabled", false)
       .order("template_name", { ascending: true });
 
     setTemplates(data || []);

@@ -803,6 +803,7 @@ export type Database = {
           footer_text: string | null
           header_text: string | null
           id: string
+          is_disabled: boolean
           language: string
           meta_rejection_reason: string | null
           meta_status: string | null
@@ -821,6 +822,7 @@ export type Database = {
           footer_text?: string | null
           header_text?: string | null
           id?: string
+          is_disabled?: boolean
           language?: string
           meta_rejection_reason?: string | null
           meta_status?: string | null
@@ -839,6 +841,7 @@ export type Database = {
           footer_text?: string | null
           header_text?: string | null
           id?: string
+          is_disabled?: boolean
           language?: string
           meta_rejection_reason?: string | null
           meta_status?: string | null
