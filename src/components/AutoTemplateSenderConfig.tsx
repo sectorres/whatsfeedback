@@ -125,6 +125,30 @@ export function AutoTemplateSenderConfig() {
   const loadAvailableOrders = async () => {
     setLoadingOrders(true);
     try {
+      // Fetch restricted prefixes and restricted drivers first
+      const { data: configData } = await supabase
+        .from("app_config")
+        .select("config_key, config_value")
+        .in("config_key", ["restricted_order_prefixes", "restricted_drivers"]);
+
+      let restrictedPrefixes: string[] = [];
+      let restrictedDrivers: string[] = [];
+      
+      configData?.forEach((config) => {
+        if (config.config_key === "restricted_order_prefixes" && config.config_value) {
+          try {
+            const parsed = JSON.parse(config.config_value);
+            restrictedPrefixes = parsed.map((p: { prefix: string }) => p.prefix.toUpperCase());
+          } catch {}
+        }
+        if (config.config_key === "restricted_drivers" && config.config_value) {
+          try {
+            const parsed = JSON.parse(config.config_value);
+            restrictedDrivers = parsed.map((d: { name: string }) => d.name.toUpperCase());
+          } catch {}
+        }
+      });
+
       const { data, error } = await supabase.functions.invoke("fetch-cargas", {
         body: {},
       });
@@ -144,15 +168,24 @@ export function AutoTemplateSenderConfig() {
         // Filter by min date if configured
         if (minDateFormatted && carga.data < minDateFormatted) continue;
 
+        // Skip restricted drivers
+        const driverName = carga.nomeMotorista?.toUpperCase() || "";
+        if (restrictedDrivers.includes(driverName)) continue;
+
         for (const pedido of carga.pedidos || []) {
           const pedidoSerie = extractSerie(pedido.pedido);
           const notaFiscalSerie = extractSerie(pedido.notaFiscal);
 
-          // Logic: Serie P + ABER → show all
+          // Logic: Serie P + ABER → show (if not restricted prefix)
           // Logic: FATU + Serie N + notaFiscal starts with "050/" → show
           let shouldInclude = false;
           if (carga.status === "ABER" && pedidoSerie === "P") {
-            shouldInclude = true;
+            // Check if order starts with any restricted prefix
+            const pedidoUpper = pedido.pedido?.toUpperCase() || "";
+            const isRestrictedPrefix = restrictedPrefixes.some((prefix: string) => pedidoUpper.startsWith(prefix));
+            if (!isRestrictedPrefix) {
+              shouldInclude = true;
+            }
           } else if (carga.status === "FATU" && notaFiscalSerie === "N" && pedido.notaFiscal?.startsWith("050/")) {
             shouldInclude = true;
           }
