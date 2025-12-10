@@ -128,7 +128,19 @@ serve(async (req) => {
     const TEMPLATE_ABER = templateAberConfig?.config_value || "em_processo_entrega";
     const TEMPLATE_FATU = templateFatuConfig?.config_value || "status4";
 
-    console.log("Config loaded:", { minDateValue, minDateFormatted, TEMPLATE_ABER, TEMPLATE_FATU });
+    // Get template details to know how many variables each template expects
+    const { data: templateDetails } = await supabase
+      .from("whatsapp_templates")
+      .select("template_name, variables")
+      .in("template_name", [TEMPLATE_ABER, TEMPLATE_FATU]);
+
+    const templateVariablesMap: Record<string, number> = {};
+    templateDetails?.forEach(t => {
+      const vars = t.variables as any[] || [];
+      templateVariablesMap[t.template_name] = vars.length;
+    });
+
+    console.log("Config loaded:", { minDateValue, minDateFormatted, TEMPLATE_ABER, TEMPLATE_FATU, templateVariablesMap });
 
     // Fetch cargas from API (last 7 days to now + 30 days)
     const hoje = new Date();
@@ -211,25 +223,41 @@ serve(async (req) => {
       const templateName = cargaStatus === "ABER" ? TEMPLATE_ABER : TEMPLATE_FATU;
       const formattedPhone = formatPhoneForWhatsApp(testPhone);
 
-      // Format date for status4 template
+      // Format date for template
       const dataPedido = specificOrder.data || "";
       const formattedDate = dataPedido
         ? `${dataPedido.slice(6, 8)}/${dataPedido.slice(4, 6)}/${dataPedido.slice(0, 4)}`
         : "";
 
-      // Build template parameters (status4 has 3 params: nome, pedido, data)
-      const templateParams: any[] =
-        cargaStatus === "ABER"
-          ? [{ type: "text", text: specificOrder.clienteNome || "Cliente" }]
-          : [
-              { type: "text", text: specificOrder.clienteNome || "Cliente" },
-              { type: "text", text: specificOrder.pedido || "seu pedido" },
-              { type: "text", text: formattedDate || new Date().toLocaleDateString("pt-BR") },
-            ];
+      // Get number of variables this template expects
+      const numVariables = templateVariablesMap[templateName] || 0;
+      console.log(`Template ${templateName} expects ${numVariables} variables`);
 
-      console.log(`Sending test ${templateName} to ${formattedPhone} for pedido ${specificOrder.pedido}`);
+      // Build template parameters based on how many the template expects
+      let templateParams: any[] = [];
+      if (numVariables >= 1) templateParams.push({ type: "text", text: specificOrder.clienteNome || "Cliente" });
+      if (numVariables >= 2) templateParams.push({ type: "text", text: specificOrder.pedido || "seu pedido" });
+      if (numVariables >= 3) templateParams.push({ type: "text", text: formattedDate || new Date().toLocaleDateString("pt-BR") });
+
+      console.log(`Sending test ${templateName} to ${formattedPhone} for pedido ${specificOrder.pedido} with ${templateParams.length} params`);
 
       try {
+        // Build request body - only include components if there are parameters
+        const requestBody: any = {
+          number: formattedPhone,
+          name: templateName,
+          language: "pt_BR",
+        };
+        
+        if (templateParams.length > 0) {
+          requestBody.components = [
+            {
+              type: "body",
+              parameters: templateParams,
+            },
+          ];
+        }
+
         const sendResponse = await fetch(
           `${evolutionConfig.api_url}/message/sendTemplate/${evolutionConfig.instance_name}`,
           {
@@ -238,17 +266,7 @@ serve(async (req) => {
               apikey: evolutionConfig.api_key,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              number: formattedPhone,
-              name: templateName,
-              language: "pt_BR",
-              components: [
-                {
-                  type: "body",
-                  parameters: templateParams,
-                },
-              ],
-            }),
+            body: JSON.stringify(requestBody),
           },
         );
 
@@ -338,25 +356,40 @@ serve(async (req) => {
         const phoneToUse = testMode && testPhone ? testPhone : customerPhone;
         const formattedPhone = formatPhoneForWhatsApp(phoneToUse);
 
-        // Format date for status4 template (FATU)
+        // Format date for template
         const dataPedido = pedido.data || carga.data;
         const formattedDate = dataPedido
           ? `${dataPedido.slice(6, 8)}/${dataPedido.slice(4, 6)}/${dataPedido.slice(0, 4)}`
           : "";
 
-        // Build template parameters (status4 has 3 params: nome, pedido, data)
-        const templateParams: any[] =
-          cargaStatus === "ABER"
-            ? [{ type: "text", text: pedido.cliente?.nome || "Cliente" }]
-            : [
-                { type: "text", text: pedido.cliente?.nome || "Cliente" },
-                { type: "text", text: pedido.pedido || "seu pedido" },
-                { type: "text", text: formattedDate || new Date().toLocaleDateString("pt-BR") },
-              ];
+        // Get number of variables this template expects
+        const numVariables = templateVariablesMap[templateName] || 0;
 
-        console.log(`Sending ${templateName} to ${formattedPhone} for pedido ${pedido.pedido}`);
+        // Build template parameters based on how many the template expects
+        let templateParams: any[] = [];
+        if (numVariables >= 1) templateParams.push({ type: "text", text: pedido.cliente?.nome || "Cliente" });
+        if (numVariables >= 2) templateParams.push({ type: "text", text: pedido.pedido || "seu pedido" });
+        if (numVariables >= 3) templateParams.push({ type: "text", text: formattedDate || new Date().toLocaleDateString("pt-BR") });
+
+        console.log(`Sending ${templateName} to ${formattedPhone} for pedido ${pedido.pedido} with ${templateParams.length} params`);
 
         try {
+          // Build request body - only include components if there are parameters
+          const requestBody: any = {
+            number: formattedPhone,
+            name: templateName,
+            language: "pt_BR",
+          };
+          
+          if (templateParams.length > 0) {
+            requestBody.components = [
+              {
+                type: "body",
+                parameters: templateParams,
+              },
+            ];
+          }
+
           // Send template via Evolution API
           const sendResponse = await fetch(
             `${evolutionConfig.api_url}/message/sendTemplate/${evolutionConfig.instance_name}`,
@@ -366,17 +399,7 @@ serve(async (req) => {
                 apikey: evolutionConfig.api_key,
                 "Content-Type": "application/json",
               },
-              body: JSON.stringify({
-                number: formattedPhone,
-                name: templateName,
-                language: "pt_BR",
-                components: [
-                  {
-                    type: "body",
-                    parameters: templateParams,
-                  },
-                ],
-              }),
+              body: JSON.stringify(requestBody),
             },
           );
 
