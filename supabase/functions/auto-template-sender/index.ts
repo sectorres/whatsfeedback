@@ -22,6 +22,7 @@ interface Cliente {
 interface Pedido {
   id: number;
   pedido: string;
+  notaFiscal?: string;
   data: string;
   status?: string;
   cliente: Cliente;
@@ -33,6 +34,13 @@ interface Carga {
   data: string;
   status: string;
   pedidos: Pedido[];
+}
+
+// Extract serie from pedido (e.g., "001/0262558-P" → "P") or notaFiscal (e.g., "002/0140826-N" → "N")
+function extractSerie(value: string | undefined): string {
+  if (!value) return "";
+  const parts = value.split("-");
+  return parts.length > 1 ? parts[parts.length - 1] : "";
 }
 
 function normalizePhone(phone: string): string {
@@ -263,8 +271,24 @@ serve(async (req) => {
       }
 
       for (const pedido of carga.pedidos || []) {
-        // Only process orders starting with "050"
-        if (!pedido.pedido || !pedido.pedido.startsWith("020")) {
+        const pedidoSerie = extractSerie(pedido.pedido);
+        const notaFiscalSerie = extractSerie(pedido.notaFiscal);
+        
+        let shouldProcess = false;
+        let templateName = "";
+
+        // Logic: Serie P + ABER → em_processo_entrega (all orders)
+        if (cargaStatus === "ABER" && pedidoSerie === "P") {
+          shouldProcess = true;
+          templateName = "em_processo_entrega";
+        }
+        // Logic: FATU + Serie N + notaFiscal starts with "050/" → status4
+        else if (cargaStatus === "FATU" && notaFiscalSerie === "N" && pedido.notaFiscal?.startsWith("050/")) {
+          shouldProcess = true;
+          templateName = "status4";
+        }
+
+        if (!shouldProcess) {
           continue;
         }
 
@@ -275,9 +299,6 @@ serve(async (req) => {
           skippedCount++;
           continue;
         }
-
-        // Determine template to send
-        const templateName = cargaStatus === "ABER" ? "em_processo_entrega" : "status4";
 
         // Get customer phone
         const customerPhone = pedido.cliente?.celular || pedido.cliente?.telefone;

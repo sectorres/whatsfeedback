@@ -22,10 +22,12 @@ interface SendResult {
 
 interface PedidoItem {
   pedido: string;
+  notaFiscal?: string;
   clienteNome: string;
   clienteTelefone: string;
   cargaStatus: string;
   data: string;
+  serie: string;
 }
 
 export function AutoTemplateSenderConfig() {
@@ -74,6 +76,12 @@ export function AutoTemplateSenderConfig() {
     setRecentSends(data || []);
   };
 
+  const extractSerie = (value: string | undefined): string => {
+    if (!value) return "";
+    const parts = value.split("-");
+    return parts.length > 1 ? parts[parts.length - 1] : "";
+  };
+
   const loadAvailableOrders = async () => {
     setLoadingOrders(true);
     try {
@@ -91,17 +99,30 @@ export function AutoTemplateSenderConfig() {
         if (carga.status !== "ABER" && carga.status !== "FATU") continue;
 
         for (const pedido of carga.pedidos || []) {
-          // Only include orders starting with 050
-          if (!pedido.pedido || !pedido.pedido.startsWith("020")) continue;
+          const pedidoSerie = extractSerie(pedido.pedido);
+          const notaFiscalSerie = extractSerie(pedido.notaFiscal);
+
+          // Logic: Serie P + ABER → show all
+          // Logic: FATU + Serie N + notaFiscal starts with "050/" → show
+          let shouldInclude = false;
+          if (carga.status === "ABER" && pedidoSerie === "P") {
+            shouldInclude = true;
+          } else if (carga.status === "FATU" && notaFiscalSerie === "N" && pedido.notaFiscal?.startsWith("050/")) {
+            shouldInclude = true;
+          }
+
+          if (!shouldInclude) continue;
 
           const telefone = pedido.cliente?.celular || pedido.cliente?.telefone || "";
 
           orders.push({
             pedido: pedido.pedido,
+            notaFiscal: pedido.notaFiscal,
             clienteNome: pedido.cliente?.nome || "Sem nome",
             clienteTelefone: telefone,
             cargaStatus: carga.status,
             data: pedido.data || carga.data || "",
+            serie: carga.status === "ABER" ? pedidoSerie : notaFiscalSerie,
           });
         }
       }
@@ -110,14 +131,14 @@ export function AutoTemplateSenderConfig() {
 
       if (orders.length === 0) {
         toast({
-          title: "Nenhum pedido 050 encontrado",
-          description: "Não há pedidos começando com 050 nos status ABER ou FATU",
+          title: "Nenhum pedido encontrado",
+          description: "Não há pedidos elegíveis para os critérios definidos",
           variant: "destructive",
         });
       } else {
         toast({
           title: "Pedidos carregados",
-          description: `${orders.length} pedidos 050 disponíveis`,
+          description: `${orders.length} pedidos disponíveis`,
         });
       }
     } catch (error: any) {
@@ -239,7 +260,9 @@ export function AutoTemplateSenderConfig() {
             <Send className="h-5 w-5" />
             Envio Automático de Templates
           </CardTitle>
-          <CardDescription>Envio automático baseado no status do pedido (apenas pedidos 050)</CardDescription>
+          <CardDescription>
+            ABER + Serie P → em_processo_entrega (todos) | FATU + Serie N + NF 050/ → status4
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Enable/Disable Toggle */}
@@ -255,21 +278,23 @@ export function AutoTemplateSenderConfig() {
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 border rounded-lg bg-muted/50">
               <Badge variant="outline" className="mb-2">
-                ABER
+                ABER + Serie P
               </Badge>
               <p className="text-sm font-medium">Em Processo de Entrega</p>
               <p className="text-xs text-muted-foreground">
                 Template: <code>em_processo_entrega</code>
               </p>
+              <p className="text-xs text-muted-foreground mt-1">Todos os pedidos com Serie P</p>
             </div>
             <div className="p-4 border rounded-lg bg-muted/50">
               <Badge variant="outline" className="mb-2">
-                FATU
+                FATU + Serie N + NF 050/
               </Badge>
               <p className="text-sm font-medium">Faturado</p>
               <p className="text-xs text-muted-foreground">
                 Template: <code>status4</code> (com data)
               </p>
+              <p className="text-xs text-muted-foreground mt-1">Apenas NF começando com 050/</p>
             </div>
           </div>
 
@@ -293,7 +318,7 @@ export function AutoTemplateSenderConfig() {
       <Card>
         <CardHeader>
           <CardTitle>Modo de Teste</CardTitle>
-          <CardDescription>Selecione um pedido 050 e envie para um número de teste</CardDescription>
+          <CardDescription>Selecione um pedido elegível e envie para um número de teste</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Load Orders Button */}
@@ -304,7 +329,7 @@ export function AutoTemplateSenderConfig() {
               ) : (
                 <Search className="h-4 w-4 mr-2" />
               )}
-              Buscar Pedidos 050
+              Buscar Pedidos Elegíveis
             </Button>
             {availableOrders.length > 0 && (
               <Badge variant="secondary">{availableOrders.length} pedidos encontrados</Badge>
@@ -333,8 +358,11 @@ export function AutoTemplateSenderConfig() {
                         <div className="flex items-center gap-2">
                           <Package className="h-4 w-4 text-muted-foreground" />
                           <span className="font-mono font-medium">{order.pedido}</span>
+                          {order.notaFiscal && (
+                            <span className="text-xs text-muted-foreground">NF: {order.notaFiscal}</span>
+                          )}
                           <Badge variant={order.cargaStatus === "ABER" ? "default" : "secondary"} className="text-xs">
-                            {order.cargaStatus}
+                            {order.cargaStatus} (Serie {order.serie})
                           </Badge>
                         </div>
                         {selectedOrder === order.pedido && <CheckCircle2 className="h-4 w-4 text-primary" />}
