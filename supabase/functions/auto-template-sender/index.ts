@@ -183,6 +183,8 @@ serve(async (req) => {
         ? `${dataPedido.slice(6, 8)}/${dataPedido.slice(4, 6)}/${dataPedido.slice(0, 4)}`
         : "";
 
+      // Template 'em_processo_entrega' espera 1 parâmetro: {{1}} (nome do cliente)
+      // Template 'status4' espera 3 parâmetros: {{1}} (nome do cliente), {{2}} (número do pedido), {{3}} (data de entrega)
       const templateParams: any[] =
         cargaStatus === "ABER"
           ? [{ type: "text", text: specificOrder.clienteNome || "Cliente" }]
@@ -192,7 +194,9 @@ serve(async (req) => {
               { type: "text", text: formattedDate }, // Data como 3º parâmetro
             ];
 
-      console.log(`Sending test ${templateName} to ${formattedPhone} for pedido ${specificOrder.pedido}`);
+      console.log(
+        `[TEST] Template: ${templateName}, Params count: ${templateParams.length}, Params: ${JSON.stringify(templateParams)}`,
+      );
 
       try {
         const sendResponse = await fetch(
@@ -297,7 +301,8 @@ serve(async (req) => {
           ? `${dataPedido.slice(6, 8)}/${dataPedido.slice(4, 6)}/${dataPedido.slice(0, 4)}`
           : "";
 
-        // Build template parameters
+        // Template 'em_processo_entrega' espera 1 parâmetro: {{1}} (nome do cliente)
+        // Template 'status4' espera 3 parâmetros: {{1}} (nome do cliente), {{2}} (número do pedido), {{3}} (data de entrega)
         const templateParams: any[] =
           cargaStatus === "ABER"
             ? [{ type: "text", text: pedido.cliente?.nome || "Cliente" }]
@@ -307,7 +312,9 @@ serve(async (req) => {
                 { type: "text", text: formattedDate }, // Data como 3º parâmetro
               ];
 
-        console.log(`Sending ${templateName} to ${formattedPhone} for pedido ${pedido.pedido}`);
+        console.log(
+          `[${pedido.pedido}] Template: ${templateName}, Params count: ${templateParams.length}, Params: ${JSON.stringify(templateParams)}`,
+        );
 
         try {
           // Send template via Evolution API
