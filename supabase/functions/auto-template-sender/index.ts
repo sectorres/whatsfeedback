@@ -264,7 +264,7 @@ serve(async (req) => {
 
       for (const pedido of carga.pedidos || []) {
         // Only process orders starting with "050"
-        if (!pedido.pedido || !pedido.pedido.startsWith("050")) {
+        if (!pedido.pedido || !pedido.pedido.startsWith("020")) {
           continue;
         }
 
