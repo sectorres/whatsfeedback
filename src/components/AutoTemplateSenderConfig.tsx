@@ -38,7 +38,7 @@ export function AutoTemplateSenderConfig() {
   const [lastRun, setLastRun] = useState<string | null>(null);
   const [recentSends, setRecentSends] = useState<any[]>([]);
   const [testResults, setTestResults] = useState<SendResult[]>([]);
-  
+
   // Orders for testing
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [availableOrders, setAvailableOrders] = useState<PedidoItem[]>([]);
@@ -51,14 +51,14 @@ export function AutoTemplateSenderConfig() {
 
   const loadConfig = async () => {
     const { data } = await supabase
-      .from('app_config')
-      .select('config_key, config_value')
-      .in('config_key', ['auto_template_enabled', 'auto_template_last_run']);
+      .from("app_config")
+      .select("config_key, config_value")
+      .in("config_key", ["auto_template_enabled", "auto_template_last_run"]);
 
-    data?.forEach(config => {
-      if (config.config_key === 'auto_template_enabled') {
-        setEnabled(config.config_value === 'true');
-      } else if (config.config_key === 'auto_template_last_run') {
+    data?.forEach((config) => {
+      if (config.config_key === "auto_template_enabled") {
+        setEnabled(config.config_value === "true");
+      } else if (config.config_key === "auto_template_last_run") {
         setLastRun(config.config_value);
       }
     });
@@ -66,9 +66,9 @@ export function AutoTemplateSenderConfig() {
 
   const loadRecentSends = async () => {
     const { data } = await supabase
-      .from('automatic_template_sends')
-      .select('*')
-      .order('sent_at', { ascending: false })
+      .from("automatic_template_sends")
+      .select("*")
+      .order("sent_at", { ascending: false })
       .limit(20);
 
     setRecentSends(data || []);
@@ -77,8 +77,8 @@ export function AutoTemplateSenderConfig() {
   const loadAvailableOrders = async () => {
     setLoadingOrders(true);
     try {
-      const { data, error } = await supabase.functions.invoke('fetch-cargas', {
-        body: {}
+      const { data, error } = await supabase.functions.invoke("fetch-cargas", {
+        body: {},
       });
 
       if (error) throw error;
@@ -88,31 +88,31 @@ export function AutoTemplateSenderConfig() {
 
       for (const carga of cargas) {
         // Only include ABER or FATU status
-        if (carga.status !== 'ABER' && carga.status !== 'FATU') continue;
+        if (carga.status !== "ABER" && carga.status !== "FATU") continue;
 
         for (const pedido of carga.pedidos || []) {
           // Only include orders starting with 050
-          if (!pedido.pedido || !pedido.pedido.startsWith('050')) continue;
+          if (!pedido.pedido || !pedido.pedido.startsWith("020")) continue;
 
-          const telefone = pedido.cliente?.celular || pedido.cliente?.telefone || '';
-          
+          const telefone = pedido.cliente?.celular || pedido.cliente?.telefone || "";
+
           orders.push({
             pedido: pedido.pedido,
-            clienteNome: pedido.cliente?.nome || 'Sem nome',
+            clienteNome: pedido.cliente?.nome || "Sem nome",
             clienteTelefone: telefone,
             cargaStatus: carga.status,
-            data: pedido.data || carga.data || '',
+            data: pedido.data || carga.data || "",
           });
         }
       }
 
       setAvailableOrders(orders);
-      
+
       if (orders.length === 0) {
         toast({
           title: "Nenhum pedido 050 encontrado",
           description: "Não há pedidos começando com 050 nos status ABER ou FATU",
-          variant: "destructive"
+          variant: "destructive",
         });
       } else {
         toast({
@@ -129,8 +129,8 @@ export function AutoTemplateSenderConfig() {
 
   const saveConfig = async (key: string, value: string) => {
     const { error } = await supabase
-      .from('app_config')
-      .upsert({ config_key: key, config_value: value }, { onConflict: 'config_key' });
+      .from("app_config")
+      .upsert({ config_key: key, config_value: value }, { onConflict: "config_key" });
 
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
@@ -139,15 +139,15 @@ export function AutoTemplateSenderConfig() {
 
   const handleToggleEnabled = async (value: boolean) => {
     setEnabled(value);
-    await saveConfig('auto_template_enabled', value.toString());
+    await saveConfig("auto_template_enabled", value.toString());
     toast({ title: value ? "Envio automático ativado" : "Envio automático desativado" });
   };
 
   const runManually = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('auto-template-sender', {
-        body: { testMode: false }
+      const { data, error } = await supabase.functions.invoke("auto-template-sender", {
+        body: { testMode: false },
       });
 
       if (error) throw error;
@@ -157,7 +157,7 @@ export function AutoTemplateSenderConfig() {
         description: `${data.processed} enviados, ${data.skipped} ignorados`,
       });
 
-      await saveConfig('auto_template_last_run', new Date().toISOString());
+      await saveConfig("auto_template_last_run", new Date().toISOString());
       loadConfig();
       loadRecentSends();
     } catch (error: any) {
@@ -178,7 +178,7 @@ export function AutoTemplateSenderConfig() {
       return;
     }
 
-    const order = availableOrders.find(o => o.pedido === selectedOrder);
+    const order = availableOrders.find((o) => o.pedido === selectedOrder);
     if (!order) {
       toast({ title: "Erro", description: "Pedido não encontrado", variant: "destructive" });
       return;
@@ -187,8 +187,8 @@ export function AutoTemplateSenderConfig() {
     setTesting(true);
     setTestResults([]);
     try {
-      const { data, error } = await supabase.functions.invoke('auto-template-sender', {
-        body: { 
+      const { data, error } = await supabase.functions.invoke("auto-template-sender", {
+        body: {
           testMode: true,
           testPhone: testPhone,
           forceStatus: testStatus,
@@ -197,8 +197,8 @@ export function AutoTemplateSenderConfig() {
             clienteNome: order.clienteNome,
             clienteTelefone: order.clienteTelefone,
             data: order.data,
-          }
-        }
+          },
+        },
       });
 
       if (error) throw error;
@@ -206,9 +206,7 @@ export function AutoTemplateSenderConfig() {
       setTestResults(data.results || []);
       toast({
         title: "Teste concluído",
-        description: data.results?.length > 0 
-          ? `Template enviado para ${testPhone}` 
-          : "Erro ao enviar template",
+        description: data.results?.length > 0 ? `Template enviado para ${testPhone}` : "Erro ao enviar template",
       });
     } catch (error: any) {
       toast({ title: "Erro no teste", description: error.message, variant: "destructive" });
@@ -219,9 +217,9 @@ export function AutoTemplateSenderConfig() {
 
   const clearHistory = async () => {
     const { error } = await supabase
-      .from('automatic_template_sends')
+      .from("automatic_template_sends")
       .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000');
+      .neq("id", "00000000-0000-0000-0000-000000000000");
 
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
@@ -231,7 +229,7 @@ export function AutoTemplateSenderConfig() {
     }
   };
 
-  const selectedOrderData = availableOrders.find(o => o.pedido === selectedOrder);
+  const selectedOrderData = availableOrders.find((o) => o.pedido === selectedOrder);
 
   return (
     <div className="space-y-6">
@@ -241,18 +239,14 @@ export function AutoTemplateSenderConfig() {
             <Send className="h-5 w-5" />
             Envio Automático de Templates
           </CardTitle>
-          <CardDescription>
-            Envio automático baseado no status do pedido (apenas pedidos 050)
-          </CardDescription>
+          <CardDescription>Envio automático baseado no status do pedido (apenas pedidos 050)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Enable/Disable Toggle */}
           <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
               <Label className="text-base font-medium">Ativar envio automático</Label>
-              <p className="text-sm text-muted-foreground">
-                Executa a cada 10 minutos automaticamente
-              </p>
+              <p className="text-sm text-muted-foreground">Executa a cada 10 minutos automaticamente</p>
             </div>
             <Switch checked={enabled} onCheckedChange={handleToggleEnabled} />
           </div>
@@ -260,14 +254,18 @@ export function AutoTemplateSenderConfig() {
           {/* Status Explanation */}
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 border rounded-lg bg-muted/50">
-              <Badge variant="outline" className="mb-2">ABER</Badge>
+              <Badge variant="outline" className="mb-2">
+                ABER
+              </Badge>
               <p className="text-sm font-medium">Em Processo de Entrega</p>
               <p className="text-xs text-muted-foreground">
                 Template: <code>em_processo_entrega</code>
               </p>
             </div>
             <div className="p-4 border rounded-lg bg-muted/50">
-              <Badge variant="outline" className="mb-2">FATU</Badge>
+              <Badge variant="outline" className="mb-2">
+                FATU
+              </Badge>
               <p className="text-sm font-medium">Faturado</p>
               <p className="text-xs text-muted-foreground">
                 Template: <code>status4</code> (com data)
@@ -284,7 +282,7 @@ export function AutoTemplateSenderConfig() {
             {lastRun && (
               <span className="text-sm text-muted-foreground flex items-center gap-1">
                 <Clock className="h-4 w-4" />
-                Última execução: {new Date(lastRun).toLocaleString('pt-BR')}
+                Última execução: {new Date(lastRun).toLocaleString("pt-BR")}
               </span>
             )}
           </div>
@@ -295,15 +293,17 @@ export function AutoTemplateSenderConfig() {
       <Card>
         <CardHeader>
           <CardTitle>Modo de Teste</CardTitle>
-          <CardDescription>
-            Selecione um pedido 050 e envie para um número de teste
-          </CardDescription>
+          <CardDescription>Selecione um pedido 050 e envie para um número de teste</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Load Orders Button */}
           <div className="flex items-center gap-4">
             <Button variant="outline" onClick={loadAvailableOrders} disabled={loadingOrders}>
-              {loadingOrders ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
+              {loadingOrders ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4 mr-2" />
+              )}
               Buscar Pedidos 050
             </Button>
             {availableOrders.length > 0 && (
@@ -324,22 +324,20 @@ export function AutoTemplateSenderConfig() {
                       key={order.pedido}
                       onClick={() => setSelectedOrder(order.pedido)}
                       className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                        selectedOrder === order.pedido 
-                          ? 'bg-primary/10 border-2 border-primary' 
-                          : 'bg-muted/30 hover:bg-muted/50 border-2 border-transparent'
+                        selectedOrder === order.pedido
+                          ? "bg-primary/10 border-2 border-primary"
+                          : "bg-muted/30 hover:bg-muted/50 border-2 border-transparent"
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Package className="h-4 w-4 text-muted-foreground" />
                           <span className="font-mono font-medium">{order.pedido}</span>
-                          <Badge variant={order.cargaStatus === 'ABER' ? 'default' : 'secondary'} className="text-xs">
+                          <Badge variant={order.cargaStatus === "ABER" ? "default" : "secondary"} className="text-xs">
                             {order.cargaStatus}
                           </Badge>
                         </div>
-                        {selectedOrder === order.pedido && (
-                          <CheckCircle2 className="h-4 w-4 text-primary" />
-                        )}
+                        {selectedOrder === order.pedido && <CheckCircle2 className="h-4 w-4 text-primary" />}
                       </div>
                       <div className="mt-1 text-sm text-muted-foreground">
                         {order.clienteNome} • {order.clienteTelefone}
@@ -365,11 +363,7 @@ export function AutoTemplateSenderConfig() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Telefone de Teste</Label>
-                  <Input
-                    placeholder="11999999999"
-                    value={testPhone}
-                    onChange={(e) => setTestPhone(e.target.value)}
-                  />
+                  <Input placeholder="11999999999" value={testPhone} onChange={(e) => setTestPhone(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Simular Status</Label>
@@ -428,24 +422,20 @@ export function AutoTemplateSenderConfig() {
         </CardHeader>
         <CardContent>
           {recentSends.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Nenhum envio automático registrado
-            </p>
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhum envio automático registrado</p>
           ) : (
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
               {recentSends.map((send) => (
                 <div key={send.id} className="flex items-center justify-between p-2 border rounded text-sm">
                   <div className="flex items-center gap-2">
-                    <Badge variant={send.status_triggered === 'ABER' ? 'default' : 'secondary'}>
+                    <Badge variant={send.status_triggered === "ABER" ? "default" : "secondary"}>
                       {send.status_triggered}
                     </Badge>
                     <span className="font-mono">{send.pedido_numero}</span>
                     <span className="text-muted-foreground">→</span>
                     <span>{send.customer_name || send.customer_phone}</span>
                   </div>
-                  <span className="text-muted-foreground">
-                    {new Date(send.sent_at).toLocaleString('pt-BR')}
-                  </span>
+                  <span className="text-muted-foreground">{new Date(send.sent_at).toLocaleString("pt-BR")}</span>
                 </div>
               ))}
             </div>
