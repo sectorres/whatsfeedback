@@ -21,7 +21,8 @@ import {
   Trash2,
   Download,
   Eye,
-  Ban
+  Ban,
+  DollarSign
 } from "lucide-react";
 import { Switch } from "./ui/switch";
 import { toast } from "sonner";
@@ -60,6 +61,17 @@ const STATUS_CONFIG = {
   rejected: { label: "Rejeitado", icon: XCircle, color: "bg-red-500" },
 };
 
+interface MetaAnalytics {
+  totalCost: number;
+  conversationCount: number;
+  currency: string;
+  period: {
+    start: string;
+    end: string;
+  };
+  breakdown: Array<{ category: string; cost: number }>;
+}
+
 export const WhatsAppTemplateManager = () => {
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +80,8 @@ export const WhatsAppTemplateManager = () => {
   const [importing, setImporting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewingTemplate, setViewingTemplate] = useState<WhatsAppTemplate | null>(null);
+  const [analytics, setAnalytics] = useState<MetaAnalytics | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   
   // Form state
   const [templateName, setTemplateName] = useState("");
@@ -81,7 +95,32 @@ export const WhatsAppTemplateManager = () => {
 
   useEffect(() => {
     loadTemplates();
+    loadAnalytics();
   }, []);
+
+  const loadAnalytics = async () => {
+    setLoadingAnalytics(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-meta-analytics');
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        setAnalytics(data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar analytics:', error);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
+  };
 
   const handleImportFromMeta = async () => {
     setImporting(true);
@@ -304,7 +343,7 @@ export const WhatsAppTemplateManager = () => {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
@@ -314,7 +353,44 @@ export const WhatsAppTemplateManager = () => {
               Crie e gerencie templates para envio via API oficial da Meta
             </CardDescription>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          
+          {/* Analytics Card */}
+          <div className="flex items-center gap-4 bg-muted/50 rounded-lg px-4 py-3 border">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-green-600" />
+              <div>
+                <p className="text-xs text-muted-foreground">Gastos do Mês</p>
+                {loadingAnalytics ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : analytics ? (
+                  <p className="text-lg font-semibold text-foreground">
+                    {formatCurrency(analytics.totalCost)}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">-</p>
+                )}
+              </div>
+            </div>
+            {analytics && analytics.conversationCount > 0 && (
+              <div className="border-l pl-4">
+                <p className="text-xs text-muted-foreground">Conversas</p>
+                <p className="text-lg font-semibold text-foreground">
+                  {analytics.conversationCount.toLocaleString('pt-BR')}
+                </p>
+              </div>
+            )}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={loadAnalytics} 
+              disabled={loadingAnalytics}
+              className="ml-2"
+            >
+              <RefreshCw className={`h-3 w-3 ${loadingAnalytics ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+        </div>
+        <div className="flex gap-2 flex-wrap mt-4">
             <Button variant="outline" onClick={handleImportFromMeta} disabled={importing}>
               {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               <span className="ml-2 hidden sm:inline">Importar da Meta</span>
@@ -478,7 +554,6 @@ export const WhatsAppTemplateManager = () => {
               </DialogContent>
             </Dialog>
           </div>
-        </div>
       </CardHeader>
       <CardContent>
         {templates.length === 0 ? (
