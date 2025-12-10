@@ -128,9 +128,10 @@ const Index = () => {
 
           <TabsContent value="config" className="space-y-3 sm:space-y-4 mt-0">
             <Tabs defaultValue="appearance" className="w-full">
-              <TabsList className="grid w-full grid-cols-5 h-auto">
+              <TabsList className="grid w-full grid-cols-6 h-auto">
                 <TabsTrigger value="appearance" className="text-xs sm:text-sm whitespace-nowrap">Aparência</TabsTrigger>
                 <TabsTrigger value="integrations" className="text-xs sm:text-sm whitespace-nowrap">Integrações</TabsTrigger>
+                <TabsTrigger value="auto-send" className="text-xs sm:text-sm whitespace-nowrap">Envio Auto</TabsTrigger>
                 <TabsTrigger value="communication" className="text-xs sm:text-sm whitespace-nowrap">Comunicação</TabsTrigger>
                 <TabsTrigger value="security" className="text-xs sm:text-sm whitespace-nowrap">Segurança</TabsTrigger>
                 <TabsTrigger value="system" className="text-xs sm:text-sm whitespace-nowrap">Sistema</TabsTrigger>
@@ -148,10 +149,13 @@ const Index = () => {
                 <WebhookConfiguration />
               </TabsContent>
 
-              <TabsContent value="communication" className="space-y-6 mt-4">
-                <CampaignCreationConfig />
+              <TabsContent value="auto-send" className="space-y-6 mt-4">
                 <AutoTemplateSenderConfig />
                 <RestrictedDriversConfig />
+              </TabsContent>
+
+              <TabsContent value="communication" className="space-y-6 mt-4">
+                <CampaignCreationConfig />
                 <BusinessHoursConfig />
                 <BotMessagesConfig />
                 <SendDelayConfig />
