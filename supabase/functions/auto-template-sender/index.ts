@@ -160,14 +160,14 @@ serve(async (req) => {
       templateBodyMap[t.template_name] = t.body_text || "";
     });
 
-    // Helper function to save message to conversation
+    // Helper function to save message to conversation - returns conversation ID
     async function saveToConversation(
       phone: string,
       customerName: string,
       templateName: string,
       templateParams: { type: string; text: string }[],
       isTest: boolean
-    ) {
+    ): Promise<string | null> {
       const normalizedPhone = normalizePhone(phone);
       const bodyTemplate = templateBodyMap[templateName] || `[Template: ${templateName}]`;
       
@@ -221,8 +221,38 @@ serve(async (req) => {
           message_status: "sent",
         });
         console.log(`Message saved to conversation ${conversation.id}`);
+        return conversation.id;
       }
+      return null;
     }
+
+    // Find or create system campaign for FATU 050/ automatic sends (for response tracking)
+    let systemCampaignId: string | null = null;
+    const SYSTEM_CAMPAIGN_NAME = "[Sistema] Envio Automático FATU 050";
+    
+    const { data: existingCampaign } = await supabase
+      .from("campaigns")
+      .select("id")
+      .eq("name", SYSTEM_CAMPAIGN_NAME)
+      .maybeSingle();
+    
+    if (existingCampaign) {
+      systemCampaignId = existingCampaign.id;
+    } else {
+      const { data: newCampaign } = await supabase
+        .from("campaigns")
+        .insert({
+          name: SYSTEM_CAMPAIGN_NAME,
+          message: "Envio automático de template FATU 050/",
+          target_type: "automatic",
+          status: "active",
+        })
+        .select("id")
+        .single();
+      systemCampaignId = newCampaign?.id || null;
+    }
+    
+    console.log("System campaign for FATU 050:", systemCampaignId);
 
     console.log("Config loaded:", { minDateValue, minDateFormatted, TEMPLATE_ABER, TEMPLATE_FATU, templateVariablesMap, restrictedDriversCount: restrictedDrivers.length });
 
@@ -366,6 +396,37 @@ serve(async (req) => {
             templateParams,
             true // isTest = true
           );
+          
+          // For FATU test sends, also create campaign_sends record for response tracking
+          if (cargaStatus === "FATU" && systemCampaignId) {
+            const normalizedTestPhone = normalizePhone(testPhone);
+            
+            // Build message text for campaign_sends
+            let messageSent = templateBodyMap[templateName] || `[Template: ${templateName}]`;
+            templateParams.forEach((param, index) => {
+              messageSent = messageSent.replace(`{{${index + 1}}}`, param.text);
+            });
+            messageSent = `[TESTE] ${messageSent}`;
+            
+            // Create campaign_sends record with status 'success' for response tracking
+            const { error: campaignSendError } = await supabase.from("campaign_sends").insert({
+              campaign_id: systemCampaignId,
+              customer_phone: normalizedTestPhone,
+              customer_name: specificOrder.clienteNome || "Cliente",
+              message_sent: messageSent,
+              status: "success",
+              pedido_id: specificOrder.id || null,
+              pedido_numero: specificOrder.pedido,
+              nota_fiscal: specificOrder.notaFiscal || null,
+              data_pedido: dataPedido,
+            });
+            
+            if (campaignSendError) {
+              console.error(`Error creating campaign_sends for test FATU:`, campaignSendError);
+            } else {
+              console.log(`Campaign send created for test FATU - phone: ${normalizedTestPhone}`);
+            }
+          }
         }
 
         results.push({
@@ -509,15 +570,50 @@ serve(async (req) => {
           console.log(`Template send result:`, sendResult);
 
           // Save to conversation for all sends (including test mode)
-          if (sendResponse.ok) {
-            const phoneForConversation = testMode && testPhone ? testPhone : customerPhone;
-            await saveToConversation(
-              phoneForConversation,
-              pedido.cliente?.nome || "Cliente",
-              templateName,
-              templateParams,
-              testMode
-            );
+          const phoneForConversation = testMode && testPhone ? testPhone : customerPhone;
+          const conversationId = sendResponse.ok ? await saveToConversation(
+            phoneForConversation,
+            pedido.cliente?.nome || "Cliente",
+            templateName,
+            templateParams,
+            testMode
+          ) : null;
+
+          // For FATU 050/ sends, create campaign_sends record for response tracking
+          const isFatu050 = cargaStatus === "FATU" && pedido.notaFiscal?.startsWith("050/");
+          if (sendResponse.ok && isFatu050 && systemCampaignId) {
+            const normalizedCustomerPhone = normalizePhone(testMode && testPhone ? testPhone : customerPhone);
+            
+            // Build message text for campaign_sends
+            let messageSent = templateBodyMap[templateName] || `[Template: ${templateName}]`;
+            templateParams.forEach((param, index) => {
+              messageSent = messageSent.replace(`{{${index + 1}}}`, param.text);
+            });
+            if (testMode) {
+              messageSent = `[TESTE] ${messageSent}`;
+            }
+            
+            // Create campaign_sends record with status 'success' for response tracking
+            const { error: campaignSendError } = await supabase.from("campaign_sends").insert({
+              campaign_id: systemCampaignId,
+              customer_phone: normalizedCustomerPhone,
+              customer_name: pedido.cliente?.nome || "Cliente",
+              message_sent: messageSent,
+              status: "success", // This status allows webhook to detect pending responses
+              pedido_id: pedido.id,
+              pedido_numero: pedido.pedido,
+              nota_fiscal: pedido.notaFiscal,
+              data_pedido: dataPedido,
+              carga_id: carga.id,
+              driver_name: carga.nomeMotorista,
+              rota: (pedido as any).rota || null,
+            });
+            
+            if (campaignSendError) {
+              console.error(`Error creating campaign_sends for FATU 050/:`, campaignSendError);
+            } else {
+              console.log(`Campaign send created for FATU 050/ - phone: ${normalizedCustomerPhone}`);
+            }
           }
 
           // Record the send (unless test mode with different phone)
