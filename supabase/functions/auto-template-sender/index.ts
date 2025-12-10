@@ -183,20 +183,15 @@ serve(async (req) => {
         ? `${dataPedido.slice(6, 8)}/${dataPedido.slice(4, 6)}/${dataPedido.slice(0, 4)}`
         : "";
 
-      // Template 'em_processo_entrega' espera 1 parâmetro: {{1}} (nome do cliente)
-      // Template 'status4' espera 3 parâmetros: {{1}} (nome do cliente), {{2}} (número do pedido), {{3}} (data de entrega)
       const templateParams: any[] =
         cargaStatus === "ABER"
           ? [{ type: "text", text: specificOrder.clienteNome || "Cliente" }]
           : [
               { type: "text", text: specificOrder.clienteNome || "Cliente" },
-              { type: "text", text: specificOrder.pedido || "seu pedido" }, // Adicionando o pedido como 2º parâmetro
-              { type: "text", text: formattedDate }, // Data como 3º parâmetro
+              { type: "text", text: formattedDate },
             ];
 
-      console.log(
-        `[TEST] Template: ${templateName}, Params count: ${templateParams.length}, Params: ${JSON.stringify(templateParams)}`,
-      );
+      console.log(`Sending test ${templateName} to ${formattedPhone} for pedido ${specificOrder.pedido}`);
 
       try {
         const sendResponse = await fetch(
@@ -230,7 +225,6 @@ serve(async (req) => {
           template: templateName,
           phone: formattedPhone,
           success: sendResponse.ok,
-          error: sendResponse.ok ? undefined : sendResult.message || sendResult.error_data?.details,
         });
 
         processedCount++;
@@ -301,20 +295,16 @@ serve(async (req) => {
           ? `${dataPedido.slice(6, 8)}/${dataPedido.slice(4, 6)}/${dataPedido.slice(0, 4)}`
           : "";
 
-        // Template 'em_processo_entrega' espera 1 parâmetro: {{1}} (nome do cliente)
-        // Template 'status4' espera 3 parâmetros: {{1}} (nome do cliente), {{2}} (número do pedido), {{3}} (data de entrega)
+        // Build template parameters
         const templateParams: any[] =
           cargaStatus === "ABER"
             ? [{ type: "text", text: pedido.cliente?.nome || "Cliente" }]
             : [
                 { type: "text", text: pedido.cliente?.nome || "Cliente" },
-                { type: "text", text: pedido.pedido || "seu pedido" }, // Adicionando o pedido como 2º parâmetro
-                { type: "text", text: formattedDate }, // Data como 3º parâmetro
+                { type: "text", text: formattedDate },
               ];
 
-        console.log(
-          `[${pedido.pedido}] Template: ${templateName}, Params count: ${templateParams.length}, Params: ${JSON.stringify(templateParams)}`,
-        );
+        console.log(`Sending ${templateName} to ${formattedPhone} for pedido ${pedido.pedido}`);
 
         try {
           // Send template via Evolution API
@@ -362,7 +352,6 @@ serve(async (req) => {
             template: templateName,
             phone: testMode ? testPhone : formattedPhone,
             success: sendResponse.ok,
-            error: sendResponse.ok ? undefined : sendResult.message || sendResult.error_data?.details,
           });
 
           processedCount++;
