@@ -78,8 +78,9 @@ serve(async (req) => {
     const testMode = body.testMode === true;
     const testPhone = body.testPhone || null;
     const forceStatus = body.forceStatus || null; // 'ABER' or 'FATU' for testing
+    const specificOrder = body.specificOrder || null; // For test mode with specific order
 
-    console.log('Auto template sender started', { testMode, testPhone, forceStatus });
+    console.log('Auto template sender started', { testMode, testPhone, forceStatus, specificOrder });
 
     // Check if auto-send is enabled
     const { data: configEnabled } = await supabase
@@ -164,6 +165,87 @@ serve(async (req) => {
     let processedCount = 0;
     let skippedCount = 0;
 
+    // If test mode with specific order provided, process only that order
+    if (testMode && specificOrder && testPhone) {
+      console.log('Test mode with specific order:', specificOrder);
+      
+      const cargaStatus = forceStatus || 'ABER';
+      const templateName = cargaStatus === 'ABER' ? 'em_processo_entrega' : 'status4';
+      const formattedPhone = formatPhoneForWhatsApp(testPhone);
+      
+      // Format date for status4 template
+      const dataPedido = specificOrder.data || '';
+      const formattedDate = dataPedido 
+        ? `${dataPedido.slice(6, 8)}/${dataPedido.slice(4, 6)}/${dataPedido.slice(0, 4)}`
+        : '';
+
+      const templateParams: any[] = cargaStatus === 'ABER' 
+        ? [{ type: 'text', text: specificOrder.clienteNome || 'Cliente' }]
+        : [
+            { type: 'text', text: specificOrder.clienteNome || 'Cliente' },
+            { type: 'text', text: formattedDate }
+          ];
+
+      console.log(`Sending test ${templateName} to ${formattedPhone} for pedido ${specificOrder.pedido}`);
+
+      try {
+        const sendResponse = await fetch(
+          `${evolutionConfig.api_url}/message/sendTemplate/${evolutionConfig.instance_name}`,
+          {
+            method: 'POST',
+            headers: {
+              'apikey': evolutionConfig.api_key,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              number: formattedPhone,
+              name: templateName,
+              language: 'pt_BR',
+              components: [
+                {
+                  type: 'body',
+                  parameters: templateParams,
+                },
+              ],
+            }),
+          }
+        );
+
+        const sendResult = await sendResponse.json();
+        console.log(`Test template send result:`, sendResult);
+
+        results.push({
+          pedido: specificOrder.pedido,
+          status: cargaStatus,
+          template: templateName,
+          phone: formattedPhone,
+          success: sendResponse.ok,
+        });
+
+        processedCount++;
+      } catch (sendError: any) {
+        console.error(`Error sending test template:`, sendError);
+        results.push({
+          pedido: specificOrder.pedido,
+          status: cargaStatus,
+          template: templateName,
+          error: sendError?.message || 'Unknown error',
+          success: false,
+        });
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        processed: processedCount,
+        skipped: 0,
+        testMode: true,
+        results,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Normal processing loop for all orders
     for (const carga of cargas) {
       const cargaStatus = forceStatus || carga.status;
       

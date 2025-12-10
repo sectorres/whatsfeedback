@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Play, RefreshCw, Send, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Play, RefreshCw, Send, Clock, CheckCircle2, XCircle, Search, Package } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface SendResult {
   pedido: string;
@@ -17,6 +18,14 @@ interface SendResult {
   phone?: string;
   success: boolean;
   error?: string;
+}
+
+interface PedidoItem {
+  pedido: string;
+  clienteNome: string;
+  clienteTelefone: string;
+  cargaStatus: string;
+  data: string;
 }
 
 export function AutoTemplateSenderConfig() {
@@ -29,6 +38,11 @@ export function AutoTemplateSenderConfig() {
   const [lastRun, setLastRun] = useState<string | null>(null);
   const [recentSends, setRecentSends] = useState<any[]>([]);
   const [testResults, setTestResults] = useState<SendResult[]>([]);
+  
+  // Orders for testing
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [availableOrders, setAvailableOrders] = useState<PedidoItem[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<string>("");
 
   useEffect(() => {
     loadConfig();
@@ -58,6 +72,59 @@ export function AutoTemplateSenderConfig() {
       .limit(20);
 
     setRecentSends(data || []);
+  };
+
+  const loadAvailableOrders = async () => {
+    setLoadingOrders(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-cargas', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      const cargas = data?.retorno?.cargas || [];
+      const orders: PedidoItem[] = [];
+
+      for (const carga of cargas) {
+        // Only include ABER or FATU status
+        if (carga.status !== 'ABER' && carga.status !== 'FATU') continue;
+
+        for (const pedido of carga.pedidos || []) {
+          // Only include orders starting with 050
+          if (!pedido.pedido || !pedido.pedido.startsWith('050')) continue;
+
+          const telefone = pedido.cliente?.celular || pedido.cliente?.telefone || '';
+          
+          orders.push({
+            pedido: pedido.pedido,
+            clienteNome: pedido.cliente?.nome || 'Sem nome',
+            clienteTelefone: telefone,
+            cargaStatus: carga.status,
+            data: pedido.data || carga.data || '',
+          });
+        }
+      }
+
+      setAvailableOrders(orders);
+      
+      if (orders.length === 0) {
+        toast({
+          title: "Nenhum pedido 050 encontrado",
+          description: "Não há pedidos começando com 050 nos status ABER ou FATU",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Pedidos carregados",
+          description: `${orders.length} pedidos 050 disponíveis`,
+        });
+      }
+    } catch (error: any) {
+      toast({ title: "Erro ao carregar pedidos", description: error.message, variant: "destructive" });
+    } finally {
+      setLoadingOrders(false);
+    }
   };
 
   const saveConfig = async (key: string, value: string) => {
@@ -106,6 +173,17 @@ export function AutoTemplateSenderConfig() {
       return;
     }
 
+    if (!selectedOrder) {
+      toast({ title: "Erro", description: "Selecione um pedido para testar", variant: "destructive" });
+      return;
+    }
+
+    const order = availableOrders.find(o => o.pedido === selectedOrder);
+    if (!order) {
+      toast({ title: "Erro", description: "Pedido não encontrado", variant: "destructive" });
+      return;
+    }
+
     setTesting(true);
     setTestResults([]);
     try {
@@ -113,7 +191,13 @@ export function AutoTemplateSenderConfig() {
         body: { 
           testMode: true,
           testPhone: testPhone,
-          forceStatus: testStatus
+          forceStatus: testStatus,
+          specificOrder: {
+            pedido: order.pedido,
+            clienteNome: order.clienteNome,
+            clienteTelefone: order.clienteTelefone,
+            data: order.data,
+          }
         }
       });
 
@@ -124,7 +208,7 @@ export function AutoTemplateSenderConfig() {
         title: "Teste concluído",
         description: data.results?.length > 0 
           ? `Template enviado para ${testPhone}` 
-          : "Nenhum pedido 050 encontrado para o status selecionado",
+          : "Erro ao enviar template",
       });
     } catch (error: any) {
       toast({ title: "Erro no teste", description: error.message, variant: "destructive" });
@@ -146,6 +230,8 @@ export function AutoTemplateSenderConfig() {
       loadRecentSends();
     }
   };
+
+  const selectedOrderData = availableOrders.find(o => o.pedido === selectedOrder);
 
   return (
     <div className="space-y-6">
@@ -210,38 +296,102 @@ export function AutoTemplateSenderConfig() {
         <CardHeader>
           <CardTitle>Modo de Teste</CardTitle>
           <CardDescription>
-            Envie um template de teste para um número específico
+            Selecione um pedido 050 e envie para um número de teste
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Telefone de Teste</Label>
-              <Input
-                placeholder="11999999999"
-                value={testPhone}
-                onChange={(e) => setTestPhone(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Simular Status</Label>
-              <Select value={testStatus} onValueChange={(v) => setTestStatus(v as "ABER" | "FATU")}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ABER">ABER (em_processo_entrega)</SelectItem>
-                  <SelectItem value="FATU">FATU (status4)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Button onClick={runTest} disabled={testing} className="w-full">
-                {testing ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-                Enviar Teste
-              </Button>
-            </div>
+          {/* Load Orders Button */}
+          <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={loadAvailableOrders} disabled={loadingOrders}>
+              {loadingOrders ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Search className="h-4 w-4 mr-2" />}
+              Buscar Pedidos 050
+            </Button>
+            {availableOrders.length > 0 && (
+              <Badge variant="secondary">{availableOrders.length} pedidos encontrados</Badge>
+            )}
           </div>
+
+          {/* Orders List */}
+          {availableOrders.length > 0 && (
+            <div className="border rounded-lg">
+              <div className="p-2 bg-muted/50 border-b">
+                <Label className="text-sm font-medium">Selecione um pedido para testar:</Label>
+              </div>
+              <ScrollArea className="h-[200px]">
+                <div className="p-2 space-y-1">
+                  {availableOrders.map((order) => (
+                    <div
+                      key={order.pedido}
+                      onClick={() => setSelectedOrder(order.pedido)}
+                      className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                        selectedOrder === order.pedido 
+                          ? 'bg-primary/10 border-2 border-primary' 
+                          : 'bg-muted/30 hover:bg-muted/50 border-2 border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-mono font-medium">{order.pedido}</span>
+                          <Badge variant={order.cargaStatus === 'ABER' ? 'default' : 'secondary'} className="text-xs">
+                            {order.cargaStatus}
+                          </Badge>
+                        </div>
+                        {selectedOrder === order.pedido && (
+                          <CheckCircle2 className="h-4 w-4 text-primary" />
+                        )}
+                      </div>
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        {order.clienteNome} • {order.clienteTelefone}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+
+          {/* Test Configuration */}
+          {selectedOrder && (
+            <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
+              <div className="text-sm">
+                <strong>Pedido selecionado:</strong> {selectedOrderData?.pedido}
+                <br />
+                <strong>Cliente:</strong> {selectedOrderData?.clienteNome}
+                <br />
+                <strong>Status atual:</strong> {selectedOrderData?.cargaStatus}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Telefone de Teste</Label>
+                  <Input
+                    placeholder="11999999999"
+                    value={testPhone}
+                    onChange={(e) => setTestPhone(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Simular Status</Label>
+                  <Select value={testStatus} onValueChange={(v) => setTestStatus(v as "ABER" | "FATU")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ABER">ABER (em_processo_entrega)</SelectItem>
+                      <SelectItem value="FATU">FATU (status4)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button onClick={runTest} disabled={testing} className="w-full">
+                    {testing ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                    Enviar Teste
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Test Results */}
           {testResults.length > 0 && (
