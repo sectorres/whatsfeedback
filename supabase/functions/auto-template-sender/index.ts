@@ -191,12 +191,14 @@ serve(async (req) => {
         ? `${dataPedido.slice(6, 8)}/${dataPedido.slice(4, 6)}/${dataPedido.slice(0, 4)}`
         : "";
 
+      // Build template parameters (status4 has 3 params: nome, pedido, data)
       const templateParams: any[] =
         cargaStatus === "ABER"
           ? [{ type: "text", text: specificOrder.clienteNome || "Cliente" }]
           : [
               { type: "text", text: specificOrder.clienteNome || "Cliente" },
-              { type: "text", text: formattedDate },
+              { type: "text", text: specificOrder.pedido || "seu pedido" },
+              { type: "text", text: formattedDate || new Date().toLocaleDateString("pt-BR") },
             ];
 
       console.log(`Sending test ${templateName} to ${formattedPhone} for pedido ${specificOrder.pedido}`);
@@ -316,13 +318,14 @@ serve(async (req) => {
           ? `${dataPedido.slice(6, 8)}/${dataPedido.slice(4, 6)}/${dataPedido.slice(0, 4)}`
           : "";
 
-        // Build template parameters
+        // Build template parameters (status4 has 3 params: nome, pedido, data)
         const templateParams: any[] =
           cargaStatus === "ABER"
             ? [{ type: "text", text: pedido.cliente?.nome || "Cliente" }]
             : [
                 { type: "text", text: pedido.cliente?.nome || "Cliente" },
-                { type: "text", text: formattedDate },
+                { type: "text", text: pedido.pedido || "seu pedido" },
+                { type: "text", text: formattedDate || new Date().toLocaleDateString("pt-BR") },
               ];
 
         console.log(`Sending ${templateName} to ${formattedPhone} for pedido ${pedido.pedido}`);
