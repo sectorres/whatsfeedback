@@ -65,3 +65,6 @@ verify_jwt = true
 
 [functions.abort-survey-send]
 verify_jwt = true
+
+[functions.auto-template-sender]
+verify_jwt = true

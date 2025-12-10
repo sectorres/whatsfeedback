@@ -86,6 +86,45 @@ export type Database = {
         }
         Relationships: []
       }
+      automatic_template_sends: {
+        Row: {
+          created_at: string
+          customer_name: string | null
+          customer_phone: string
+          data_pedido: string | null
+          id: string
+          pedido_id: number
+          pedido_numero: string
+          sent_at: string
+          status_triggered: string
+          template_sent: string
+        }
+        Insert: {
+          created_at?: string
+          customer_name?: string | null
+          customer_phone: string
+          data_pedido?: string | null
+          id?: string
+          pedido_id: number
+          pedido_numero: string
+          sent_at?: string
+          status_triggered: string
+          template_sent: string
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string
+          data_pedido?: string | null
+          id?: string
+          pedido_id?: number
+          pedido_numero?: string
+          sent_at?: string
+          status_triggered?: string
+          template_sent?: string
+        }
+        Relationships: []
+      }
       blacklist: {
         Row: {
           added_at: string
