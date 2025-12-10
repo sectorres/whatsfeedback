@@ -107,7 +107,6 @@ export function SurveyManagement() {
           variant: "destructive"
         });
         setSearchTerm('');
-        searchInputRef.current?.focus();
         return;
       }
 
@@ -177,7 +176,6 @@ export function SurveyManagement() {
 
       // Limpar campo para próxima leitura
       setSearchTerm('');
-      searchInputRef.current?.focus();
     } catch (error) {
       console.error('Erro ao buscar pedido:', error);
       toast({
@@ -186,9 +184,10 @@ export function SurveyManagement() {
         variant: "destructive"
       });
       setSearchTerm('');
-      searchInputRef.current?.focus();
     } finally {
       setLoading(false);
+      // Focus após loading=false para garantir que o input não está desabilitado
+      setTimeout(() => searchInputRef.current?.focus(), 0);
     }
   };
   const loadSurveyStatus = async () => {
