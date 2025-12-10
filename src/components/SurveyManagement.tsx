@@ -36,6 +36,7 @@ export function SurveyManagement() {
     toast
   } = useToast();
   const sendingRef = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Não usar useEffect para busca automática - apenas com Enter
   const handleBarcodeSearch = async () => {
@@ -106,6 +107,7 @@ export function SurveyManagement() {
           variant: "destructive"
         });
         setSearchTerm('');
+        searchInputRef.current?.focus();
         return;
       }
 
@@ -175,6 +177,7 @@ export function SurveyManagement() {
 
       // Limpar campo para próxima leitura
       setSearchTerm('');
+      searchInputRef.current?.focus();
     } catch (error) {
       console.error('Erro ao buscar pedido:', error);
       toast({
@@ -183,6 +186,7 @@ export function SurveyManagement() {
         variant: "destructive"
       });
       setSearchTerm('');
+      searchInputRef.current?.focus();
     } finally {
       setLoading(false);
     }
@@ -398,7 +402,7 @@ export function SurveyManagement() {
               <label className="text-sm font-medium mb-1.5 block">Buscar Pedido</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Bipe o código de barras do pedido..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} onKeyDown={e => {
+                <Input ref={searchInputRef} placeholder="Bipe o código de barras do pedido..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} onKeyDown={e => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   handleBarcodeSearch();
