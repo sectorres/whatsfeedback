@@ -33,7 +33,13 @@ interface Carga {
   id: number;
   data: string;
   status: string;
+  motorista: number;
+  nomeMotorista: string;
   pedidos: Pedido[];
+}
+
+interface RestrictedDriver {
+  name: string;
 }
 
 // Extract serie from pedido (e.g., "001/0262558-P" → "P") or notaFiscal (e.g., "002/0140826-N" → "N")
@@ -111,11 +117,11 @@ serve(async (req) => {
       );
     }
 
-    // Get min date config and template configs
+    // Get min date config, template configs, and restricted drivers
     const { data: appConfigs } = await supabase
       .from("app_config")
       .select("config_key, config_value")
-      .in("config_key", ["auto_template_min_date", "auto_template_aber", "auto_template_fatu"]);
+      .in("config_key", ["auto_template_min_date", "auto_template_aber", "auto_template_fatu", "restricted_drivers"]);
 
     // Convert min date from YYYY-MM-DD to YYYYMMDD for comparison
     const minDateConfig = appConfigs?.find(c => c.config_key === "auto_template_min_date");
@@ -127,6 +133,18 @@ serve(async (req) => {
     const templateFatuConfig = appConfigs?.find(c => c.config_key === "auto_template_fatu");
     const TEMPLATE_ABER = templateAberConfig?.config_value || "em_processo_entrega";
     const TEMPLATE_FATU = templateFatuConfig?.config_value || "status4";
+
+    // Get restricted drivers list
+    const restrictedDriversConfig = appConfigs?.find(c => c.config_key === "restricted_drivers");
+    let restrictedDrivers: RestrictedDriver[] = [];
+    if (restrictedDriversConfig?.config_value) {
+      try {
+        restrictedDrivers = JSON.parse(restrictedDriversConfig.config_value);
+      } catch {
+        restrictedDrivers = [];
+      }
+    }
+    const restrictedDriverNames = new Set(restrictedDrivers.map(d => d.name.toUpperCase()));
 
     // Get template details to know how many variables each template expects
     const { data: templateDetails } = await supabase
@@ -140,7 +158,7 @@ serve(async (req) => {
       templateVariablesMap[t.template_name] = vars.length;
     });
 
-    console.log("Config loaded:", { minDateValue, minDateFormatted, TEMPLATE_ABER, TEMPLATE_FATU, templateVariablesMap });
+    console.log("Config loaded:", { minDateValue, minDateFormatted, TEMPLATE_ABER, TEMPLATE_FATU, templateVariablesMap, restrictedDriversCount: restrictedDrivers.length });
 
     // Fetch cargas from API (last 7 days to now + 30 days)
     const hoje = new Date();
@@ -313,6 +331,13 @@ serve(async (req) => {
 
       // Only process ABER or FATU status
       if (cargaStatus !== "ABER" && cargaStatus !== "FATU") {
+        continue;
+      }
+
+      // Skip restricted drivers
+      const driverName = carga.nomeMotorista?.toUpperCase() || "";
+      if (restrictedDriverNames.has(driverName)) {
+        console.log(`Skipping carga ${carga.id} - restricted driver: ${driverName}`);
         continue;
       }
 
