@@ -31,6 +31,7 @@ import { BusinessHoursConfig } from "@/components/BusinessHoursConfig";
 import { AutoTemplateSenderConfig } from "@/components/AutoTemplateSenderConfig";
 import { CampaignCreationConfig } from "@/components/CampaignCreationConfig";
 import { RestrictedDriversConfig } from "@/components/RestrictedDriversConfig";
+import { RestrictedOrderPrefixesConfig } from "@/components/RestrictedOrderPrefixesConfig";
 const Index = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -152,6 +153,7 @@ const Index = () => {
               <TabsContent value="auto-send" className="space-y-6 mt-4">
                 <AutoTemplateSenderConfig />
                 <RestrictedDriversConfig />
+                <RestrictedOrderPrefixesConfig />
               </TabsContent>
 
               <TabsContent value="communication" className="space-y-6 mt-4">
