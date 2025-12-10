@@ -344,9 +344,9 @@ export function AutoTemplateSenderConfig() {
               </div>
               <ScrollArea className="h-[200px]">
                 <div className="p-2 space-y-1">
-                  {availableOrders.map((order) => (
+                  {availableOrders.map((order, index) => (
                     <div
-                      key={order.pedido}
+                      key={`${order.pedido}-${order.notaFiscal || index}`}
                       onClick={() => setSelectedOrder(order.pedido)}
                       className={`p-3 rounded-lg cursor-pointer transition-colors ${
                         selectedOrder === order.pedido
