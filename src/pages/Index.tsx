@@ -28,6 +28,7 @@ import { DriverPerformance } from "@/components/DriverPerformance";
 import { SatisfactionSurveyConfig } from "@/components/SatisfactionSurveyConfig";
 import { BotMessagesConfig } from "@/components/BotMessagesConfig";
 import { BusinessHoursConfig } from "@/components/BusinessHoursConfig";
+import { AutoTemplateSenderConfig } from "@/components/AutoTemplateSenderConfig";
 const Index = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -146,6 +147,7 @@ const Index = () => {
               </TabsContent>
 
               <TabsContent value="communication" className="space-y-6 mt-4">
+                <AutoTemplateSenderConfig />
                 <BusinessHoursConfig />
                 <BotMessagesConfig />
                 <SendDelayConfig />
