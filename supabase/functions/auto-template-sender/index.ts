@@ -10,6 +10,7 @@ interface Produto {
   id: number;
   descricao: string;
   quantidade: number;
+  pesoBruto?: number;
 }
 
 interface Cliente {
@@ -17,6 +18,13 @@ interface Cliente {
   nome: string;
   telefone: string;
   celular: string;
+  cep?: string;
+  endereco?: string;
+  referencia?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
+  observacao?: string;
 }
 
 interface Pedido {
@@ -25,6 +33,9 @@ interface Pedido {
   notaFiscal?: string;
   data: string;
   status?: string;
+  pesoBruto?: number;
+  valor?: number;
+  rota?: string;
   cliente: Cliente;
   produtos: Produto[];
 }
@@ -397,7 +408,7 @@ serve(async (req) => {
             true // isTest = true
           );
           
-          // For FATU test sends, also create campaign_sends record for response tracking
+          // For FATU test sends, also create campaign_sends record for response tracking AND save to delivered_orders
           if (cargaStatus === "FATU" && systemCampaignId) {
             const normalizedTestPhone = normalizePhone(testPhone);
             
@@ -425,6 +436,45 @@ serve(async (req) => {
               console.error(`Error creating campaign_sends for test FATU:`, campaignSendError);
             } else {
               console.log(`Campaign send created for test FATU - phone: ${normalizedTestPhone}`);
+            }
+            
+            // Save order to delivered_orders for satisfaction survey management (test mode uses original order data)
+            const { data: existingOrder } = await supabase
+              .from("delivered_orders")
+              .select("id")
+              .eq("pedido_numero", specificOrder.pedido)
+              .maybeSingle();
+            
+            if (!existingOrder) {
+              const { error: deliveredError } = await supabase.from("delivered_orders").insert({
+                pedido_id: specificOrder.id || 0,
+                pedido_numero: specificOrder.pedido,
+                customer_phone: normalizePhone(specificOrder.clienteTelefone || specificOrder.clienteCelular || testPhone),
+                customer_name: specificOrder.clienteNome || "Cliente",
+                carga_id: specificOrder.cargaId || null,
+                driver_name: specificOrder.nomeMotorista || null,
+                data_entrega: dataPedido,
+                endereco_completo: specificOrder.clienteEndereco || null,
+                bairro: specificOrder.clienteBairro || null,
+                cidade: specificOrder.clienteCidade || null,
+                estado: specificOrder.clienteEstado || null,
+                referencia: specificOrder.clienteReferencia || null,
+                observacao: specificOrder.clienteObservacao || null,
+                valor_total: specificOrder.valor || null,
+                peso_total: specificOrder.pesoBruto || null,
+                quantidade_itens: specificOrder.quantidadeItens || null,
+                produtos: specificOrder.produtos || null,
+                status: "pending_survey",
+                detected_at: new Date().toISOString(),
+              });
+              
+              if (deliveredError) {
+                console.error(`Error saving to delivered_orders for test ${specificOrder.pedido}:`, deliveredError);
+              } else {
+                console.log(`Test order ${specificOrder.pedido} saved to delivered_orders for survey management`);
+              }
+            } else {
+              console.log(`Order ${specificOrder.pedido} already exists in delivered_orders`);
             }
           }
         }
@@ -579,7 +629,7 @@ serve(async (req) => {
             testMode
           ) : null;
 
-          // For FATU 050/ sends, create campaign_sends record for response tracking
+          // For FATU 050/ sends, create campaign_sends record for response tracking AND save to delivered_orders
           const isFatu050 = cargaStatus === "FATU" && pedido.notaFiscal?.startsWith("050/");
           if (sendResponse.ok && isFatu050 && systemCampaignId) {
             const normalizedCustomerPhone = normalizePhone(testMode && testPhone ? testPhone : customerPhone);
@@ -606,13 +656,56 @@ serve(async (req) => {
               data_pedido: dataPedido,
               carga_id: carga.id,
               driver_name: carga.nomeMotorista,
-              rota: (pedido as any).rota || null,
+              rota: pedido.rota || null,
             });
             
             if (campaignSendError) {
               console.error(`Error creating campaign_sends for FATU 050/:`, campaignSendError);
             } else {
               console.log(`Campaign send created for FATU 050/ - phone: ${normalizedCustomerPhone}`);
+            }
+            
+            // Save order to delivered_orders for satisfaction survey management
+            const totalQuantidade = pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0;
+            const totalPeso = pedido.produtos?.reduce((sum, p) => sum + ((p.pesoBruto || 0) * (p.quantidade || 1)), 0) || pedido.pesoBruto || 0;
+            
+            // Check if order already exists
+            const { data: existingOrder } = await supabase
+              .from("delivered_orders")
+              .select("id")
+              .eq("pedido_numero", pedido.pedido)
+              .maybeSingle();
+            
+            if (!existingOrder) {
+              const { error: deliveredError } = await supabase.from("delivered_orders").insert({
+                pedido_id: pedido.id,
+                pedido_numero: pedido.pedido,
+                customer_phone: normalizedCustomerPhone,
+                customer_name: pedido.cliente?.nome || "Cliente",
+                carga_id: carga.id,
+                driver_name: carga.nomeMotorista,
+                data_entrega: dataPedido,
+                endereco_completo: pedido.cliente?.endereco || null,
+                bairro: pedido.cliente?.bairro || null,
+                cidade: pedido.cliente?.cidade || null,
+                estado: pedido.cliente?.estado || null,
+                referencia: pedido.cliente?.referencia || null,
+                observacao: pedido.cliente?.observacao || null,
+                valor_total: pedido.valor || null,
+                peso_total: totalPeso || null,
+                quantidade_itens: totalQuantidade || null,
+                produtos: pedido.produtos || null,
+                status: "pending_survey",
+                detected_at: new Date().toISOString(),
+              });
+              
+              if (deliveredError) {
+                console.error(`Error saving to delivered_orders for ${pedido.pedido}:`, deliveredError);
+              } else {
+                console.log(`Order ${pedido.pedido} saved to delivered_orders for survey management`);
+              }
+            } else {
+              console.log(`Order ${pedido.pedido} already exists in delivered_orders`);
             }
           }
 
