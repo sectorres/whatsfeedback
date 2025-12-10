@@ -53,6 +53,10 @@ interface RestrictedDriver {
   name: string;
 }
 
+interface RestrictedOrderPrefix {
+  prefix: string;
+}
+
 // Extract serie from pedido (e.g., "001/0262558-P" → "P") or notaFiscal (e.g., "002/0140826-N" → "N")
 function extractSerie(value: string | undefined): string {
   if (!value) return "";
@@ -132,7 +136,7 @@ serve(async (req) => {
     const { data: appConfigs } = await supabase
       .from("app_config")
       .select("config_key, config_value")
-      .in("config_key", ["auto_template_min_date", "auto_template_aber", "auto_template_fatu", "restricted_drivers"]);
+      .in("config_key", ["auto_template_min_date", "auto_template_aber", "auto_template_fatu", "restricted_drivers", "restricted_order_prefixes"]);
 
     // Convert min date from YYYY-MM-DD to YYYYMMDD for comparison
     const minDateConfig = appConfigs?.find(c => c.config_key === "auto_template_min_date");
@@ -156,6 +160,18 @@ serve(async (req) => {
       }
     }
     const restrictedDriverNames = new Set(restrictedDrivers.map(d => d.name.toUpperCase()));
+
+    // Get restricted order prefixes list (for ABER + Serie P)
+    const restrictedPrefixesConfig = appConfigs?.find(c => c.config_key === "restricted_order_prefixes");
+    let restrictedOrderPrefixes: RestrictedOrderPrefix[] = [];
+    if (restrictedPrefixesConfig?.config_value) {
+      try {
+        restrictedOrderPrefixes = JSON.parse(restrictedPrefixesConfig.config_value);
+      } catch {
+        restrictedOrderPrefixes = [];
+      }
+    }
+    const restrictedPrefixList = restrictedOrderPrefixes.map(p => p.prefix.toUpperCase());
 
     // Get template details to know how many variables each template expects and body text
     const { data: templateDetails } = await supabase
@@ -265,7 +281,7 @@ serve(async (req) => {
     
     console.log("System campaign for FATU 050:", systemCampaignId);
 
-    console.log("Config loaded:", { minDateValue, minDateFormatted, TEMPLATE_ABER, TEMPLATE_FATU, templateVariablesMap, restrictedDriversCount: restrictedDrivers.length });
+    console.log("Config loaded:", { minDateValue, minDateFormatted, TEMPLATE_ABER, TEMPLATE_FATU, templateVariablesMap, restrictedDriversCount: restrictedDrivers.length, restrictedPrefixesCount: restrictedOrderPrefixes.length });
 
     // Fetch cargas from API (last 7 days to now + 30 days)
     const hoje = new Date();
@@ -536,8 +552,15 @@ serve(async (req) => {
         let shouldProcess = false;
         let templateName = "";
 
-        // Logic: Serie P + ABER → use TEMPLATE_ABER (all orders)
+        // Logic: Serie P + ABER → use TEMPLATE_ABER (skip restricted prefixes)
         if (cargaStatus === "ABER" && pedidoSerie === "P") {
+          // Check if order starts with any restricted prefix
+          const pedidoUpper = pedido.pedido?.toUpperCase() || "";
+          const isRestrictedPrefix = restrictedPrefixList.some(prefix => pedidoUpper.startsWith(prefix));
+          if (isRestrictedPrefix) {
+            console.log(`Skipping pedido ${pedido.pedido} - matches restricted prefix`);
+            continue;
+          }
           shouldProcess = true;
           templateName = TEMPLATE_ABER;
         }
