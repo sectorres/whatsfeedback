@@ -111,6 +111,9 @@ export const CampaignBuilder = ({
   const [officialTemplateBody, setOfficialTemplateBody] = useState("");
   const [officialTemplateName, setOfficialTemplateName] = useState("");
 
+  // Estado para controle de criação de campanhas
+  const [campaignCreationEnabled, setCampaignCreationEnabled] = useState(true);
+
   // Estado para dados de preview
   const [previewData, setPreviewData] = useState({
     cliente: "João da Silva",
@@ -168,6 +171,26 @@ export const CampaignBuilder = ({
       }
     };
     checkApiType();
+  }, []);
+
+  // Verificar se criação de campanhas está habilitada
+  useEffect(() => {
+    const checkCampaignCreationEnabled = async () => {
+      try {
+        const { data } = await supabase
+          .from("app_config")
+          .select("config_value")
+          .eq("config_key", "campaign_creation_enabled")
+          .maybeSingle();
+
+        if (data?.config_value !== undefined) {
+          setCampaignCreationEnabled(data.config_value === "true");
+        }
+      } catch (error) {
+        console.error("Erro ao verificar config de criação de campanhas:", error);
+      }
+    };
+    checkCampaignCreationEnabled();
   }, []);
 
   // Save templates to localStorage whenever they change
@@ -672,7 +695,7 @@ export const CampaignBuilder = ({
                 </div>
 
                 {/* Botão de Enviar Campanha */}
-                <Button onClick={() => setShowConfirmDialog(true)} className="w-full" size="lg" disabled={!whatsappConnected || selectedPedidos.size === 0 || sending || !deliveryDate}>
+                <Button onClick={() => setShowConfirmDialog(true)} className="w-full" size="lg" disabled={!whatsappConnected || selectedPedidos.size === 0 || sending || !deliveryDate || !campaignCreationEnabled}>
                   {sending ? <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Enviando...
@@ -681,6 +704,10 @@ export const CampaignBuilder = ({
                       Enviar Campanha ({selectedPedidos.size} mensagens)
                     </>}
                 </Button>
+
+                {!campaignCreationEnabled && <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+                    <p className="text-sm text-destructive">🚫 Criação de campanhas desativada nas configurações</p>
+                  </div>}
 
                 {!whatsappConnected && <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
                     <p className="text-sm text-warning">⚠️ Conecte o WhatsApp primeiro para poder enviar campanhas</p>
