@@ -33,7 +33,10 @@ interface PedidoItem {
 interface WhatsAppTemplate {
   id: string;
   template_name: string;
-  meta_status: string;
+  body_text: string;
+  category: string;
+  language: string;
+  meta_status: string | null;
 }
 
 export function AutoTemplateSenderConfig() {
@@ -67,9 +70,8 @@ export function AutoTemplateSenderConfig() {
   const loadTemplates = async () => {
     const { data } = await supabase
       .from("whatsapp_templates")
-      .select("id, template_name, meta_status")
-      .eq("meta_status", "APPROVED")
-      .order("template_name");
+      .select("id, template_name, body_text, category, language, meta_status")
+      .order("template_name", { ascending: true });
 
     setTemplates(data || []);
   };
@@ -378,11 +380,27 @@ export function AutoTemplateSenderConfig() {
                     <SelectContent>
                       {templates.map((t) => (
                         <SelectItem key={t.id} value={t.template_name}>
-                          {t.template_name}
+                          <div className="flex items-center gap-2">
+                            <span>{t.template_name}</span>
+                            <Badge
+                              variant={t.meta_status === "APPROVED" ? "default" : "secondary"}
+                              className="text-xs"
+                            >
+                              {t.meta_status || "LOCAL"}
+                            </Badge>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {templateAber && (
+                    <div className="mt-2 p-2 bg-background rounded border text-xs">
+                      <p className="font-medium text-muted-foreground mb-1">Preview:</p>
+                      <p className="whitespace-pre-wrap">
+                        {templates.find((t) => t.template_name === templateAber)?.body_text || "Template não encontrado"}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="p-4 border rounded-lg bg-muted/50 space-y-3">
@@ -397,11 +415,27 @@ export function AutoTemplateSenderConfig() {
                     <SelectContent>
                       {templates.map((t) => (
                         <SelectItem key={t.id} value={t.template_name}>
-                          {t.template_name}
+                          <div className="flex items-center gap-2">
+                            <span>{t.template_name}</span>
+                            <Badge
+                              variant={t.meta_status === "APPROVED" ? "default" : "secondary"}
+                              className="text-xs"
+                            >
+                              {t.meta_status || "LOCAL"}
+                            </Badge>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  {templateFatu && (
+                    <div className="mt-2 p-2 bg-background rounded border text-xs">
+                      <p className="font-medium text-muted-foreground mb-1">Preview:</p>
+                      <p className="whitespace-pre-wrap">
+                        {templates.find((t) => t.template_name === templateFatu)?.body_text || "Template não encontrado"}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
