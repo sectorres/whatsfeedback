@@ -68,3 +68,21 @@ verify_jwt = true
 
 [functions.auto-template-sender]
 verify_jwt = true
+
+[functions.ai-chat-response]
+verify_jwt = false
+
+[functions.submit-template-meta]
+verify_jwt = true
+
+[functions.sync-template-status]
+verify_jwt = true
+
+[functions.fetch-meta-templates]
+verify_jwt = true
+
+[functions.fetch-meta-analytics]
+verify_jwt = true
+
+[functions.whatsapp-send-survey-template]
+verify_jwt = true

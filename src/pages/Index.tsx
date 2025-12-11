@@ -33,6 +33,7 @@ import { CampaignCreationConfig } from "@/components/CampaignCreationConfig";
 import { RestrictedDriversConfig } from "@/components/RestrictedDriversConfig";
 import { RestrictedOrderPrefixesConfig } from "@/components/RestrictedOrderPrefixesConfig";
 import { RestrictedOrderPrefixesFatuConfig } from "@/components/RestrictedOrderPrefixesFatuConfig";
+import { AiChatConfig } from "@/components/AiChatConfig";
 const Index = () => {
   const [whatsappConnected, setWhatsappConnected] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -163,6 +164,7 @@ const Index = () => {
               </TabsContent>
 
               <TabsContent value="communication" className="space-y-6 mt-4">
+                <AiChatConfig />
                 <CampaignCreationConfig />
                 <BusinessHoursConfig />
                 <BotMessagesConfig />
