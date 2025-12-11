@@ -57,6 +57,8 @@ export function AutoTemplateSenderConfig() {
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
   const [templateAber, setTemplateAber] = useState<string>("em_processo_entrega");
   const [templateFatu, setTemplateFatu] = useState<string>("status4");
+  const [templateAberEnabled, setTemplateAberEnabled] = useState<boolean>(true);
+  const [templateFatuEnabled, setTemplateFatuEnabled] = useState<boolean>(true);
 
   // Orders for testing
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -89,6 +91,8 @@ export function AutoTemplateSenderConfig() {
         "auto_template_min_date",
         "auto_template_aber",
         "auto_template_fatu",
+        "auto_template_aber_enabled",
+        "auto_template_fatu_enabled",
       ]);
 
     data?.forEach((config) => {
@@ -102,6 +106,10 @@ export function AutoTemplateSenderConfig() {
         setTemplateAber(config.config_value || "em_processo_entrega");
       } else if (config.config_key === "auto_template_fatu") {
         setTemplateFatu(config.config_value || "status4");
+      } else if (config.config_key === "auto_template_aber_enabled") {
+        setTemplateAberEnabled(config.config_value !== "false");
+      } else if (config.config_key === "auto_template_fatu_enabled") {
+        setTemplateFatuEnabled(config.config_value !== "false");
       }
     });
   };
@@ -404,12 +412,25 @@ export function AutoTemplateSenderConfig() {
               <Label className="text-base font-medium">Configuração de Templates</Label>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 border rounded-lg bg-muted/50 space-y-3">
-                <Badge variant="outline">ABER + Serie P</Badge>
+              <div className={`p-4 border rounded-lg bg-muted/50 space-y-3 ${!templateAberEnabled ? 'opacity-60' : ''}`}>
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline">ABER + Serie P</Badge>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground">Ativo</Label>
+                    <Switch 
+                      checked={templateAberEnabled} 
+                      onCheckedChange={async (value) => {
+                        setTemplateAberEnabled(value);
+                        await saveConfig("auto_template_aber_enabled", value.toString());
+                        toast({ title: value ? "Template ABER ativado" : "Template ABER desativado" });
+                      }}
+                    />
+                  </div>
+                </div>
                 <p className="text-sm text-muted-foreground">Todos os pedidos com Serie P</p>
                 <div className="space-y-2">
                   <Label className="text-xs">Template:</Label>
-                  <Select value={templateAber} onValueChange={setTemplateAber}>
+                  <Select value={templateAber} onValueChange={setTemplateAber} disabled={!templateAberEnabled}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o template" />
                     </SelectTrigger>
@@ -439,12 +460,25 @@ export function AutoTemplateSenderConfig() {
                   )}
                 </div>
               </div>
-              <div className="p-4 border rounded-lg bg-muted/50 space-y-3">
-                <Badge variant="outline">FATU + Serie N + NF 050/</Badge>
+              <div className={`p-4 border rounded-lg bg-muted/50 space-y-3 ${!templateFatuEnabled ? 'opacity-60' : ''}`}>
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline">FATU + Serie N + NF 050/</Badge>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground">Ativo</Label>
+                    <Switch 
+                      checked={templateFatuEnabled} 
+                      onCheckedChange={async (value) => {
+                        setTemplateFatuEnabled(value);
+                        await saveConfig("auto_template_fatu_enabled", value.toString());
+                        toast({ title: value ? "Template FATU ativado" : "Template FATU desativado" });
+                      }}
+                    />
+                  </div>
+                </div>
                 <p className="text-sm text-muted-foreground">Apenas NF começando com 050/</p>
                 <div className="space-y-2">
                   <Label className="text-xs">Template:</Label>
-                  <Select value={templateFatu} onValueChange={setTemplateFatu}>
+                  <Select value={templateFatu} onValueChange={setTemplateFatu} disabled={!templateFatuEnabled}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o template" />
                     </SelectTrigger>
