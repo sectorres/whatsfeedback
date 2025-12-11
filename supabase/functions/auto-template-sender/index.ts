@@ -701,9 +701,8 @@ serve(async (req) => {
             testMode
           ) : null;
 
-          // For FATU 050/ sends, create campaign_sends record for response tracking AND save to delivered_orders
-          const isFatu050 = cargaStatus === "FATU" && pedido.notaFiscal?.startsWith("050/");
-          if (sendResponse.ok && isFatu050 && systemCampaignId) {
+          // Save campaign_sends for ALL automatic sends (ABER and FATU) with full order data
+          if (sendResponse.ok && systemCampaignId) {
             const normalizedCustomerPhone = normalizePhone(testMode && testPhone ? testPhone : customerPhone);
             
             // Build message text for campaign_sends
@@ -715,13 +714,13 @@ serve(async (req) => {
               messageSent = `[TESTE] ${messageSent}`;
             }
             
-            // Create campaign_sends record with status 'success' for response tracking
+            // Create campaign_sends record with status 'success' and full order data
             const { error: campaignSendError } = await supabase.from("campaign_sends").insert({
               campaign_id: systemCampaignId,
               customer_phone: normalizedCustomerPhone,
               customer_name: pedido.cliente?.nome || "Cliente",
               message_sent: messageSent,
-              status: "success", // This status allows webhook to detect pending responses
+              status: "success",
               pedido_id: pedido.id,
               pedido_numero: pedido.pedido,
               nota_fiscal: pedido.notaFiscal,
@@ -729,15 +728,30 @@ serve(async (req) => {
               carga_id: carga.id,
               driver_name: carga.nomeMotorista,
               rota: pedido.rota || null,
+              // Save complete order details including products
+              endereco_completo: pedido.cliente?.endereco || null,
+              bairro: pedido.cliente?.bairro || null,
+              cep: pedido.cliente?.cep || null,
+              cidade: pedido.cliente?.cidade || null,
+              estado: pedido.cliente?.estado || null,
+              referencia: pedido.cliente?.referencia || null,
+              valor_total: pedido.valor || null,
+              peso_total: pedido.produtos?.reduce((sum, p) => sum + ((p.pesoBruto || 0) * (p.quantidade || 1)), 0) || pedido.pesoBruto || null,
+              quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || null,
+              produtos: pedido.produtos || null,
             });
             
             if (campaignSendError) {
-              console.error(`Error creating campaign_sends for FATU 050/:`, campaignSendError);
+              console.error(`Error creating campaign_sends for ${templateName}:`, campaignSendError);
             } else {
-              console.log(`Campaign send created for FATU 050/ - phone: ${normalizedCustomerPhone}`);
+              console.log(`Campaign send created for ${templateName} - pedido: ${pedido.pedido}, phone: ${normalizedCustomerPhone}`);
             }
-            
-            // Save order to delivered_orders for satisfaction survey management
+          }
+
+          // For FATU 050/ sends only, also save to delivered_orders for satisfaction survey management
+          const isFatu050 = cargaStatus === "FATU" && pedido.notaFiscal?.startsWith("050/");
+          if (sendResponse.ok && isFatu050) {
+            const normalizedCustomerPhone = normalizePhone(testMode && testPhone ? testPhone : customerPhone);
             const totalQuantidade = pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0;
             const totalPeso = pedido.produtos?.reduce((sum, p) => sum + ((p.pesoBruto || 0) * (p.quantidade || 1)), 0) || pedido.pesoBruto || 0;
             
