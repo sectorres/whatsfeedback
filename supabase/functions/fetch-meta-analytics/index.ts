@@ -127,37 +127,65 @@ serve(async (req) => {
     // Fetch template analytics for per-template cost breakdown
     const templateAnalytics: Record<string, { sent: number; delivered: number; read: number; cost: number }> = {};
     
-    // Use message_template_metric_types for template-specific analytics
-    const templateUrl = `https://graph.facebook.com/v22.0/${wabaId}/template_analytics?start=${startTimestamp}&end=${endTimestamp}&granularity=DAILY&metric_types=["sent","delivered","read"]&template_ids=[]`;
-    
-    console.log("Fetching template analytics:", templateUrl);
+    // First, fetch all templates from Meta to get their IDs
+    const templatesUrl = `https://graph.facebook.com/v22.0/${wabaId}/message_templates?limit=100`;
     
     try {
-      const templateResponse = await fetch(templateUrl, {
+      const templatesResponse = await fetch(templatesUrl, {
         headers: {
           Authorization: `Bearer ${metaToken}`,
         },
       });
 
-      const templateResponseText = await templateResponse.text();
-      console.log("Template analytics response:", templateResponse.status, templateResponseText);
-      
-      if (templateResponse.ok) {
-        const templateData = JSON.parse(templateResponseText);
+      if (templatesResponse.ok) {
+        const templatesData = await templatesResponse.json();
+        console.log("Templates count:", templatesData.data?.length || 0);
         
-        if (templateData.data && Array.isArray(templateData.data)) {
-          for (const item of templateData.data) {
-            if (item.data_points && Array.isArray(item.data_points)) {
-              for (const dp of item.data_points) {
-                const templateName = dp.template_id || item.template_id || 'unknown';
-                if (!templateAnalytics[templateName]) {
-                  templateAnalytics[templateName] = { sent: 0, delivered: 0, read: 0, cost: 0 };
+        // Extract template IDs
+        const templateIds = (templatesData.data || [])
+          .filter((t: { status: string }) => t.status === 'APPROVED')
+          .map((t: { id: string }) => t.id);
+        
+        if (templateIds.length > 0) {
+          // Now fetch analytics for these templates
+          const templateIdsParam = JSON.stringify(templateIds);
+          const templateAnalyticsUrl = `https://graph.facebook.com/v22.0/${wabaId}/template_analytics?start=${startTimestamp}&end=${endTimestamp}&granularity=DAILY&metric_types=["sent","delivered","read"]&template_ids=${encodeURIComponent(templateIdsParam)}`;
+          
+          console.log("Fetching template analytics for", templateIds.length, "templates");
+          
+          const templateResponse = await fetch(templateAnalyticsUrl, {
+            headers: {
+              Authorization: `Bearer ${metaToken}`,
+            },
+          });
+
+          const templateResponseText = await templateResponse.text();
+          console.log("Template analytics response:", templateResponse.status);
+          
+          if (templateResponse.ok) {
+            const templateData = JSON.parse(templateResponseText);
+            console.log("Template analytics data:", JSON.stringify(templateData));
+            
+            if (templateData.data && Array.isArray(templateData.data)) {
+              for (const item of templateData.data) {
+                if (item.data_points && Array.isArray(item.data_points)) {
+                  for (const dp of item.data_points) {
+                    // Find template name from the templates list
+                    const templateInfo = templatesData.data.find((t: { id: string }) => t.id === dp.template_id);
+                    const templateName = templateInfo?.name || dp.template_id || 'unknown';
+                    
+                    if (!templateAnalytics[templateName]) {
+                      templateAnalytics[templateName] = { sent: 0, delivered: 0, read: 0, cost: 0 };
+                    }
+                    if (dp.sent !== undefined) templateAnalytics[templateName].sent += parseInt(dp.sent) || 0;
+                    if (dp.delivered !== undefined) templateAnalytics[templateName].delivered += parseInt(dp.delivered) || 0;
+                    if (dp.read !== undefined) templateAnalytics[templateName].read += parseInt(dp.read) || 0;
+                  }
                 }
-                if (dp.sent !== undefined) templateAnalytics[templateName].sent += parseInt(dp.sent) || 0;
-                if (dp.delivered !== undefined) templateAnalytics[templateName].delivered += parseInt(dp.delivered) || 0;
-                if (dp.read !== undefined) templateAnalytics[templateName].read += parseInt(dp.read) || 0;
               }
             }
+          } else {
+            console.error("Template analytics error:", templateResponseText);
           }
         }
       }
