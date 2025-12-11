@@ -31,6 +31,12 @@ interface CampaignSend {
   error_message: string | null;
   sent_at: string;
   driver_name: string | null;
+  pedido_numero: string | null;
+}
+
+interface CampaignCounts {
+  success: number;
+  failed: number;
 }
 
 export function SavedCampaigns() {
@@ -38,6 +44,7 @@ export function SavedCampaigns() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [campaignSends, setCampaignSends] = useState<Record<string, CampaignSend[]>>({});
+  const [campaignCounts, setCampaignCounts] = useState<Record<string, CampaignCounts>>({});
   const [loadingSends, setLoadingSends] = useState<Record<string, boolean>>({});
   const [resending, setResending] = useState<Record<string, boolean>>({});
   const [editingPhone, setEditingPhone] = useState<string | null>(null);
@@ -118,6 +125,11 @@ export function SavedCampaigns() {
 
       if (error) throw error;
       setCampaigns(data || []);
+      
+      // Fetch counts for all campaigns
+      if (data && data.length > 0) {
+        await fetchAllCampaignCounts(data.map(c => c.id));
+      }
     } catch (error) {
       console.error('Error fetching campaigns:', error);
     } finally {
@@ -130,17 +142,45 @@ export function SavedCampaigns() {
     try {
       const { data, error } = await supabase
         .from('campaign_sends')
-        .select('id, customer_name, customer_phone, message_sent, status, error_message, sent_at, driver_name')
+        .select('id, customer_name, customer_phone, message_sent, status, error_message, sent_at, driver_name, pedido_numero')
         .eq('campaign_id', campaignId)
         .order('sent_at', { ascending: false })
         .limit(1000);
 
       if (error) throw error;
-      setCampaignSends(prev => ({ ...prev, [campaignId]: data || [] }));
+      setCampaignSends(prev => ({ ...prev, [campaignId]: (data || []) as CampaignSend[] }));
     } catch (error) {
       console.error('Error fetching campaign sends:', error);
     } finally {
       setLoadingSends(prev => ({ ...prev, [campaignId]: false }));
+    }
+  };
+
+  const fetchAllCampaignCounts = async (campaignIds: string[]) => {
+    try {
+      const { data, error } = await supabase
+        .from('campaign_sends')
+        .select('campaign_id, status')
+        .in('campaign_id', campaignIds);
+
+      if (error) throw error;
+
+      const counts: Record<string, CampaignCounts> = {};
+      for (const id of campaignIds) {
+        counts[id] = { success: 0, failed: 0 };
+      }
+      
+      for (const send of data || []) {
+        if (send.status === 'success' || send.status === 'confirmed') {
+          counts[send.campaign_id].success++;
+        } else if (send.status === 'failed') {
+          counts[send.campaign_id].failed++;
+        }
+      }
+      
+      setCampaignCounts(counts);
+    } catch (error) {
+      console.error('Error fetching campaign counts:', error);
     }
   };
 
@@ -327,16 +367,16 @@ export function SavedCampaigns() {
                             <span className="text-muted-foreground">
                               {campaign.sent_count} envios
                             </span>
-                            {campaignSends[campaign.id] && (
-                              <>
-                                <span className="text-green-600 dark:text-green-400">
-                                  ✓ {campaignSends[campaign.id].filter(s => s.status === 'success' || s.status === 'confirmed').length}
-                                </span>
-                                <span className="text-destructive">
-                                  ✗ {campaignSends[campaign.id].filter(s => s.status === 'failed').length}
-                                </span>
-                              </>
-                            )}
+                            <span className="text-green-600 dark:text-green-400">
+                              ✓ {campaignSends[campaign.id] 
+                                ? campaignSends[campaign.id].filter(s => s.status === 'success' || s.status === 'confirmed').length 
+                                : (campaignCounts[campaign.id]?.success || 0)}
+                            </span>
+                            <span className="text-destructive">
+                              ✗ {campaignSends[campaign.id] 
+                                ? campaignSends[campaign.id].filter(s => s.status === 'failed').length 
+                                : (campaignCounts[campaign.id]?.failed || 0)}
+                            </span>
                           </div>
                           <Badge variant={statusMap[campaign.status]?.variant || "secondary"} className="text-xs px-2 py-0">
                             {statusMap[campaign.status]?.label || campaign.status}
@@ -437,6 +477,9 @@ export function SavedCampaigns() {
                                           )}
                                         </div>
                                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                          {send.pedido_numero && (
+                                            <span className="font-medium text-foreground">Pedido: {send.pedido_numero}</span>
+                                          )}
                                           {send.driver_name && (
                                             <span>Mot: {send.driver_name}</span>
                                           )}
