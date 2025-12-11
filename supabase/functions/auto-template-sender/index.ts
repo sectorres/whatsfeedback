@@ -786,6 +786,8 @@ serve(async (req) => {
               template_sent: templateName,
               data_pedido: dataPedido,
             });
+            // Add to sentSet immediately to prevent duplicates within the same execution
+            sentSet.add(key);
           }
 
           results.push({
