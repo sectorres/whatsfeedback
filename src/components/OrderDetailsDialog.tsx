@@ -36,6 +36,7 @@ interface Pedido {
     status: string;
   };
   rota?: string;
+  motorista?: string;
 }
 
 interface OrderDetailsDialogProps {
@@ -107,6 +108,7 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
           data: savedOrder.data_pedido || "",
           valor: savedOrder.valor_total || 0,
           rota: savedOrder.rota || "",
+          motorista: savedOrder.driver_name || "",
           cliente: {
             nome: savedOrder.customer_name || "Cliente",
             endereco: savedOrder.endereco_completo || "",
@@ -227,8 +229,16 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
               <CardContent className="pt-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
+                    <span className="font-semibold">Pedido: </span>
+                    <span>{pedido.pedido}</span>
+                  </div>
+                  <div>
                     <span className="font-semibold">NF: </span>
                     <span>{pedido.notaFiscal}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">Motorista: </span>
+                    <span>{pedido.motorista || pedido.carga?.nomeMotorista || "N/A"}</span>
                   </div>
                   <div>
                     <span className="font-semibold">Data: </span>
