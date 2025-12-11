@@ -129,9 +129,10 @@ const Index = () => {
 
           <TabsContent value="config" className="space-y-3 sm:space-y-4 mt-0">
             <Tabs defaultValue="appearance" className="w-full">
-              <TabsList className="grid w-full grid-cols-6 h-auto">
+              <TabsList className="grid w-full grid-cols-7 h-auto">
                 <TabsTrigger value="appearance" className="text-xs sm:text-sm whitespace-nowrap">Aparência</TabsTrigger>
                 <TabsTrigger value="integrations" className="text-xs sm:text-sm whitespace-nowrap">Integrações</TabsTrigger>
+                <TabsTrigger value="templates" className="text-xs sm:text-sm whitespace-nowrap">Templates</TabsTrigger>
                 <TabsTrigger value="auto-send" className="text-xs sm:text-sm whitespace-nowrap">Envio Auto</TabsTrigger>
                 <TabsTrigger value="communication" className="text-xs sm:text-sm whitespace-nowrap">Comunicação</TabsTrigger>
                 <TabsTrigger value="security" className="text-xs sm:text-sm whitespace-nowrap">Segurança</TabsTrigger>
@@ -145,9 +146,12 @@ const Index = () => {
               <TabsContent value="integrations" className="space-y-6 mt-4">
                 <WhatsAppConnection onConnectionChange={setWhatsappConnected} />
                 <EvolutionApiConfig />
-                <WhatsAppTemplateManager />
                 <ApiConfiguration />
                 <WebhookConfiguration />
+              </TabsContent>
+
+              <TabsContent value="templates" className="space-y-6 mt-4">
+                <WhatsAppTemplateManager />
               </TabsContent>
 
               <TabsContent value="auto-send" className="space-y-6 mt-4">
