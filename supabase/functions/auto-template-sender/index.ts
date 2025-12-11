@@ -136,7 +136,7 @@ serve(async (req) => {
     const { data: appConfigs } = await supabase
       .from("app_config")
       .select("config_key, config_value")
-      .in("config_key", ["auto_template_min_date", "auto_template_aber", "auto_template_fatu", "restricted_drivers", "restricted_order_prefixes"]);
+      .in("config_key", ["auto_template_min_date", "auto_template_aber", "auto_template_fatu", "auto_template_aber_enabled", "auto_template_fatu_enabled", "restricted_drivers", "restricted_order_prefixes"]);
 
     // Convert min date from YYYY-MM-DD to YYYYMMDD for comparison
     const minDateConfig = appConfigs?.find(c => c.config_key === "auto_template_min_date");
@@ -148,6 +148,12 @@ serve(async (req) => {
     const templateFatuConfig = appConfigs?.find(c => c.config_key === "auto_template_fatu");
     const TEMPLATE_ABER = templateAberConfig?.config_value || "em_processo_entrega";
     const TEMPLATE_FATU = templateFatuConfig?.config_value || "status4";
+
+    // Get enabled/disabled flags for each template type (default to true if not configured)
+    const templateAberEnabledConfig = appConfigs?.find(c => c.config_key === "auto_template_aber_enabled");
+    const templateFatuEnabledConfig = appConfigs?.find(c => c.config_key === "auto_template_fatu_enabled");
+    const TEMPLATE_ABER_ENABLED = templateAberEnabledConfig?.config_value !== "false";
+    const TEMPLATE_FATU_ENABLED = templateFatuEnabledConfig?.config_value !== "false";
 
     // Get restricted drivers list
     const restrictedDriversConfig = appConfigs?.find(c => c.config_key === "restricted_drivers");
@@ -281,7 +287,7 @@ serve(async (req) => {
     
     console.log("System campaign for FATU 050:", systemCampaignId);
 
-    console.log("Config loaded:", { minDateValue, minDateFormatted, TEMPLATE_ABER, TEMPLATE_FATU, templateVariablesMap, restrictedDriversCount: restrictedDrivers.length, restrictedPrefixesCount: restrictedOrderPrefixes.length });
+    console.log("Config loaded:", { minDateValue, minDateFormatted, TEMPLATE_ABER, TEMPLATE_FATU, TEMPLATE_ABER_ENABLED, TEMPLATE_FATU_ENABLED, templateVariablesMap, restrictedDriversCount: restrictedDrivers.length, restrictedPrefixesCount: restrictedOrderPrefixes.length });
 
     // Fetch cargas from API (last 7 days to now + 30 days)
     const hoje = new Date();
@@ -361,6 +367,35 @@ serve(async (req) => {
       console.log("Test mode with specific order:", specificOrder);
 
       const cargaStatus = forceStatus || "ABER";
+      
+      // Check if template type is enabled
+      if (cargaStatus === "ABER" && !TEMPLATE_ABER_ENABLED) {
+        console.log("ABER template sending is disabled");
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Envio de template ABER está desativado",
+            processed: 0,
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      if (cargaStatus === "FATU" && !TEMPLATE_FATU_ENABLED) {
+        console.log("FATU template sending is disabled");
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Envio de template FATU está desativado",
+            processed: 0,
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      
       const templateName = cargaStatus === "ABER" ? TEMPLATE_ABER : TEMPLATE_FATU;
       const formattedPhone = formatPhoneForWhatsApp(testPhone);
 
@@ -552,8 +587,12 @@ serve(async (req) => {
         let shouldProcess = false;
         let templateName = "";
 
-        // Logic: Serie P + ABER → use TEMPLATE_ABER (skip restricted prefixes)
+        // Logic: Serie P + ABER → use TEMPLATE_ABER (skip restricted prefixes, check if enabled)
         if (cargaStatus === "ABER" && pedidoSerie === "P") {
+          // Check if ABER template is enabled
+          if (!TEMPLATE_ABER_ENABLED) {
+            continue;
+          }
           // Check if order starts with any restricted prefix
           const pedidoUpper = pedido.pedido?.toUpperCase() || "";
           const isRestrictedPrefix = restrictedPrefixList.some(prefix => pedidoUpper.startsWith(prefix));
@@ -564,8 +603,12 @@ serve(async (req) => {
           shouldProcess = true;
           templateName = TEMPLATE_ABER;
         }
-        // Logic: FATU + Serie N + notaFiscal starts with "050/" → use TEMPLATE_FATU
+        // Logic: FATU + Serie N + notaFiscal starts with "050/" → use TEMPLATE_FATU (check if enabled)
         else if (cargaStatus === "FATU" && notaFiscalSerie === "N" && pedido.notaFiscal?.startsWith("050/")) {
+          // Check if FATU template is enabled
+          if (!TEMPLATE_FATU_ENABLED) {
+            continue;
+          }
           shouldProcess = true;
           templateName = TEMPLATE_FATU;
         }
