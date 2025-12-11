@@ -106,6 +106,12 @@ export function ConversationsPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const selectedConversationRef = useRef<Conversation | null>(null);
+  
+  // Manter ref atualizada com o selectedConversation
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+  }, [selectedConversation]);
   
   useEffect(() => {
     audioRef.current = new Audio('/notification.mp3');
@@ -189,6 +195,9 @@ export function ConversationsPanel({
           .single();
         
         if (updatedConv) {
+          // Verificar se esta conversa está selecionada (aberta) - se sim, não incrementar unread
+          const isConversationOpen = selectedConversationRef.current?.id === updatedConv.id;
+          
           // Se a conversa está fechada, movê-la para ativas
           if (updatedConv.status === 'closed') {
             await supabase
@@ -197,17 +206,29 @@ export function ConversationsPanel({
               .eq('id', updatedConv.id);
             
             // Remover de arquivadas e adicionar a ativas
-            setArchivedConversations(prev => prev.filter(c => c.id !== updatedConv.id));
+            setArchivedConversations(prev => {
+              const existing = prev.find(c => c.id === updatedConv.id);
+              // Calcular novo unread baseado no estado local (não na resposta do banco)
+              const currentUnread = existing?.unread_count || 0;
+              const newUnreadCount = isConversationOpen ? 0 : currentUnread + 1;
+              
+              // Remover da lista de arquivadas
+              return prev.filter(c => c.id !== updatedConv.id);
+            });
             setConversations(prev => {
               const filtered = prev.filter(c => c.id !== updatedConv.id);
-              return [{ ...updatedConv, status: 'active' }, ...filtered]
+              // Pegar unread_count da conversa arquivada se existir
+              return [{ ...updatedConv, status: 'active', unread_count: isConversationOpen ? 0 : 1 }, ...filtered]
                 .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
             });
           } else {
             // Se já está ativa, apenas atualizar e reordenar
             setConversations(prev => {
+              const existing = prev.find(c => c.id === updatedConv.id);
               const filtered = prev.filter(c => c.id !== updatedConv.id);
-              return [updatedConv, ...filtered]
+              // Incrementar unread_count localmente se não estiver aberta
+              const newUnreadCount = isConversationOpen ? 0 : (existing?.unread_count || 0) + 1;
+              return [{ ...updatedConv, unread_count: newUnreadCount }, ...filtered]
                 .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
             });
           }
