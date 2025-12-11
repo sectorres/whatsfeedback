@@ -581,7 +581,7 @@ export const WhatsAppTemplateManager = () => {
                   <TableHead>Categoria</TableHead>
                   <TableHead>Idioma</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Custo (Mês)</TableHead>
+                  <TableHead>Uso (Mês)</TableHead>
                   <TableHead>Enviado em</TableHead>
                   <TableHead>Ativo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -631,11 +631,13 @@ export const WhatsAppTemplateManager = () => {
                             t => t.templateName === template.template_name || 
                                  t.templateName === template.meta_template_id
                           );
-                          if (templateStats && templateStats.cost > 0) {
+                          if (templateStats && templateStats.sent > 0) {
                             return (
                               <div className="text-sm">
-                                <span className="font-medium text-green-600">{formatCurrency(templateStats.cost)}</span>
-                                <p className="text-xs text-muted-foreground">{templateStats.sent} enviados</p>
+                                <p className="font-medium">{templateStats.sent} enviados</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {templateStats.delivered} entregues, {templateStats.read} lidos
+                                </p>
                               </div>
                             );
                           }
