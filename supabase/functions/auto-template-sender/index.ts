@@ -737,7 +737,7 @@ serve(async (req) => {
               referencia: pedido.cliente?.referencia || null,
               valor_total: pedido.valor || null,
               peso_total: pedido.produtos?.reduce((sum, p) => sum + ((p.pesoBruto || 0) * (p.quantidade || 1)), 0) || pedido.pesoBruto || null,
-              quantidade_itens: pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || null,
+              quantidade_itens: Math.round(pedido.produtos?.reduce((sum, p) => sum + (p.quantidade || 0), 0) || 0) || null,
               produtos: pedido.produtos || null,
             });
             
