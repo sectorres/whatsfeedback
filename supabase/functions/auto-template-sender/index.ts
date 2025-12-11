@@ -573,8 +573,14 @@ serve(async (req) => {
         continue;
       }
 
+      // Skip cargas without driver
+      const driverName = carga.nomeMotorista?.toUpperCase()?.trim() || "";
+      if (!driverName) {
+        console.log(`Skipping carga ${carga.id} - no driver assigned`);
+        continue;
+      }
+
       // Skip restricted drivers
-      const driverName = carga.nomeMotorista?.toUpperCase() || "";
       if (restrictedDriverNames.has(driverName)) {
         console.log(`Skipping carga ${carga.id} - restricted driver: ${driverName}`);
         continue;
