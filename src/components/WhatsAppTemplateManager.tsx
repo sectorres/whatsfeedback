@@ -61,6 +61,14 @@ const STATUS_CONFIG = {
   rejected: { label: "Rejeitado", icon: XCircle, color: "bg-red-500" },
 };
 
+interface TemplateAnalytics {
+  templateName: string;
+  sent: number;
+  delivered: number;
+  read: number;
+  cost: number;
+}
+
 interface MetaAnalytics {
   totalCost: number;
   conversationCount: number;
@@ -70,6 +78,7 @@ interface MetaAnalytics {
     end: string;
   };
   breakdown: Array<{ category: string; cost: number }>;
+  templateAnalytics: TemplateAnalytics[];
 }
 
 export const WhatsAppTemplateManager = () => {
@@ -572,6 +581,7 @@ export const WhatsAppTemplateManager = () => {
                   <TableHead>Categoria</TableHead>
                   <TableHead>Idioma</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Custo (Mês)</TableHead>
                   <TableHead>Enviado em</TableHead>
                   <TableHead>Ativo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -614,6 +624,23 @@ export const WhatsAppTemplateManager = () => {
                         {template.meta_rejection_reason && (
                           <p className="text-xs text-red-500 mt-1">{template.meta_rejection_reason}</p>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const templateStats = analytics?.templateAnalytics?.find(
+                            t => t.templateName === template.template_name || 
+                                 t.templateName === template.meta_template_id
+                          );
+                          if (templateStats && templateStats.cost > 0) {
+                            return (
+                              <div className="text-sm">
+                                <span className="font-medium text-green-600">{formatCurrency(templateStats.cost)}</span>
+                                <p className="text-xs text-muted-foreground">{templateStats.sent} enviados</p>
+                              </div>
+                            );
+                          }
+                          return <span className="text-muted-foreground text-sm">-</span>;
+                        })()}
                       </TableCell>
                       <TableCell>{formatDate(template.submitted_at)}</TableCell>
                       <TableCell>

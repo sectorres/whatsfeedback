@@ -124,6 +124,43 @@ serve(async (req) => {
       console.log("Conversation analytics not available, using pricing analytics");
     }
 
+    // Fetch template analytics for per-template cost breakdown
+    const templateAnalytics: Record<string, { sent: number; delivered: number; read: number; cost: number }> = {};
+    
+    const templateUrl = `https://graph.facebook.com/v22.0/${wabaId}/template_analytics?start=${startTimestamp}&end=${endTimestamp}&granularity=DAILY&metric_types=["sent","delivered","read","cost"]`;
+    
+    try {
+      const templateResponse = await fetch(templateUrl, {
+        headers: {
+          Authorization: `Bearer ${metaToken}`,
+        },
+      });
+
+      if (templateResponse.ok) {
+        const templateData = await templateResponse.json();
+        console.log("Template analytics:", JSON.stringify(templateData));
+        
+        if (templateData.data && Array.isArray(templateData.data)) {
+          for (const item of templateData.data) {
+            if (item.data_points && Array.isArray(item.data_points)) {
+              for (const dp of item.data_points) {
+                const templateName = dp.template_id || item.template_id || 'unknown';
+                if (!templateAnalytics[templateName]) {
+                  templateAnalytics[templateName] = { sent: 0, delivered: 0, read: 0, cost: 0 };
+                }
+                if (dp.sent !== undefined) templateAnalytics[templateName].sent += parseInt(dp.sent) || 0;
+                if (dp.delivered !== undefined) templateAnalytics[templateName].delivered += parseInt(dp.delivered) || 0;
+                if (dp.read !== undefined) templateAnalytics[templateName].read += parseInt(dp.read) || 0;
+                if (dp.cost !== undefined) templateAnalytics[templateName].cost += parseFloat(dp.cost) || 0;
+              }
+            }
+          }
+        }
+      }
+    } catch (templateError) {
+      console.log("Template analytics not available:", templateError);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -131,11 +168,15 @@ serve(async (req) => {
           start: startOfMonth.toISOString(),
           end: now.toISOString(),
         },
-        totalCost: totalCost, // Cost is already in BRL
+        totalCost: totalCost,
         conversationCount,
         breakdown: Object.entries(breakdown).map(([category, cost]) => ({
           category,
           cost: cost as number,
+        })),
+        templateAnalytics: Object.entries(templateAnalytics).map(([name, stats]) => ({
+          templateName: name,
+          ...stats,
         })),
         currency: "BRL",
       }),
