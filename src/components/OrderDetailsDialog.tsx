@@ -98,8 +98,8 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
 
       console.log("OrderDetailsDialog: Dados salvos:", savedOrder);
 
+      // Se tem produtos salvos, usar dados do banco
       if (savedOrder && savedOrder.produtos) {
-        // Converter dados salvos para o formato do pedido
         const pedidoFromDb: Pedido = {
           id: savedOrder.pedido_id || 0,
           pedido: savedOrder.pedido_numero || pedidoNumero,
@@ -121,10 +121,73 @@ export function OrderDetailsDialog({ open, onOpenChange, pedidoNumero }: OrderDe
 
         console.log("OrderDetailsDialog: Pedido carregado do banco:", pedidoFromDb);
         setPedido(pedidoFromDb);
+        return;
+      }
+
+      // Se não tem produtos, buscar da API (envios automáticos não salvam produtos)
+      console.log("OrderDetailsDialog: Dados incompletos no banco, buscando da API");
+      
+      const { data: apiData, error: apiError } = await supabase.functions.invoke("fetch-cargas", {
+        body: { searchTerm: pedidoNumero }
+      });
+
+      if (apiError) {
+        console.error("OrderDetailsDialog: Erro na API:", apiError);
+        throw apiError;
+      }
+
+      // Procurar o pedido específico nos dados da API
+      let foundPedido: Pedido | null = null;
+      if (apiData?.cargas) {
+        for (const carga of apiData.cargas) {
+          for (const p of carga.pedidos || []) {
+            if (p.pedido === pedidoNumero) {
+              foundPedido = {
+                id: p.id,
+                pedido: p.pedido,
+                notaFiscal: p.notaFiscal || "",
+                data: p.data || "",
+                valor: p.valor || 0,
+                rota: p.rota || "",
+                cliente: p.cliente ? {
+                  nome: p.cliente.nome || "Cliente",
+                  endereco: p.cliente.endereco || "",
+                  bairro: p.cliente.bairro || "",
+                  cep: p.cliente.cep || "",
+                  cidade: p.cliente.cidade || "",
+                  estado: p.cliente.estado || "",
+                  referencia: p.cliente.referencia || "",
+                } : {
+                  nome: savedOrder?.customer_name || "Cliente",
+                  endereco: "",
+                  bairro: "",
+                  cep: "",
+                  cidade: "",
+                  estado: "",
+                  referencia: "",
+                },
+                produtos: p.produtos || [],
+                carga: {
+                  id: carga.id,
+                  motorista: carga.motorista,
+                  nomeMotorista: carga.nomeMotorista || "",
+                  status: carga.status || "",
+                }
+              };
+              break;
+            }
+          }
+          if (foundPedido) break;
+        }
+      }
+
+      if (foundPedido) {
+        console.log("OrderDetailsDialog: Pedido carregado da API:", foundPedido);
+        setPedido(foundPedido);
       } else {
-        console.log("OrderDetailsDialog: Pedido não encontrado no banco, mostrando mensagem e fechando modal");
-        toast.error(`Pedido ${pedidoNumero} não encontrado. Os dados podem não ter sido salvos ainda.`);
-        onOpenChange(false); // Fecha o modal quando não encontrar o pedido
+        console.log("OrderDetailsDialog: Pedido não encontrado na API");
+        toast.error(`Pedido ${pedidoNumero} não encontrado`);
+        onOpenChange(false);
       }
     } catch (error) {
       console.error("OrderDetailsDialog: Erro ao buscar detalhes:", error);
