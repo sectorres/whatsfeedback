@@ -136,7 +136,7 @@ serve(async (req) => {
     const { data: appConfigs } = await supabase
       .from("app_config")
       .select("config_key, config_value")
-      .in("config_key", ["auto_template_min_date", "auto_template_aber", "auto_template_fatu", "auto_template_aber_enabled", "auto_template_fatu_enabled", "restricted_drivers", "restricted_order_prefixes"]);
+      .in("config_key", ["auto_template_min_date", "auto_template_aber", "auto_template_fatu", "auto_template_aber_enabled", "auto_template_fatu_enabled", "restricted_drivers", "restricted_order_prefixes", "restricted_order_prefixes_fatu"]);
 
     // Convert min date from YYYY-MM-DD to YYYYMMDD for comparison
     const minDateConfig = appConfigs?.find(c => c.config_key === "auto_template_min_date");
@@ -178,6 +178,18 @@ serve(async (req) => {
       }
     }
     const restrictedPrefixList = restrictedOrderPrefixes.map(p => p.prefix.toUpperCase());
+
+    // Get restricted order prefixes list for FATU
+    const restrictedPrefixesFatuConfig = appConfigs?.find(c => c.config_key === "restricted_order_prefixes_fatu");
+    let restrictedOrderPrefixesFatu: RestrictedOrderPrefix[] = [];
+    if (restrictedPrefixesFatuConfig?.config_value) {
+      try {
+        restrictedOrderPrefixesFatu = JSON.parse(restrictedPrefixesFatuConfig.config_value);
+      } catch {
+        restrictedOrderPrefixesFatu = [];
+      }
+    }
+    const restrictedPrefixFatuList = restrictedOrderPrefixesFatu.map(p => p.prefix.toUpperCase());
 
     // Get template details to know how many variables each template expects and body text
     const { data: templateDetails } = await supabase
@@ -653,10 +665,17 @@ serve(async (req) => {
           shouldProcess = true;
           templateName = TEMPLATE_ABER;
         }
-        // Logic: FATU + Serie N + notaFiscal starts with "050/" → use TEMPLATE_FATU (check if enabled)
+        // Logic: FATU + Serie N + notaFiscal starts with "050/" → use TEMPLATE_FATU (check if enabled, skip restricted prefixes)
         else if (cargaStatus === "FATU" && notaFiscalSerie === "N" && pedido.notaFiscal?.startsWith("050/")) {
           // Check if FATU template is enabled
           if (!TEMPLATE_FATU_ENABLED) {
+            continue;
+          }
+          // Check if order starts with any restricted FATU prefix
+          const pedidoUpper = pedido.pedido?.toUpperCase() || "";
+          const isRestrictedFatuPrefix = restrictedPrefixFatuList.some(prefix => pedidoUpper.startsWith(prefix));
+          if (isRestrictedFatuPrefix) {
+            console.log(`Skipping FATU pedido ${pedido.pedido} - matches restricted FATU prefix`);
             continue;
           }
           shouldProcess = true;
