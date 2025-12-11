@@ -127,7 +127,10 @@ serve(async (req) => {
     // Fetch template analytics for per-template cost breakdown
     const templateAnalytics: Record<string, { sent: number; delivered: number; read: number; cost: number }> = {};
     
-    const templateUrl = `https://graph.facebook.com/v22.0/${wabaId}/template_analytics?start=${startTimestamp}&end=${endTimestamp}&granularity=DAILY&metric_types=["sent","delivered","read","cost"]`;
+    // Use message_template_metric_types for template-specific analytics
+    const templateUrl = `https://graph.facebook.com/v22.0/${wabaId}/template_analytics?start=${startTimestamp}&end=${endTimestamp}&granularity=DAILY&metric_types=["sent","delivered","read"]&template_ids=[]`;
+    
+    console.log("Fetching template analytics:", templateUrl);
     
     try {
       const templateResponse = await fetch(templateUrl, {
@@ -136,9 +139,11 @@ serve(async (req) => {
         },
       });
 
+      const templateResponseText = await templateResponse.text();
+      console.log("Template analytics response:", templateResponse.status, templateResponseText);
+      
       if (templateResponse.ok) {
-        const templateData = await templateResponse.json();
-        console.log("Template analytics:", JSON.stringify(templateData));
+        const templateData = JSON.parse(templateResponseText);
         
         if (templateData.data && Array.isArray(templateData.data)) {
           for (const item of templateData.data) {
@@ -151,15 +156,16 @@ serve(async (req) => {
                 if (dp.sent !== undefined) templateAnalytics[templateName].sent += parseInt(dp.sent) || 0;
                 if (dp.delivered !== undefined) templateAnalytics[templateName].delivered += parseInt(dp.delivered) || 0;
                 if (dp.read !== undefined) templateAnalytics[templateName].read += parseInt(dp.read) || 0;
-                if (dp.cost !== undefined) templateAnalytics[templateName].cost += parseFloat(dp.cost) || 0;
               }
             }
           }
         }
       }
     } catch (templateError) {
-      console.log("Template analytics not available:", templateError);
+      console.error("Template analytics error:", templateError);
     }
+    
+    console.log("Template analytics result:", JSON.stringify(templateAnalytics));
 
     return new Response(
       JSON.stringify({
