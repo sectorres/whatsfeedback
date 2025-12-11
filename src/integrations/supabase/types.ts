@@ -333,6 +333,7 @@ export type Database = {
       }
       conversations: {
         Row: {
+          ai_active: boolean | null
           assigned_to: string | null
           created_at: string
           customer_name: string | null
@@ -347,6 +348,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_active?: boolean | null
           assigned_to?: string | null
           created_at?: string
           customer_name?: string | null
@@ -361,6 +363,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_active?: boolean | null
           assigned_to?: string | null
           created_at?: string
           customer_name?: string | null

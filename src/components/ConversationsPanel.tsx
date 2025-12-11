@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Phone, MessageCircle, Calendar as CalendarIcon, Send, X, Package, Plus, Search, MoreVertical, Archive, Clock, Paperclip, Loader2, Edit, Calendar, CheckCircle2 } from 'lucide-react';
+import { Phone, MessageCircle, Calendar as CalendarIcon, Send, X, Package, Plus, Search, MoreVertical, Archive, Clock, Paperclip, Loader2, Edit, Calendar, CheckCircle2, Bot, User } from 'lucide-react';
 import { toast } from "sonner";
 import { formatDistanceToNow, format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -32,6 +32,7 @@ interface Conversation {
   unread_count: number;
   last_read_at: string | null;
   tags: string[] | null;
+  ai_active: boolean | null;
 }
 interface Message {
   id: string;
@@ -867,6 +868,47 @@ export function ConversationsPanel({
                 </span>
               </div>
               <div className="flex items-center gap-2">
+                {/* AI Toggle Button */}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={async () => {
+                    if (!selectedConversation) return;
+                    const newValue = !selectedConversation.ai_active;
+                    try {
+                      const { error } = await supabase
+                        .from('conversations')
+                        .update({ ai_active: newValue })
+                        .eq('id', selectedConversation.id);
+                      if (error) throw error;
+                      setSelectedConversation({ ...selectedConversation, ai_active: newValue });
+                      setConversations(prev => prev.map(c => 
+                        c.id === selectedConversation.id ? { ...c, ai_active: newValue } : c
+                      ));
+                      toast.success(newValue ? 'IA ativada para esta conversa' : 'IA desativada - atendimento humano');
+                    } catch (error) {
+                      console.error('Error toggling AI:', error);
+                      toast.error('Erro ao alterar status da IA');
+                    }
+                  }}
+                  className={selectedConversation.ai_active !== false 
+                    ? "bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/20" 
+                    : "bg-orange-500/10 text-orange-600 border-orange-500/30 hover:bg-orange-500/20"
+                  }
+                  title={selectedConversation.ai_active !== false ? "IA está respondendo - Clique para assumir" : "Você está atendendo - Clique para ativar IA"}
+                >
+                  {selectedConversation.ai_active !== false ? (
+                    <>
+                      <Bot className="h-4 w-4 mr-1" />
+                      IA
+                    </>
+                  ) : (
+                    <>
+                      <User className="h-4 w-4 mr-1" />
+                      Humano
+                    </>
+                  )}
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">

@@ -846,6 +846,33 @@ serve(async (req) => {
               } catch (outsideHoursError) {
                 console.error('Error sending outside business hours message:', outsideHoursError);
               }
+            } else {
+              // Dentro do horário de atendimento - acionar IA para responder
+              // Se chegamos aqui, a mensagem não é resposta de campanha nem pesquisa (esses usam continue)
+              console.log('Triggering AI chat response for conversation:', conversation.id);
+              
+              try {
+                // Chamar a função de IA de forma assíncrona (não bloqueia)
+                // A função ai-chat-response vai aguardar o delay configurado antes de responder
+                fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/ai-chat-response`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`
+                  },
+                  body: JSON.stringify({
+                    conversation_id: conversation.id,
+                    customer_phone: customerPhone,
+                    message_text: messageText
+                  })
+                }).catch(err => {
+                  console.error('Error triggering AI response:', err);
+                });
+                
+                console.log('AI response triggered (async)');
+              } catch (aiError) {
+                console.error('Error triggering AI chat response:', aiError);
+              }
             }
           }
         }
