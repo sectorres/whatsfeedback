@@ -366,6 +366,25 @@ serve(async (req) => {
     if (testMode && specificOrder && testPhone) {
       console.log("Test mode with specific order:", specificOrder);
 
+      // Find the full order data from the cargas API response
+      let fullOrderData: any = null;
+      let orderCarga: any = null;
+      for (const carga of cargas) {
+        const foundPedido = carga.pedidos?.find((p: any) => p.pedido === specificOrder.pedido);
+        if (foundPedido) {
+          fullOrderData = foundPedido;
+          orderCarga = carga;
+          console.log("Found full order data in carga:", carga.id);
+          break;
+        }
+      }
+      
+      if (fullOrderData) {
+        console.log("Full order data found with products:", fullOrderData.produtos?.length || 0, "items");
+      } else {
+        console.log("Warning: Could not find full order data in API response, using minimal data");
+      }
+
       const cargaStatus = forceStatus || "ABER";
       
       // Check if template type is enabled
@@ -470,17 +489,38 @@ serve(async (req) => {
             });
             messageSent = `[TESTE] ${messageSent}`;
             
-            // Create campaign_sends record with status 'success' for response tracking
+            // Create campaign_sends record with status 'success' for response tracking WITH full order data
+            // Use fullOrderData if found from API, otherwise fall back to specificOrder
+            const orderData = fullOrderData || {};
+            const cargaData = orderCarga || {};
+            
+            const totalPeso = orderData.produtos?.reduce((sum: number, p: any) => sum + ((p.pesoBruto || 0) * (p.quantidade || 1)), 0) || orderData.pesoBruto || null;
+            const totalQuantidade = orderData.produtos?.reduce((sum: number, p: any) => sum + (p.quantidade || 0), 0) || 0;
+            
             const { error: campaignSendError } = await supabase.from("campaign_sends").insert({
               campaign_id: systemCampaignId,
               customer_phone: normalizedTestPhone,
-              customer_name: specificOrder.clienteNome || "Cliente",
+              customer_name: orderData.cliente?.nome || specificOrder.clienteNome || "Cliente",
               message_sent: messageSent,
               status: "success",
-              pedido_id: specificOrder.id || null,
-              pedido_numero: specificOrder.pedido,
-              nota_fiscal: specificOrder.notaFiscal || null,
+              pedido_id: orderData.id || specificOrder.id || null,
+              pedido_numero: orderData.pedido || specificOrder.pedido,
+              nota_fiscal: orderData.notaFiscal || specificOrder.notaFiscal || null,
               data_pedido: dataPedido,
+              carga_id: cargaData.id || null,
+              driver_name: cargaData.nomeMotorista || null,
+              rota: orderData.rota || null,
+              // Save complete order details including products from API
+              endereco_completo: orderData.cliente?.endereco || null,
+              bairro: orderData.cliente?.bairro || null,
+              cep: orderData.cliente?.cep || null,
+              cidade: orderData.cliente?.cidade || null,
+              estado: orderData.cliente?.estado || null,
+              referencia: orderData.cliente?.referencia || null,
+              valor_total: orderData.valor || null,
+              peso_total: totalPeso,
+              quantidade_itens: totalQuantidade ? Math.round(totalQuantidade) : null,
+              produtos: orderData.produtos || null,
             });
             
             if (campaignSendError) {
@@ -497,24 +537,28 @@ serve(async (req) => {
               .maybeSingle();
             
             if (!existingOrder) {
+              // Use fullOrderData if found from API, otherwise fall back to specificOrder
+              const deliveredPeso = orderData.produtos?.reduce((sum: number, p: any) => sum + ((p.pesoBruto || 0) * (p.quantidade || 1)), 0) || orderData.pesoBruto || 0;
+              const deliveredQty = orderData.produtos?.reduce((sum: number, p: any) => sum + (p.quantidade || 0), 0) || 0;
+              
               const { error: deliveredError } = await supabase.from("delivered_orders").insert({
-                pedido_id: specificOrder.id || 0,
-                pedido_numero: specificOrder.pedido,
-                customer_phone: normalizePhone(specificOrder.clienteTelefone || specificOrder.clienteCelular || testPhone),
-                customer_name: specificOrder.clienteNome || "Cliente",
-                carga_id: specificOrder.cargaId || null,
-                driver_name: specificOrder.nomeMotorista || null,
+                pedido_id: orderData.id || specificOrder.id || 0,
+                pedido_numero: orderData.pedido || specificOrder.pedido,
+                customer_phone: normalizePhone(orderData.cliente?.telefone || orderData.cliente?.celular || specificOrder.clienteTelefone || testPhone),
+                customer_name: orderData.cliente?.nome || specificOrder.clienteNome || "Cliente",
+                carga_id: cargaData.id || null,
+                driver_name: cargaData.nomeMotorista || null,
                 data_entrega: dataPedido,
-                endereco_completo: specificOrder.clienteEndereco || null,
-                bairro: specificOrder.clienteBairro || null,
-                cidade: specificOrder.clienteCidade || null,
-                estado: specificOrder.clienteEstado || null,
-                referencia: specificOrder.clienteReferencia || null,
-                observacao: specificOrder.clienteObservacao || null,
-                valor_total: specificOrder.valor || null,
-                peso_total: specificOrder.pesoBruto || null,
-                quantidade_itens: specificOrder.quantidadeItens || null,
-                produtos: specificOrder.produtos || null,
+                endereco_completo: orderData.cliente?.endereco || null,
+                bairro: orderData.cliente?.bairro || null,
+                cidade: orderData.cliente?.cidade || null,
+                estado: orderData.cliente?.estado || null,
+                referencia: orderData.cliente?.referencia || null,
+                observacao: orderData.cliente?.observacao || null,
+                valor_total: orderData.valor || null,
+                peso_total: deliveredPeso || null,
+                quantidade_itens: deliveredQty || null,
+                produtos: orderData.produtos || null,
                 status: "pending_survey",
                 detected_at: new Date().toISOString(),
               });
