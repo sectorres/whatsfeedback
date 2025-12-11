@@ -133,13 +133,14 @@ export function AutoTemplateSenderConfig() {
   const loadAvailableOrders = async () => {
     setLoadingOrders(true);
     try {
-      // Fetch restricted prefixes and restricted drivers first
+      // Fetch restricted prefixes (ABER and FATU) and restricted drivers first
       const { data: configData } = await supabase
         .from("app_config")
         .select("config_key, config_value")
-        .in("config_key", ["restricted_order_prefixes", "restricted_drivers"]);
+        .in("config_key", ["restricted_order_prefixes", "restricted_order_prefixes_fatu", "restricted_drivers"]);
 
       let restrictedPrefixes: string[] = [];
+      let restrictedPrefixesFatu: string[] = [];
       let restrictedDrivers: string[] = [];
       
       configData?.forEach((config) => {
@@ -147,6 +148,12 @@ export function AutoTemplateSenderConfig() {
           try {
             const parsed = JSON.parse(config.config_value);
             restrictedPrefixes = parsed.map((p: { prefix: string }) => p.prefix.toUpperCase());
+          } catch {}
+        }
+        if (config.config_key === "restricted_order_prefixes_fatu" && config.config_value) {
+          try {
+            const parsed = JSON.parse(config.config_value);
+            restrictedPrefixesFatu = parsed.map((p: { prefix: string }) => p.prefix.toUpperCase());
           } catch {}
         }
         if (config.config_key === "restricted_drivers" && config.config_value) {
@@ -195,7 +202,12 @@ export function AutoTemplateSenderConfig() {
               shouldInclude = true;
             }
           } else if (carga.status === "FATU" && notaFiscalSerie === "N" && pedido.notaFiscal?.startsWith("050/")) {
-            shouldInclude = true;
+            // Check if order starts with any restricted FATU prefix
+            const pedidoUpper = pedido.pedido?.toUpperCase() || "";
+            const isRestrictedFatuPrefix = restrictedPrefixesFatu.some((prefix: string) => pedidoUpper.startsWith(prefix));
+            if (!isRestrictedFatuPrefix) {
+              shouldInclude = true;
+            }
           }
 
           if (!shouldInclude) continue;
