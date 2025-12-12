@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Phone, MessageCircle, Calendar as CalendarIcon, Send, X, Package, Plus, Search, MoreVertical, Archive, Clock, Paperclip, Loader2, Edit, Calendar, CheckCircle2, Bot, User } from 'lucide-react';
+import { Phone, MessageCircle, Calendar as CalendarIcon, Send, X, Package, Plus, Search, MoreVertical, Archive, Clock, Paperclip, Loader2, Edit, Calendar, CheckCircle2, Bot, User, Sparkles } from 'lucide-react';
 import { toast } from "sonner";
 import { formatDistanceToNow, format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -1146,9 +1146,15 @@ export function ConversationsPanel({
                         })()}
                       
                       {msg.message_text && msg.message_text !== '[Audio]' && msg.message_text !== '[Áudio]' && msg.message_text !== '[Imagem]' && msg.message_text !== '[Image]' && msg.message_text !== '[Localização]' && msg.message_text !== '[Location]' && !msg.message_text.startsWith('📇') && <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>}
-                      <p className="text-xs opacity-70 mt-1">
-                        {formatMessageTimestamp(msg.created_at)}
-                      </p>
+                      <div className="flex items-center gap-1 mt-1">
+                        {msg.sender_type === 'bot' && (
+                          <Sparkles className="h-3 w-3 text-purple-400" />
+                        )}
+                        <p className="text-xs opacity-70">
+                          {formatMessageTimestamp(msg.created_at)}
+                          {msg.sender_type === 'bot' && <span className="ml-1 opacity-80">(IA)</span>}
+                        </p>
+                      </div>
                     </div>
                   </div>)}
                 <div ref={messagesEndRef} />
