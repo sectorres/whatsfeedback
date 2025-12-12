@@ -153,16 +153,28 @@ export function ConversationsPanel({
       table: 'conversations'
     }, (payload) => {
       const updatedConv = payload.new as Conversation;
+      
+      // Verificar se a conversa está aberta - se sim, manter unread_count = 0 localmente
+      const isOpen = selectedConversationRef.current?.id === updatedConv.id;
+      const finalConv = isOpen ? { ...updatedConv, unread_count: 0 } : updatedConv;
+      
+      console.log('Conversation UPDATE received:', { 
+        id: updatedConv.id, 
+        unread_count: updatedConv.unread_count,
+        isOpen,
+        finalUnreadCount: finalConv.unread_count
+      });
+      
       const updateFn = (prev: Conversation[]) => 
-        prev.map(conv => conv.id === updatedConv.id ? { ...conv, ...updatedConv } : conv)
+        prev.map(conv => conv.id === finalConv.id ? { ...conv, ...finalConv } : conv)
           .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
       
-      if (updatedConv.status === 'active') {
+      if (finalConv.status === 'active') {
         setConversations(updateFn);
-        setArchivedConversations(prev => prev.filter(c => c.id !== updatedConv.id));
-      } else if (updatedConv.status === 'closed') {
+        setArchivedConversations(prev => prev.filter(c => c.id !== finalConv.id));
+      } else if (finalConv.status === 'closed') {
         setArchivedConversations(updateFn);
-        setConversations(prev => prev.filter(c => c.id !== updatedConv.id));
+        setConversations(prev => prev.filter(c => c.id !== finalConv.id));
       }
     }).on('postgres_changes', {
       event: 'DELETE',
