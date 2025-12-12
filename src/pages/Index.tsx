@@ -36,6 +36,7 @@ import { RestrictedOrderPrefixesConfig } from "@/components/RestrictedOrderPrefi
 import { RestrictedOrderPrefixesFatuConfig } from "@/components/RestrictedOrderPrefixesFatuConfig";
 import { AiChatConfig } from "@/components/AiChatConfig";
 import { AiTriggerPhrasesConfig } from "@/components/AiTriggerPhrasesConfig";
+import { ChatTemplatesConfig } from "@/components/ChatTemplatesConfig";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -251,6 +252,7 @@ const Index = () => {
               </TabsContent>
 
               <TabsContent value="communication" className="space-y-6 mt-4">
+                <ChatTemplatesConfig />
                 <AiChatConfig />
                 <AiTriggerPhrasesConfig />
                 <CampaignCreationConfig />

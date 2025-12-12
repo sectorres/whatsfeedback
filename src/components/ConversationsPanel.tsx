@@ -9,15 +9,17 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Phone, MessageCircle, Calendar as CalendarIcon, Send, X, Package, Plus, Search, MoreVertical, Archive, Clock, Paperclip, Loader2, Edit, Calendar, CheckCircle2, Bot, User, Sparkles, CheckSquare, Square } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Phone, MessageCircle, Calendar as CalendarIcon, Send, X, Package, Plus, Search, MoreVertical, Archive, Clock, Paperclip, Loader2, Edit, Calendar, CheckCircle2, Bot, User, Sparkles, CheckSquare, Square, FileText, AlertTriangle } from 'lucide-react';
 import { toast } from "sonner";
-import { formatDistanceToNow, format, isToday } from "date-fns";
+import { formatDistanceToNow, format, isToday, differenceInHours } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ImageModal } from "@/components/ImageModal";
 import { isValidPhoneNumber, normalizePhone } from "@/lib/phone-utils";
 import { CustomerOrdersDialog } from "@/components/CustomerOrdersDialog";
 import { OrderDetailsDialog } from "@/components/OrderDetailsDialog";
+import { ChatTemplateSelector } from "@/components/ChatTemplateSelector";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -106,6 +108,7 @@ export function ConversationsPanel({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedConversationIds, setSelectedConversationIds] = useState<Set<string>>(new Set());
+  const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -1216,18 +1219,88 @@ export function ConversationsPanel({
               </div>
             </ScrollArea>
 
-            <div className="mt-4 space-y-2">
-              <div className="flex gap-2">
-                <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
-                <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile || sending} title="Anexar arquivo">
-                  {uploadingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-                </Button>
-                <Input placeholder="Digite sua mensagem..." value={messageText} onChange={e => setMessageText(e.target.value)} onKeyPress={e => e.key === 'Enter' && sendMessage()} />
-                <Button onClick={sendMessage} disabled={sending || uploadingFile || !messageText.trim()}>
-                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
+            {/* Área de envio de mensagem com verificação de janela de 24h */}
+            {(() => {
+              // Verificar se a janela de 24h está aberta (última mensagem do cliente < 24h)
+              const lastCustomerMessage = messages
+                .filter(m => m.sender_type === 'customer')
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+              
+              const isWindowOpen = lastCustomerMessage 
+                ? differenceInHours(new Date(), new Date(lastCustomerMessage.created_at)) < 24
+                : false;
+              
+              const hoursRemaining = lastCustomerMessage
+                ? 24 - differenceInHours(new Date(), new Date(lastCustomerMessage.created_at))
+                : 0;
+
+              return (
+                <div className="mt-4 space-y-2">
+                  {!isWindowOpen && (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
+                      <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                      <span className="text-amber-600 dark:text-amber-400">
+                        Janela de 24h encerrada. Envie um template para iniciar a conversa.
+                      </span>
+                    </div>
+                  )}
+                  {isWindowOpen && hoursRemaining <= 6 && (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm">
+                      <Clock className="h-4 w-4 text-blue-500 shrink-0" />
+                      <span className="text-blue-600 dark:text-blue-400">
+                        Janela de 24h fecha em ~{Math.ceil(hoursRemaining)}h
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
+                    
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            onClick={() => setTemplateSelectorOpen(true)}
+                            title="Enviar Template"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Enviar Template Meta</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      onClick={() => fileInputRef.current?.click()} 
+                      disabled={uploadingFile || sending || !isWindowOpen} 
+                      title={isWindowOpen ? "Anexar arquivo" : "Envie um template primeiro"}
+                    >
+                      {uploadingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                    </Button>
+                    
+                    <Input 
+                      placeholder={isWindowOpen ? "Digite sua mensagem..." : "Envie um template para iniciar..."} 
+                      value={messageText} 
+                      onChange={e => setMessageText(e.target.value)} 
+                      onKeyPress={e => e.key === 'Enter' && isWindowOpen && sendMessage()} 
+                      disabled={!isWindowOpen}
+                    />
+                    
+                    <Button 
+                      onClick={sendMessage} 
+                      disabled={sending || uploadingFile || !messageText.trim() || !isWindowOpen}
+                    >
+                      {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
           </> : <div className="flex items-center justify-center h-full text-muted-foreground">
             Selecione uma conversa para começar
           </div>}
@@ -1313,6 +1386,19 @@ export function ConversationsPanel({
       <CustomerOrdersDialog open={ordersDialogOpen} onOpenChange={setOrdersDialogOpen} customerPhone={selectedConversation?.customer_phone || ""} customerName={selectedConversation?.customer_name || undefined} />
 
       <OrderDetailsDialog open={orderDialogOpen} onOpenChange={setOrderDialogOpen} pedidoNumero={selectedOrderNumero} />
+
+      <ChatTemplateSelector
+        open={templateSelectorOpen}
+        onOpenChange={setTemplateSelectorOpen}
+        customerPhone={selectedConversation?.customer_phone || ""}
+        customerName={selectedConversation?.customer_name || null}
+        conversationId={selectedConversation?.id || ""}
+        onTemplateSent={() => {
+          if (selectedConversation) {
+            loadMessages(selectedConversation.id);
+          }
+        }}
+      />
 
       <Dialog open={editPhoneDialogOpen} onOpenChange={setEditPhoneDialogOpen}>
         <DialogContent>
