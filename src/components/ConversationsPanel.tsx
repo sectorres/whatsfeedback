@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Phone, MessageCircle, Calendar as CalendarIcon, Send, X, Package, Plus, Search, MoreVertical, Archive, Clock, Paperclip, Loader2, Edit, Calendar, CheckCircle2, Bot, User, Sparkles } from 'lucide-react';
+import { Phone, MessageCircle, Calendar as CalendarIcon, Send, X, Package, Plus, Search, MoreVertical, Archive, Clock, Paperclip, Loader2, Edit, Calendar, CheckCircle2, Bot, User, Sparkles, CheckSquare, Square } from 'lucide-react';
 import { toast } from "sonner";
 import { formatDistanceToNow, format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -104,6 +104,8 @@ export function ConversationsPanel({
   const [orderDialogOpen, setOrderDialogOpen] = useState(false);
   const [selectedOrderNumero, setSelectedOrderNumero] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedConversationIds, setSelectedConversationIds] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -411,6 +413,56 @@ export function ConversationsPanel({
       last_read_at: new Date().toISOString()
     } : conv));
   };
+
+  // Funções de seleção múltipla
+  const toggleConversationSelection = (convId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedConversationIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(convId)) {
+        newSet.delete(convId);
+      } else {
+        newSet.add(convId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllConversations = () => {
+    const allIds = new Set(filteredActiveConversations.map(c => c.id));
+    setSelectedConversationIds(allIds);
+  };
+
+  const clearSelection = () => {
+    setSelectedConversationIds(new Set());
+    setSelectionMode(false);
+  };
+
+  const archiveSelectedConversations = async () => {
+    if (selectedConversationIds.size === 0) return;
+    
+    try {
+      const idsArray = Array.from(selectedConversationIds);
+      const { error } = await supabase
+        .from('conversations')
+        .update({ status: 'closed' })
+        .in('id', idsArray);
+
+      if (error) throw error;
+
+      // Atualizar listas locais
+      const archivedConvs = conversations.filter(c => selectedConversationIds.has(c.id));
+      setConversations(prev => prev.filter(c => !selectedConversationIds.has(c.id)));
+      setArchivedConversations(prev => [...archivedConvs.map(c => ({ ...c, status: 'closed' })), ...prev]);
+      
+      toast.success(`${selectedConversationIds.size} conversa(s) arquivada(s)`);
+      clearSelection();
+    } catch (error) {
+      console.error('Error archiving conversations:', error);
+      toast.error('Erro ao arquivar conversas');
+    }
+  };
+
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [editingMessage, setEditingMessage] = useState<any>(null);
   const [editText, setEditText] = useState("");
@@ -775,10 +827,40 @@ export function ConversationsPanel({
       <Card className="p-4 flex flex-col h-full min-h-0 overflow-hidden">
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-semibold">Conversas</h3>
-          <Button variant="outline" size="icon" onClick={() => setNewConversationDialogOpen(true)} title="Iniciar nova conversa">
-            <Plus className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {selectionMode ? (
+              <>
+                <Button variant="ghost" size="sm" onClick={selectAllConversations} title="Selecionar todas" className="h-7 px-2 text-xs">
+                  Todas
+                </Button>
+                <Button variant="ghost" size="sm" onClick={clearSelection} title="Cancelar seleção" className="h-7 px-2">
+                  <X className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setSelectionMode(true)} title="Selecionar múltiplas">
+                  <CheckSquare className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setNewConversationDialogOpen(true)} title="Iniciar nova conversa">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
         </div>
+        
+        {/* Barra de ação para seleção */}
+        {selectionMode && selectedConversationIds.size > 0 && (
+          <div className="flex items-center justify-between bg-primary/10 rounded-lg p-2 mb-2">
+            <span className="text-sm font-medium">{selectedConversationIds.size} selecionada(s)</span>
+            <Button size="sm" variant="secondary" onClick={archiveSelectedConversations} className="h-7 gap-1">
+              <Archive className="h-3 w-3" />
+              Arquivar
+            </Button>
+          </div>
+        )}
+        
         <Input placeholder="Buscar por nome ou telefone..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="mb-2" />
         <Tabs value={activeTab} onValueChange={value => setActiveTab(value as "active" | "archived")} className="flex flex-col h-full min-h-0">
           <TabsList className="grid w-full grid-cols-2 mb-2">
@@ -800,34 +882,58 @@ export function ConversationsPanel({
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div> : filteredActiveConversations.length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
                   Nenhuma conversa ativa
-                </p> : filteredActiveConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <span className="font-medium text-sm truncate">{conv.customer_name || conv.customer_phone}</span>
-                          {(conv.unread_count ?? 0) > 0 && (
-                            <Badge variant="destructive" className="h-5 min-w-[20px] flex items-center justify-center px-1.5 text-xs font-bold shrink-0">
-                              {conv.unread_count}
-                            </Badge>
+                </p> : filteredActiveConversations.map(conv => (
+                  <div 
+                    key={conv.id} 
+                    className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${
+                      selectedConversation?.id === conv.id ? 'bg-primary/10' : 
+                      selectedConversationIds.has(conv.id) ? 'bg-primary/5 ring-1 ring-primary/30' : 
+                      'hover:bg-muted'
+                    }`} 
+                    onClick={() => selectionMode ? toggleConversationSelection(conv.id, { stopPropagation: () => {} } as React.MouseEvent) : setSelectedConversation(conv)}
+                  >
+                    <div className="flex gap-2">
+                      {selectionMode && (
+                        <div 
+                          className="flex items-center justify-center shrink-0 pt-0.5"
+                          onClick={(e) => toggleConversationSelection(conv.id, e)}
+                        >
+                          {selectedConversationIds.has(conv.id) ? (
+                            <CheckSquare className="h-4 w-4 text-primary" />
+                          ) : (
+                            <Square className="h-4 w-4 text-muted-foreground" />
                           )}
                         </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          {conv.tags?.includes('reagendar') && <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs h-5">
-                            Reagendar
-                          </Badge>}
+                      )}
+                      <div className="flex flex-col gap-1 flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="font-medium text-sm truncate">{conv.customer_name || conv.customer_phone}</span>
+                            {(conv.unread_count ?? 0) > 0 && (
+                              <Badge variant="destructive" className="h-5 min-w-[20px] flex items-center justify-center px-1.5 text-xs font-bold shrink-0">
+                                {conv.unread_count}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {conv.tags?.includes('reagendar') && <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs h-5">
+                              Reagendar
+                            </Badge>}
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {conv.customer_phone}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(conv.last_message_at), {
+                            addSuffix: true,
+                            locale: ptBR
+                          })}
                         </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {conv.customer_phone}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(conv.last_message_at), {
-                    addSuffix: true,
-                    locale: ptBR
-                  })}
-                      </div>
                     </div>
-                  </div>)}
+                  </div>
+                ))}
             </ScrollArea>
           </TabsContent>
 
