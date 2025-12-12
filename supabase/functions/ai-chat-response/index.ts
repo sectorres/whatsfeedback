@@ -568,7 +568,8 @@ serve(async (req) => {
       body: {
         phone: customer_phone,
         message: aiMessage,
-        conversation_id: conversation_id
+        conversation_id: conversation_id,
+        is_bot: true
       }
     });
 

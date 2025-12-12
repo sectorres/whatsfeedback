@@ -8,6 +8,7 @@ const whatsappSendSchema = z.object({
   message: z.string().min(1).max(4096),
   skip_message_save: z.boolean().optional(),
   conversation_id: z.string().optional(),
+  is_bot: z.boolean().optional(),
 });
 
 const corsHeaders = {
@@ -32,7 +33,7 @@ serve(async (req) => {
       );
     }
 
-    const { phone, message, skip_message_save, conversation_id } = validationResult.data;
+    const { phone, message, skip_message_save, conversation_id, is_bot } = validationResult.data;
     
     // Buscar credenciais da Evolution API (do banco ou secrets)
     const { apiUrl: EVOLUTION_API_URL, apiKey: EVOLUTION_API_KEY, instanceName: EVOLUTION_INSTANCE_NAME } = await getEvolutionCredentials();
@@ -217,8 +218,8 @@ serve(async (req) => {
         if (conversationId) {
           const messageData: any = {
             conversation_id: conversationId,
-            sender_type: 'agent',
-            sender_name: 'Bot',
+            sender_type: is_bot ? 'bot' : 'agent',
+            sender_name: is_bot ? 'IA' : 'Bot',
             message_text: message,
             message_status: 'sent'
           };
