@@ -42,6 +42,35 @@ serve(async (req) => {
 
     const { apiUrl, apiKey, instanceName } = credentials;
 
+    // Consultar o template no banco para verificar número de variáveis
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data: templateData, error: templateError } = await supabase
+      .from("whatsapp_templates")
+      .select("variables, body_text")
+      .eq("template_name", SURVEY_TEMPLATE_NAME)
+      .single();
+
+    let variableCount = 0;
+    
+    if (templateData) {
+      // Contar variáveis do template
+      if (templateData.variables && Array.isArray(templateData.variables)) {
+        variableCount = templateData.variables.length;
+      }
+      // Fallback: contar {{n}} no body_text se variables estiver vazio
+      if (variableCount === 0 && templateData.body_text) {
+        const matches = templateData.body_text.match(/\{\{\d+\}\}/g);
+        variableCount = matches ? matches.length : 0;
+      }
+      console.log(`Template "${SURVEY_TEMPLATE_NAME}" has ${variableCount} variable(s)`);
+    } else {
+      console.log(`Template "${SURVEY_TEMPLATE_NAME}" not found in database, assuming 1 variable`);
+      variableCount = 1; // Fallback para comportamento anterior
+    }
+
     // Normalizar telefone e formatar para WhatsApp (com código do país)
     const normalizedPhone = normalizePhone(phone);
     const whatsappPhone = `55${normalizedPhone}`;
@@ -51,23 +80,40 @@ serve(async (req) => {
       templateName: SURVEY_TEMPLATE_NAME,
       templateLanguage: SURVEY_TEMPLATE_LANGUAGE,
       customerName,
+      variableCount,
     });
 
-    // Montar payload do template com APENAS 1 PARÂMETRO
+    // Montar payload do template respeitando o número de variáveis
     const templatePayload: Record<string, unknown> = {
       number: whatsappPhone,
       name: SURVEY_TEMPLATE_NAME,
       language: SURVEY_TEMPLATE_LANGUAGE,
-      components: [
+    };
+
+    // Só adiciona components se houver variáveis
+    if (variableCount > 0) {
+      const parameters: Array<{ type: string; text: string }> = [];
+      
+      // Adiciona os parâmetros conforme a quantidade de variáveis
+      for (let i = 0; i < variableCount; i++) {
+        if (i === 0) {
+          // Primeiro parâmetro é sempre o nome do cliente
+          parameters.push({ type: "text", text: customerName || "Cliente" });
+        } else {
+          // Parâmetros adicionais vazios (podem ser customizados conforme necessário)
+          parameters.push({ type: "text", text: "" });
+        }
+      }
+
+      templatePayload.components = [
         {
           type: "body",
-          parameters: [
-            // Parâmetro {{1}} para o nome do cliente (único parâmetro esperado)
-            { type: "text", text: customerName || "Cliente" },
-          ],
+          parameters,
         },
-      ],
-    };
+      ];
+    }
+
+    console.log("Template payload:", JSON.stringify(templatePayload, null, 2));
 
     // Enviar template via Evolution API
     const templateResponse = await fetch(`${apiUrl}/message/sendTemplate/${instanceName}`, {
