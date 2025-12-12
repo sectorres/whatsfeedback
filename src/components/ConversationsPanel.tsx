@@ -803,11 +803,15 @@ export function ConversationsPanel({
                 </p> : filteredActiveConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : 'hover:bg-muted'}`} onClick={() => setSelectedConversation(conv)}>
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="font-medium text-sm truncate flex-1">{conv.customer_name || conv.customer_phone}</div>
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <span className="font-medium text-sm truncate">{conv.customer_name || conv.customer_phone}</span>
+                          {(conv.unread_count ?? 0) > 0 && (
+                            <Badge variant="destructive" className="h-5 min-w-[20px] flex items-center justify-center px-1.5 text-xs font-bold shrink-0">
+                              {conv.unread_count}
+                            </Badge>
+                          )}
+                        </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          {(conv.unread_count ?? 0) > 0 && <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center px-1 text-xs font-bold">
-                            {conv.unread_count}
-                          </Badge>}
                           {conv.tags?.includes('reagendar') && <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs h-5">
                             Reagendar
                           </Badge>}
