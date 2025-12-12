@@ -186,9 +186,12 @@ export function ConversationsPanel({
         shouldPlaySound: payload.new.sender_type === 'customer' && !isOnAtendimentoTab
       });
 
-      // Se for mensagem de cliente, recarregar as conversas para garantir que apareça em ativas
+      // Se for mensagem de cliente, usar o unread_count diretamente do banco (já incrementado pelo webhook)
       if (payload.new.sender_type === 'customer') {
-        // Buscar a conversa atualizada
+        // Aguardar um momento para garantir que o webhook atualizou o banco
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Buscar a conversa atualizada com o unread_count correto do banco
         const { data: updatedConv } = await supabase
           .from('conversations')
           .select('*')
@@ -196,8 +199,11 @@ export function ConversationsPanel({
           .single();
         
         if (updatedConv) {
-          // Verificar se esta conversa está selecionada (aberta) - se sim, não incrementar unread
+          // Verificar se esta conversa está selecionada (aberta)
           const isConversationOpen = selectedConversationRef.current?.id === updatedConv.id;
+          
+          // Se a conversa está aberta, zerar o unread_count
+          const finalUnreadCount = isConversationOpen ? 0 : updatedConv.unread_count;
           
           // Se a conversa está fechada, movê-la para ativas
           if (updatedConv.status === 'closed') {
@@ -206,32 +212,30 @@ export function ConversationsPanel({
               .update({ status: 'active' })
               .eq('id', updatedConv.id);
             
-            // Remover de arquivadas e adicionar a ativas
-            setArchivedConversations(prev => {
-              const existing = prev.find(c => c.id === updatedConv.id);
-              // Calcular novo unread baseado no estado local (não na resposta do banco)
-              const currentUnread = existing?.unread_count || 0;
-              const newUnreadCount = isConversationOpen ? 0 : currentUnread + 1;
-              
-              // Remover da lista de arquivadas
-              return prev.filter(c => c.id !== updatedConv.id);
-            });
+            // Remover de arquivadas
+            setArchivedConversations(prev => prev.filter(c => c.id !== updatedConv.id));
+            
+            // Adicionar a ativas
             setConversations(prev => {
               const filtered = prev.filter(c => c.id !== updatedConv.id);
-              // Pegar unread_count da conversa arquivada se existir
-              return [{ ...updatedConv, status: 'active', unread_count: isConversationOpen ? 0 : 1 }, ...filtered]
+              return [{ ...updatedConv, status: 'active', unread_count: finalUnreadCount }, ...filtered]
                 .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
             });
           } else {
-            // Se já está ativa, apenas atualizar e reordenar
+            // Se já está ativa, atualizar com dados do banco
             setConversations(prev => {
-              const existing = prev.find(c => c.id === updatedConv.id);
               const filtered = prev.filter(c => c.id !== updatedConv.id);
-              // Incrementar unread_count localmente se não estiver aberta
-              const newUnreadCount = isConversationOpen ? 0 : (existing?.unread_count || 0) + 1;
-              return [{ ...updatedConv, unread_count: newUnreadCount }, ...filtered]
+              return [{ ...updatedConv, unread_count: finalUnreadCount }, ...filtered]
                 .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
             });
+          }
+          
+          // Se a conversa está aberta, garantir que o unread_count está zerado no banco
+          if (isConversationOpen && updatedConv.unread_count > 0) {
+            await supabase
+              .from('conversations')
+              .update({ unread_count: 0, last_read_at: new Date().toISOString() })
+              .eq('id', updatedConv.id);
           }
         }
       }
