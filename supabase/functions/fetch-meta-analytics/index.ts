@@ -127,7 +127,7 @@ serve(async (req) => {
     // Fetch template analytics for per-template cost breakdown
     const templateAnalytics: Record<string, { sent: number; delivered: number; read: number; cost: number }> = {};
     
-    // First, fetch all templates from Meta to get their IDs
+    // First, fetch all templates from Meta to get their IDs and names
     const templatesUrl = `https://graph.facebook.com/v22.0/${wabaId}/message_templates?limit=100`;
     
     try {
@@ -141,51 +141,61 @@ serve(async (req) => {
         const templatesData = await templatesResponse.json();
         console.log("Templates count:", templatesData.data?.length || 0);
         
-        // Extract template IDs
-        const templateIds = (templatesData.data || [])
-          .filter((t: { status: string }) => t.status === 'APPROVED')
-          .map((t: { id: string }) => t.id);
+        // Build a map of template ID to name for all templates (not just approved)
+        const templateIdToName: Record<string, string> = {};
+        for (const t of templatesData.data || []) {
+          templateIdToName[t.id] = t.name;
+        }
+        
+        // Extract template IDs (all templates, not just approved)
+        const templateIds = (templatesData.data || []).map((t: { id: string }) => t.id);
         
         if (templateIds.length > 0) {
-          // Now fetch analytics for these templates
-          const templateIdsParam = JSON.stringify(templateIds);
-          const templateAnalyticsUrl = `https://graph.facebook.com/v22.0/${wabaId}/template_analytics?start=${startTimestamp}&end=${endTimestamp}&granularity=DAILY&metric_types=["sent","delivered","read"]&template_ids=${encodeURIComponent(templateIdsParam)}`;
+          // Fetch analytics with pagination support
+          let nextUrl: string | null = `https://graph.facebook.com/v22.0/${wabaId}/template_analytics?start=${startTimestamp}&end=${endTimestamp}&granularity=DAILY&metric_types=["sent","delivered","read"]&template_ids=${encodeURIComponent(JSON.stringify(templateIds))}&limit=100`;
           
           console.log("Fetching template analytics for", templateIds.length, "templates");
           
-          const templateResponse = await fetch(templateAnalyticsUrl, {
-            headers: {
-              Authorization: `Bearer ${metaToken}`,
-            },
-          });
+          while (nextUrl) {
+            const templateResponse: Response = await fetch(nextUrl, {
+              headers: {
+                Authorization: `Bearer ${metaToken}`,
+              },
+            });
 
-          const templateResponseText = await templateResponse.text();
-          console.log("Template analytics response:", templateResponse.status);
-          
-          if (templateResponse.ok) {
-            const templateData = JSON.parse(templateResponseText);
-            console.log("Template analytics data:", JSON.stringify(templateData));
+            if (!templateResponse.ok) {
+              const errorText = await templateResponse.text();
+              console.error("Template analytics error:", errorText);
+              break;
+            }
+            
+            const templateData: { data?: Array<{ data_points?: Array<{ template_id: string; sent?: number; delivered?: number; read?: number }> }>; paging?: { next?: string } } = await templateResponse.json();
+            console.log("Template analytics page fetched, data_points count:", 
+              templateData.data?.[0]?.data_points?.length || 0);
             
             if (templateData.data && Array.isArray(templateData.data)) {
               for (const item of templateData.data) {
                 if (item.data_points && Array.isArray(item.data_points)) {
                   for (const dp of item.data_points) {
-                    // Find template name from the templates list
-                    const templateInfo = templatesData.data.find((t: { id: string }) => t.id === dp.template_id);
-                    const templateName = templateInfo?.name || dp.template_id || 'unknown';
+                    // Find template name from the templates map
+                    const templateName = templateIdToName[dp.template_id] || dp.template_id || 'unknown';
                     
                     if (!templateAnalytics[templateName]) {
                       templateAnalytics[templateName] = { sent: 0, delivered: 0, read: 0, cost: 0 };
                     }
-                    if (dp.sent !== undefined) templateAnalytics[templateName].sent += parseInt(dp.sent) || 0;
-                    if (dp.delivered !== undefined) templateAnalytics[templateName].delivered += parseInt(dp.delivered) || 0;
-                    if (dp.read !== undefined) templateAnalytics[templateName].read += parseInt(dp.read) || 0;
+                    if (dp.sent !== undefined) templateAnalytics[templateName].sent += Number(dp.sent) || 0;
+                    if (dp.delivered !== undefined) templateAnalytics[templateName].delivered += Number(dp.delivered) || 0;
+                    if (dp.read !== undefined) templateAnalytics[templateName].read += Number(dp.read) || 0;
                   }
                 }
               }
             }
-          } else {
-            console.error("Template analytics error:", templateResponseText);
+            
+            // Check for next page
+            nextUrl = templateData.paging?.next || null;
+            if (nextUrl) {
+              console.log("Fetching next page of template analytics...");
+            }
           }
         }
       }
