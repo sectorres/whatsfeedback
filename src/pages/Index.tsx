@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { DashboardStats } from "@/components/DashboardStats";
 import { CampaignBuilder } from "@/components/CampaignBuilder";
@@ -41,15 +42,28 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+const VALID_TABS = ["dashboard", "campaigns", "satisfaction", "atendimento", "desempenho", "orders", "config"];
+
 const Index = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [whatsappConnected, setWhatsappConnected] = useState(false);
-  const [activeTab, setActiveTab] = useState("dashboard");
+  
+  const tabFromUrl = searchParams.get("tab");
+  const initialTab = tabFromUrl && VALID_TABS.includes(tabFromUrl) ? tabFromUrl : "dashboard";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [configUnlocked, setConfigUnlocked] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [password, setPassword] = useState("");
   const [verifying, setVerifying] = useState(false);
   const unreadCount = useUnreadCount();
   const { isConnected } = useWhatsAppStatus();
+  // Handle config tab from URL - require password on load
+  useEffect(() => {
+    if (initialTab === "config" && !configUnlocked) {
+      setShowPasswordDialog(true);
+      setActiveTab("dashboard");
+    }
+  }, []);
 
   const handleTabChange = (value: string) => {
     if (value === "config" && !configUnlocked) {
@@ -57,6 +71,7 @@ const Index = () => {
       return;
     }
     setActiveTab(value);
+    setSearchParams({ tab: value });
   };
 
   const handlePasswordSubmit = async () => {
@@ -81,6 +96,7 @@ const Index = () => {
       setShowPasswordDialog(false);
       setPassword("");
       setActiveTab("config");
+      setSearchParams({ tab: "config" });
       toast.success("Acesso liberado");
     } catch (error) {
       toast.error("Erro ao verificar senha");
