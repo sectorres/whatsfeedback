@@ -17,7 +17,7 @@ serve(async (req) => {
 
   try {
     // Apenas desestruture os parâmetros que realmente precisamos.
-    const { phone, customerName } = await req.json();
+    const { phone, customerName, pedidoNumero } = await req.json();
 
     if (!phone) {
       return new Response(JSON.stringify({ error: "Phone number is required" }), {
@@ -80,6 +80,7 @@ serve(async (req) => {
       templateName: SURVEY_TEMPLATE_NAME,
       templateLanguage: SURVEY_TEMPLATE_LANGUAGE,
       customerName,
+      pedidoNumero,
       variableCount,
     });
 
@@ -99,9 +100,12 @@ serve(async (req) => {
         if (i === 0) {
           // Primeiro parâmetro é sempre o nome do cliente
           parameters.push({ type: "text", text: customerName || "Cliente" });
+        } else if (i === 1) {
+          // Segundo parâmetro é o número do pedido
+          parameters.push({ type: "text", text: pedidoNumero || "Pedido" });
         } else {
-          // Parâmetros adicionais vazios (podem ser customizados conforme necessário)
-          parameters.push({ type: "text", text: "" });
+          // Parâmetros adicionais - fallback genérico
+          parameters.push({ type: "text", text: "-" });
         }
       }
 

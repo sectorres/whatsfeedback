@@ -299,6 +299,7 @@ Responda apenas com o número da sua avaliação.`;
             body: {
               phone: updatedSend.customer_phone,
               customerName: updatedSend.customer_name,
+              pedidoNumero: updatedSend.pedido_numero,
             }
           });
 
