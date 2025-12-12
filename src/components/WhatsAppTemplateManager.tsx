@@ -27,6 +27,7 @@ import {
 import { Switch } from "./ui/switch";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { TemplateVariableMapping } from "./TemplateVariableMapping";
 
 interface WhatsAppTemplate {
   id: string;
@@ -653,6 +654,16 @@ export const WhatsAppTemplateManager = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          {template.variables && template.variables.length > 0 && (
+                            <TemplateVariableMapping
+                              templateId={template.id}
+                              templateName={template.template_name}
+                              bodyText={template.body_text}
+                              variables={template.variables}
+                              category={template.category}
+                              onSave={loadTemplates}
+                            />
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
