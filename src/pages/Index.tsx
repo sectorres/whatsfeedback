@@ -180,13 +180,6 @@ const Index = () => {
               <span className="hidden sm:inline font-medium truncate">Desempenho</span>
             </TabsTrigger>
             <TabsTrigger 
-              value="orders" 
-              className="flex items-center gap-1.5 text-sm sm:text-base text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
-            >
-              <Package className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
-              <span className="hidden sm:inline font-medium truncate">Pedidos</span>
-            </TabsTrigger>
-            <TabsTrigger 
               value="config" 
               className="flex items-center gap-1.5 text-sm sm:text-base text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
@@ -221,13 +214,10 @@ const Index = () => {
             <DriverPerformance />
           </TabsContent>
 
-          <TabsContent value="orders" className="mt-0">
-            <OrderStatusTable />
-          </TabsContent>
 
           <TabsContent value="config" className="space-y-3 sm:space-y-4 mt-0">
             <Tabs defaultValue="appearance" className="w-full">
-              <TabsList className="grid w-full grid-cols-7 h-auto">
+              <TabsList className="grid w-full grid-cols-8 h-auto">
                 <TabsTrigger value="appearance" className="text-xs sm:text-sm whitespace-nowrap">Aparência</TabsTrigger>
                 <TabsTrigger value="integrations" className="text-xs sm:text-sm whitespace-nowrap">Integrações</TabsTrigger>
                 <TabsTrigger value="templates" className="text-xs sm:text-sm whitespace-nowrap">Templates</TabsTrigger>
@@ -235,6 +225,7 @@ const Index = () => {
                 <TabsTrigger value="communication" className="text-xs sm:text-sm whitespace-nowrap">Comunicação</TabsTrigger>
                 <TabsTrigger value="security" className="text-xs sm:text-sm whitespace-nowrap">Segurança</TabsTrigger>
                 <TabsTrigger value="system" className="text-xs sm:text-sm whitespace-nowrap">Sistema</TabsTrigger>
+                <TabsTrigger value="orders" className="text-xs sm:text-sm whitespace-nowrap">Pedidos</TabsTrigger>
               </TabsList>
 
               <TabsContent value="appearance" className="space-y-6 mt-4">
@@ -287,6 +278,10 @@ const Index = () => {
                   </CardContent>
                 </Card>
                 <DataClearConfig />
+              </TabsContent>
+
+              <TabsContent value="orders" className="mt-4">
+                <OrderStatusTable />
               </TabsContent>
             </Tabs>
           </TabsContent>
