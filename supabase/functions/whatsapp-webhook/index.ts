@@ -425,15 +425,17 @@ serve(async (req) => {
             });
 
             const currentTags = existingConv.tags || [];
-            if (!currentTags.includes('confirmado')) {
-              await supabase
-                .from('conversations')
-                .update({ 
-                  tags: [...currentTags, 'confirmado'],
-                  last_message_at: new Date().toISOString()
-                })
-                .eq('id', existingConv.id);
-            }
+            const updatedTags = currentTags.includes('confirmado') ? currentTags : [...currentTags, 'confirmado'];
+            
+            // Mover conversa para "Antigas" (closed) após confirmação
+            await supabase
+              .from('conversations')
+              .update({ 
+                tags: updatedTags,
+                last_message_at: new Date().toISOString(),
+                status: 'closed'
+              })
+              .eq('id', existingConv.id);
 
             const confirmedMsg = getBotMessage('campaign_confirmed_response', 'Obrigado pela confirmação!');
             
@@ -562,6 +564,15 @@ serve(async (req) => {
               media_url: null,
               whatsapp_message_id: msg.key?.id
             });
+            
+            // Mover conversa para "Antigas" (closed) após parar notificações
+            await supabase
+              .from('conversations')
+              .update({ 
+                status: 'closed',
+                last_message_at: new Date().toISOString()
+              })
+              .eq('id', existingConv.id);
             
             continue;
           }
