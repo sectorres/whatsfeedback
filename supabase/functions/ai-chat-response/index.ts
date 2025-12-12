@@ -22,6 +22,235 @@ const DEFAULT_CONFIG: AiConfig = {
   max_tokens: 500
 };
 
+interface Produto {
+  id: number;
+  descricao: string;
+  pesoBruto: number;
+  quantidade: number;
+  periodoEntrega: string;
+  empresaColeta: number;
+}
+
+interface Cliente {
+  id: number;
+  nome: string;
+  documento: string;
+  telefone: string;
+  celular: string;
+  cep: string;
+  endereco: string;
+  referencia: string;
+  bairro: string;
+  setor: string;
+  cidade: string;
+  estado: string;
+  observacao: string;
+}
+
+interface Pedido {
+  id: number;
+  pedido: string;
+  notaFiscal: string;
+  empresa: number;
+  documento: number;
+  serie: string;
+  data: string;
+  pesoBruto: number;
+  valor: number;
+  rota: string;
+  cliente: Cliente;
+  produtos: Produto[];
+}
+
+interface Carga {
+  id: number;
+  data: string;
+  motorista: number;
+  nomeMotorista: string;
+  transportadora: number;
+  nomeTransportadora: string;
+  status: string;
+  pedidos: Pedido[];
+}
+
+// Extract pedido number or CPF from message
+function extractSearchTerms(message: string): { pedido: string | null; cpf: string | null } {
+  // Look for pedido pattern: XXX/XXXXXXX-X or variations
+  const pedidoMatch = message.match(/\d{1,3}[\/\-]\d{5,8}[-]?[A-Z]?/i);
+  
+  // Look for CPF pattern: 11 digits or formatted XXX.XXX.XXX-XX
+  const cpfClean = message.replace(/\D/g, '');
+  const cpfMatch = cpfClean.length === 11 ? cpfClean : null;
+  
+  // Also check for formatted CPF in original message
+  const cpfFormattedMatch = message.match(/\d{3}\.?\d{3}\.?\d{3}[-.]?\d{2}/);
+  
+  return {
+    pedido: pedidoMatch ? pedidoMatch[0].toUpperCase() : null,
+    cpf: cpfMatch || (cpfFormattedMatch ? cpfFormattedMatch[0].replace(/\D/g, '') : null)
+  };
+}
+
+// Query delivery API for orders
+async function queryDeliveryAPI(pedido: string | null, cpf: string | null): Promise<{ orders: any[]; found: boolean }> {
+  const API_URL = 'https://ec.torrescabral.com.br/shx-integrador/srv/ServPubGetCargasEntrega/V1';
+  const API_USERNAME = Deno.env.get('API_USERNAME');
+  const API_PASSWORD = Deno.env.get('API_PASSWORD');
+
+  if (!API_USERNAME || !API_PASSWORD) {
+    console.error('API credentials not configured');
+    return { orders: [], found: false };
+  }
+
+  // Calculate date range (90 days past, 30 days future)
+  const hoje = new Date();
+  const dataFinalDate = new Date();
+  const dataInicialDate = new Date();
+  dataFinalDate.setDate(hoje.getDate() + 30);
+  dataInicialDate.setDate(hoje.getDate() - 90);
+  
+  const dataFinal = dataFinalDate.toISOString().slice(0, 10).replace(/-/g, '');
+  const dataInicial = dataInicialDate.toISOString().slice(0, 10).replace(/-/g, '');
+
+  console.log('Querying delivery API...', { dataInicial, dataFinal, pedido, cpf });
+
+  try {
+    const credentials = btoa(`${API_USERNAME}:${API_PASSWORD}`);
+    
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        dataInicial,
+        dataFinal,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Delivery API Error:', response.status);
+      return { orders: [], found: false };
+    }
+
+    const data = await response.json();
+    const cargas: Carga[] = data.retorno?.cargas || [];
+    const foundOrders: any[] = [];
+
+    for (const carga of cargas) {
+      if (!carga.pedidos) continue;
+      
+      for (const pedidoItem of carga.pedidos) {
+        let matches = false;
+        
+        // Match by pedido number
+        if (pedido && pedidoItem.pedido) {
+          const normalizedSearch = pedido.replace(/[-\/]/g, '').toLowerCase();
+          const normalizedPedido = pedidoItem.pedido.replace(/[-\/]/g, '').toLowerCase();
+          if (normalizedPedido.includes(normalizedSearch) || normalizedSearch.includes(normalizedPedido)) {
+            matches = true;
+          }
+        }
+        
+        // Match by CPF
+        if (cpf && pedidoItem.cliente?.documento) {
+          const normalizedCpf = cpf.replace(/\D/g, '');
+          const normalizedDocumento = pedidoItem.cliente.documento.replace(/\D/g, '');
+          if (normalizedDocumento === normalizedCpf) {
+            matches = true;
+          }
+        }
+        
+        if (matches) {
+          foundOrders.push({
+            pedido: pedidoItem.pedido,
+            notaFiscal: pedidoItem.notaFiscal,
+            data: pedidoItem.data,
+            valor: pedidoItem.valor,
+            pesoBruto: pedidoItem.pesoBruto,
+            rota: pedidoItem.rota,
+            status: carga.status,
+            motorista: carga.nomeMotorista,
+            dataCarga: carga.data,
+            cliente: pedidoItem.cliente ? {
+              nome: pedidoItem.cliente.nome,
+              documento: pedidoItem.cliente.documento,
+              telefone: pedidoItem.cliente.telefone || pedidoItem.cliente.celular,
+              endereco: pedidoItem.cliente.endereco,
+              bairro: pedidoItem.cliente.bairro,
+              cidade: pedidoItem.cliente.cidade,
+              estado: pedidoItem.cliente.estado,
+              cep: pedidoItem.cliente.cep,
+              referencia: pedidoItem.cliente.referencia,
+              observacao: pedidoItem.cliente.observacao
+            } : null,
+            produtos: pedidoItem.produtos?.map(p => ({
+              descricao: p.descricao,
+              quantidade: p.quantidade,
+              peso: p.pesoBruto
+            })) || []
+          });
+        }
+      }
+    }
+
+    console.log(`Found ${foundOrders.length} orders matching criteria`);
+    return { orders: foundOrders, found: foundOrders.length > 0 };
+
+  } catch (error) {
+    console.error('Error querying delivery API:', error);
+    return { orders: [], found: false };
+  }
+}
+
+// Format date from YYYYMMDD to DD/MM/YYYY
+function formatDate(dateStr: string): string {
+  if (!dateStr || dateStr.length !== 8) return dateStr || 'N/A';
+  return `${dateStr.slice(6, 8)}/${dateStr.slice(4, 6)}/${dateStr.slice(0, 4)}`;
+}
+
+// Build context from API orders
+function buildOrderContext(orders: any[]): string {
+  if (orders.length === 0) return '';
+  
+  const parts: string[] = ['**Pedidos Encontrados na API:**'];
+  
+  orders.forEach((order, i) => {
+    const statusMap: Record<string, string> = {
+      'ABER': 'Em Aberto/Aguardando',
+      'FATU': 'Faturado/Entregue',
+      'CANC': 'Cancelado'
+    };
+    
+    parts.push(`
+${i + 1}. **Pedido: ${order.pedido}**
+   - Status: ${statusMap[order.status] || order.status}
+   - Data de Entrega Prevista: ${formatDate(order.dataCarga)}
+   - Motorista: ${order.motorista || 'Não atribuído'}
+   - Nota Fiscal: ${order.notaFiscal || 'N/A'}
+   - Valor: R$ ${order.valor?.toFixed(2) || '0.00'}
+   - Peso: ${order.pesoBruto?.toFixed(2) || '0.00'} kg`);
+    
+    if (order.cliente) {
+      parts.push(`   - Cliente: ${order.cliente.nome}
+   - CPF/CNPJ: ${order.cliente.documento}
+   - Endereço: ${order.cliente.endereco}, ${order.cliente.bairro} - ${order.cliente.cidade}/${order.cliente.estado}
+   - CEP: ${order.cliente.cep}
+   - Referência: ${order.cliente.referencia || 'N/A'}`);
+    }
+    
+    if (order.produtos && order.produtos.length > 0) {
+      parts.push(`   - Produtos:`);
+      order.produtos.forEach((p: any) => {
+        parts.push(`     • ${p.descricao} (Qtd: ${p.quantidade})`);
+      });
+    }
+  });
+  
+  return parts.join('\n');
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -104,9 +333,7 @@ serve(async (req) => {
       });
     }
 
-    // Gather context data for the AI
-
-    // 1. Get conversation history (last 10 messages)
+    // Get conversation history (last 10 messages)
     const { data: messageHistory } = await supabase
       .from('messages')
       .select('sender_type, message_text, created_at')
@@ -114,32 +341,42 @@ serve(async (req) => {
       .order('created_at', { ascending: false })
       .limit(10);
 
-    // 2. Get customer orders from campaign_sends
-    const normalizedPhone = customer_phone.replace(/\D/g, '');
-    const { data: customerOrders } = await supabase
-      .from('campaign_sends')
-      .select('pedido_numero, customer_name, driver_name, data_pedido, valor_total, quantidade_itens, endereco_completo, bairro, cidade, estado, status, produtos')
-      .eq('customer_phone', normalizedPhone)
-      .order('sent_at', { ascending: false })
-      .limit(5);
+    // Extract search terms from message and conversation history
+    const allMessages = (messageHistory || []).map(m => m.message_text).join(' ') + ' ' + message_text;
+    const { pedido, cpf } = extractSearchTerms(allMessages);
+    
+    console.log('Search terms extracted:', { pedido, cpf });
 
-    // 3. Get delivered orders
-    const { data: deliveredOrders } = await supabase
-      .from('delivered_orders')
-      .select('pedido_numero, customer_name, driver_name, data_entrega, valor_total, quantidade_itens, endereco_completo, bairro, cidade, estado, status, produtos')
-      .eq('customer_phone', normalizedPhone)
-      .order('created_at', { ascending: false })
-      .limit(5);
+    // Query delivery API
+    let apiOrderContext = '';
+    let apiOrdersFound = false;
+    
+    if (pedido || cpf) {
+      const { orders, found } = await queryDeliveryAPI(pedido, cpf);
+      apiOrdersFound = found;
+      if (found) {
+        apiOrderContext = buildOrderContext(orders);
+      }
+    }
 
-    // 4. Get satisfaction surveys
-    const { data: surveys } = await supabase
-      .from('satisfaction_surveys')
-      .select('rating, feedback, status, sent_at, responded_at')
-      .eq('customer_phone', normalizedPhone)
-      .order('sent_at', { ascending: false })
-      .limit(3);
+    // Also try to find by customer phone
+    if (!apiOrdersFound) {
+      const normalizedPhone = customer_phone.replace(/\D/g, '');
+      // Try to find CPF from previous customer data in database
+      const { data: existingCustomer } = await supabase
+        .from('campaign_sends')
+        .select('customer_name')
+        .eq('customer_phone', normalizedPhone)
+        .limit(1)
+        .maybeSingle();
+      
+      // If no specific search term found, provide general context
+      if (!pedido && !cpf) {
+        console.log('No specific pedido or CPF found in message');
+      }
+    }
 
-    // Build context for AI
+    // Build context
     const contextParts: string[] = [];
 
     // Customer info
@@ -147,38 +384,13 @@ serve(async (req) => {
 - Nome: ${conversation.customer_name || 'Não informado'}
 - Telefone: ${customer_phone}`);
 
-    // Orders
-    if (customerOrders && customerOrders.length > 0) {
-      contextParts.push(`\n**Pedidos Recentes:**`);
-      customerOrders.forEach((order, i) => {
-        contextParts.push(`${i + 1}. Pedido: ${order.pedido_numero || 'N/A'}
-   - Status: ${order.status || 'N/A'}
-   - Motorista: ${order.driver_name || 'Não atribuído'}
-   - Data: ${order.data_pedido || 'N/A'}
-   - Valor: R$ ${order.valor_total?.toFixed(2) || '0.00'}
-   - Endereço: ${order.endereco_completo || ''}, ${order.bairro || ''} - ${order.cidade || ''}/${order.estado || ''}`);
-      });
-    }
-
-    // Delivered orders
-    if (deliveredOrders && deliveredOrders.length > 0) {
-      contextParts.push(`\n**Entregas Realizadas:**`);
-      deliveredOrders.forEach((order, i) => {
-        contextParts.push(`${i + 1}. Pedido: ${order.pedido_numero || 'N/A'}
-   - Data Entrega: ${order.data_entrega || 'N/A'}
-   - Motorista: ${order.driver_name || 'N/A'}
-   - Valor: R$ ${order.valor_total?.toFixed(2) || '0.00'}`);
-      });
-    }
-
-    // Surveys
-    if (surveys && surveys.length > 0) {
-      contextParts.push(`\n**Pesquisas de Satisfação:**`);
-      surveys.forEach((survey, i) => {
-        contextParts.push(`${i + 1}. Nota: ${survey.rating || 'Pendente'}/5
-   - Status: ${survey.status}
-   - Feedback: ${survey.feedback || 'Nenhum'}`);
-      });
+    // Add API order context if found
+    if (apiOrderContext) {
+      contextParts.push(apiOrderContext);
+    } else if (pedido || cpf) {
+      contextParts.push(`\n**Busca Realizada:**
+- Termo buscado: ${pedido || cpf}
+- Resultado: Nenhum pedido encontrado com esse ${pedido ? 'número de pedido' : 'CPF'}`);
     }
 
     const contextData = contextParts.join('\n');
@@ -211,11 +423,14 @@ serve(async (req) => {
 ${contextData}
 
 ## Instruções Importantes:
-- Use os dados acima para responder perguntas sobre pedidos, entregas, etc.
+- Você consulta a API de entregas diretamente para buscar informações de pedidos.
+- A busca pode ser feita por número de pedido (ex: 001/0270716-P) ou CPF do cliente.
+- Se o cliente perguntar sobre um pedido, extraia o número do pedido ou CPF da mensagem e use os dados encontrados.
+- Se não encontrar o pedido/CPF informado, informe que não foi localizado e peça para verificar o número.
 - Seja conciso e direto nas respostas.
-- Se não tiver a informação solicitada nos dados, informe que vai verificar com a equipe.
 - Responda sempre em português brasileiro.
-- Não invente informações - use apenas os dados fornecidos.`
+- Não invente informações - use apenas os dados fornecidos pela API.
+- Para consultar um pedido, o cliente pode informar o número do pedido ou seu CPF.`
           },
           ...conversationHistory
         ],
@@ -273,11 +488,8 @@ ${contextData}
     return new Response(JSON.stringify({ 
       success: true, 
       message: aiMessage,
-      context_used: {
-        orders: customerOrders?.length || 0,
-        delivered: deliveredOrders?.length || 0,
-        surveys: surveys?.length || 0
-      }
+      search_terms: { pedido, cpf },
+      api_orders_found: apiOrdersFound
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
