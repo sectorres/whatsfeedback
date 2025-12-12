@@ -22,6 +22,14 @@ const DEFAULT_CONFIG: AiConfig = {
   max_tokens: 500
 };
 
+interface TriggerPhrase {
+  id: string;
+  phrase: string;
+  response: string;
+  is_active: boolean;
+  match_type: 'contains' | 'exact' | 'starts_with';
+}
+
 interface Produto {
   id: number;
   descricao: string;
@@ -71,6 +79,32 @@ interface Carga {
   nomeTransportadora: string;
   status: string;
   pedidos: Pedido[];
+}
+
+// Check if message matches any trigger phrase
+function checkTriggerMatch(message: string, triggers: TriggerPhrase[]): TriggerPhrase | null {
+  const normalizedMessage = message.toLowerCase().trim();
+  
+  for (const trigger of triggers) {
+    if (!trigger.is_active) continue;
+    
+    const normalizedPhrase = trigger.phrase.toLowerCase().trim();
+    
+    switch (trigger.match_type) {
+      case 'exact':
+        if (normalizedMessage === normalizedPhrase) return trigger;
+        break;
+      case 'starts_with':
+        if (normalizedMessage.startsWith(normalizedPhrase)) return trigger;
+        break;
+      case 'contains':
+      default:
+        if (normalizedMessage.includes(normalizedPhrase)) return trigger;
+        break;
+    }
+  }
+  
+  return null;
 }
 
 // Extract pedido number or CPF from message
@@ -210,45 +244,38 @@ function formatDate(dateStr: string): string {
   return `${dateStr.slice(6, 8)}/${dateStr.slice(4, 6)}/${dateStr.slice(0, 4)}`;
 }
 
-// Build context from API orders
-function buildOrderContext(orders: any[]): string {
-  if (orders.length === 0) return '';
+// Replace placeholders in response
+function replacePlaceholders(response: string, data: {
+  customerName?: string;
+  customerPhone?: string;
+  orders?: any[];
+}): string {
+  let result = response;
   
-  const parts: string[] = ['**Pedidos Encontrados na API:**'];
+  result = result.replace(/\{nome\}/gi, data.customerName || 'Cliente');
+  result = result.replace(/\{telefone\}/gi, data.customerPhone || '');
   
-  orders.forEach((order, i) => {
+  if (data.orders && data.orders.length > 0) {
+    const order = data.orders[0];
     const statusMap: Record<string, string> = {
       'ABER': 'Em Aberto/Aguardando',
       'FATU': 'Faturado/Entregue',
       'CANC': 'Cancelado'
     };
     
-    parts.push(`
-${i + 1}. **Pedido: ${order.pedido}**
-   - Status: ${statusMap[order.status] || order.status}
-   - Data de Entrega Prevista: ${formatDate(order.dataCarga)}
-   - Motorista: ${order.motorista || 'Não atribuído'}
-   - Nota Fiscal: ${order.notaFiscal || 'N/A'}
-   - Valor: R$ ${order.valor?.toFixed(2) || '0.00'}
-   - Peso: ${order.pesoBruto?.toFixed(2) || '0.00'} kg`);
+    const orderInfo = `
+Pedido: ${order.pedido}
+Status: ${statusMap[order.status] || order.status}
+Data Prevista: ${formatDate(order.dataCarga)}
+Motorista: ${order.motorista || 'Não atribuído'}
+Valor: R$ ${order.valor?.toFixed(2) || '0.00'}`;
     
-    if (order.cliente) {
-      parts.push(`   - Cliente: ${order.cliente.nome}
-   - CPF/CNPJ: ${order.cliente.documento}
-   - Endereço: ${order.cliente.endereco}, ${order.cliente.bairro} - ${order.cliente.cidade}/${order.cliente.estado}
-   - CEP: ${order.cliente.cep}
-   - Referência: ${order.cliente.referencia || 'N/A'}`);
-    }
-    
-    if (order.produtos && order.produtos.length > 0) {
-      parts.push(`   - Produtos:`);
-      order.produtos.forEach((p: any) => {
-        parts.push(`     • ${p.descricao} (Qtd: ${p.quantidade})`);
-      });
-    }
-  });
+    result = result.replace(/\{pedido\}/gi, orderInfo);
+  } else {
+    result = result.replace(/\{pedido\}/gi, 'Nenhum pedido encontrado');
+  }
   
-  return parts.join('\n');
+  return result;
 }
 
 serve(async (req) => {
@@ -266,14 +293,6 @@ serve(async (req) => {
     const { conversation_id, customer_phone, message_text } = await req.json();
     
     console.log('AI Chat Response triggered:', { conversation_id, customer_phone, message_text: message_text?.substring(0, 50) });
-
-    if (!lovableApiKey) {
-      console.error('LOVABLE_API_KEY not configured');
-      return new Response(JSON.stringify({ error: 'AI not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
 
     // Load AI config
     const { data: aiConfigData } = await supabase
@@ -312,6 +331,24 @@ serve(async (req) => {
       });
     }
 
+    // Load trigger phrases
+    const { data: triggerPhrases } = await supabase
+      .from('ai_trigger_phrases')
+      .select('*')
+      .eq('is_active', true);
+
+    // Check if message matches any trigger phrase
+    const matchedTrigger = checkTriggerMatch(message_text, triggerPhrases || []);
+    
+    if (!matchedTrigger) {
+      console.log('No trigger phrase matched, AI will not respond');
+      return new Response(JSON.stringify({ skipped: true, reason: 'No trigger phrase matched' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    console.log('Matched trigger phrase:', matchedTrigger.phrase);
+
     // Wait for the configured delay
     const delayMs = (aiConfig.response_delay_seconds || 5) * 1000;
     console.log(`Waiting ${delayMs}ms before responding...`);
@@ -333,136 +370,34 @@ serve(async (req) => {
       });
     }
 
-    // Get conversation history (last 10 messages)
-    const { data: messageHistory } = await supabase
-      .from('messages')
-      .select('sender_type, message_text, created_at')
-      .eq('conversation_id', conversation_id)
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    // Extract search terms from message and conversation history
-    const allMessages = (messageHistory || []).map(m => m.message_text).join(' ') + ' ' + message_text;
-    const { pedido, cpf } = extractSearchTerms(allMessages);
-    
-    console.log('Search terms extracted:', { pedido, cpf });
-
-    // Query delivery API
-    let apiOrderContext = '';
-    let apiOrdersFound = false;
-    
-    if (pedido || cpf) {
-      const { orders, found } = await queryDeliveryAPI(pedido, cpf);
-      apiOrdersFound = found;
-      if (found) {
-        apiOrderContext = buildOrderContext(orders);
-      }
-    }
-
-    // Also try to find by customer phone
-    if (!apiOrdersFound) {
-      const normalizedPhone = customer_phone.replace(/\D/g, '');
-      // Try to find CPF from previous customer data in database
-      const { data: existingCustomer } = await supabase
-        .from('campaign_sends')
-        .select('customer_name')
-        .eq('customer_phone', normalizedPhone)
-        .limit(1)
-        .maybeSingle();
+    // Extract search terms and query API if response has {pedido} placeholder
+    let orders: any[] = [];
+    if (matchedTrigger.response.toLowerCase().includes('{pedido}')) {
+      // Get all messages to extract search terms
+      const { data: messageHistory } = await supabase
+        .from('messages')
+        .select('message_text')
+        .eq('conversation_id', conversation_id)
+        .order('created_at', { ascending: false })
+        .limit(10);
       
-      // If no specific search term found, provide general context
-      if (!pedido && !cpf) {
-        console.log('No specific pedido or CPF found in message');
+      const allMessages = (messageHistory || []).map(m => m.message_text).join(' ') + ' ' + message_text;
+      const { pedido, cpf } = extractSearchTerms(allMessages);
+      
+      console.log('Search terms extracted:', { pedido, cpf });
+
+      if (pedido || cpf) {
+        const result = await queryDeliveryAPI(pedido, cpf);
+        orders = result.orders;
       }
     }
 
-    // Build context
-    const contextParts: string[] = [];
-
-    // Customer info
-    contextParts.push(`**Informações do Cliente:**
-- Nome: ${conversation.customer_name || 'Não informado'}
-- Telefone: ${customer_phone}`);
-
-    // Add API order context if found
-    if (apiOrderContext) {
-      contextParts.push(apiOrderContext);
-    } else if (pedido || cpf) {
-      contextParts.push(`\n**Busca Realizada:**
-- Termo buscado: ${pedido || cpf}
-- Resultado: Nenhum pedido encontrado com esse ${pedido ? 'número de pedido' : 'CPF'}`);
-    }
-
-    const contextData = contextParts.join('\n');
-
-    // Build conversation history for AI
-    const conversationHistory = (messageHistory || [])
-      .reverse()
-      .map(msg => ({
-        role: msg.sender_type === 'customer' ? 'user' : 'assistant',
-        content: msg.message_text
-      }));
-
-    // Call Lovable AI (Gemini)
-    console.log('Calling Lovable AI...');
-    
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
-            role: 'system',
-            content: `${aiConfig.prompt}
-
-## Dados do Cliente e Pedidos (Use para responder perguntas específicas):
-${contextData}
-
-## Instruções Importantes:
-- Você consulta a API de entregas diretamente para buscar informações de pedidos.
-- A busca pode ser feita por número de pedido (ex: 001/0270716-P) ou CPF do cliente.
-- Se o cliente perguntar sobre um pedido, extraia o número do pedido ou CPF da mensagem e use os dados encontrados.
-- Se não encontrar o pedido/CPF informado, informe que não foi localizado e peça para verificar o número.
-- Seja conciso e direto nas respostas.
-- Responda sempre em português brasileiro.
-- Não invente informações - use apenas os dados fornecidos pela API.
-- Para consultar um pedido, o cliente pode informar o número do pedido ou seu CPF.`
-          },
-          ...conversationHistory
-        ],
-        temperature: aiConfig.temperature,
-        max_tokens: aiConfig.max_tokens
-      })
+    // Replace placeholders in the response
+    const aiMessage = replacePlaceholders(matchedTrigger.response, {
+      customerName: conversation.customer_name,
+      customerPhone: customer_phone,
+      orders
     });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI API error:', aiResponse.status, errorText);
-      
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      
-      throw new Error(`AI API error: ${aiResponse.status}`);
-    }
-
-    const aiData = await aiResponse.json();
-    const aiMessage = aiData.choices?.[0]?.message?.content;
-
-    if (!aiMessage) {
-      console.error('No AI response content');
-      return new Response(JSON.stringify({ error: 'No AI response' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
 
     console.log('AI Response:', aiMessage.substring(0, 100));
 
@@ -488,8 +423,8 @@ ${contextData}
     return new Response(JSON.stringify({ 
       success: true, 
       message: aiMessage,
-      search_terms: { pedido, cpf },
-      api_orders_found: apiOrdersFound
+      trigger_matched: matchedTrigger.phrase,
+      orders_found: orders.length
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

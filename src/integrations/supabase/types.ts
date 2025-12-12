@@ -38,6 +38,36 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_trigger_phrases: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          match_type: string
+          phrase: string
+          response: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          match_type?: string
+          phrase: string
+          response: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          match_type?: string
+          phrase?: string
+          response?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       allowed_ips: {
         Row: {
           created_at: string
