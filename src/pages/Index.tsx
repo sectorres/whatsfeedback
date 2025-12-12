@@ -156,13 +156,6 @@ const Index = () => {
               <span className="hidden sm:inline font-medium truncate">Avisos</span>
             </TabsTrigger>
             <TabsTrigger 
-              value="satisfaction" 
-              className="flex items-center gap-1.5 text-sm sm:text-base text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
-            >
-              <Star className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
-              <span className="hidden sm:inline font-medium truncate">Pesquisas</span>
-            </TabsTrigger>
-            <TabsTrigger 
               value="atendimento" 
               className="flex items-center gap-1.5 text-sm sm:text-base text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
             >
@@ -171,6 +164,13 @@ const Index = () => {
               {unreadCount > 0 && <Badge variant="destructive" className="ml-0.5 h-3.5 md:h-4 min-w-3.5 md:min-w-4 flex items-center justify-center px-1 text-[8px] md:text-[9px] shadow-md absolute -top-1 -right-1 sm:static">
                   {unreadCount}
                 </Badge>}
+            </TabsTrigger>
+            <TabsTrigger 
+              value="satisfaction" 
+              className="flex items-center gap-1.5 text-sm sm:text-base text-white/70 hover:text-white data-[state=active]:text-white data-[state=active]:font-medium"
+            >
+              <Star className="h-3 w-3 md:h-3.5 md:w-3.5 flex-shrink-0" />
+              <span className="hidden sm:inline font-medium truncate">Pesquisas</span>
             </TabsTrigger>
             <TabsTrigger 
               value="desempenho" 
