@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { normalizePhone } from "@/lib/phone-utils";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { AutomaticSendsHistory } from "./AutomaticSendsHistory";
+
 interface Campaign {
   id: string;
   name: string;
@@ -83,24 +85,24 @@ export function SavedCampaigns() {
   }, [expandedId, currentPage]);
   const fetchCampaigns = async () => {
     try {
-      // Get total count
+      // Get total count (excluding automatic system campaigns)
       const {
         count
       } = await supabase.from('campaigns').select('*', {
         count: 'exact',
         head: true
-      });
+      }).not('name', 'like', '[Sistema]%');
       if (count) {
         setTotalPages(Math.ceil(count / itemsPerPage));
       }
 
-      // Get paginated data
+      // Get paginated data (excluding automatic system campaigns)
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
       const {
         data,
         error
-      } = await supabase.from('campaigns').select('*').order('created_at', {
+      } = await supabase.from('campaigns').select('*').not('name', 'like', '[Sistema]%').order('created_at', {
         ascending: false
       }).range(from, to);
       if (error) throw error;
@@ -328,16 +330,24 @@ export function SavedCampaigns() {
       variant: "secondary"
     }
   };
-  return <Card>
-      <CardHeader>
-        <CardTitle>Campanhas Enviadas</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {loading ? <div className="flex justify-center p-8">
-            <Loader2 className="h-6 w-6 animate-spin" />
-          </div> : campaigns.length === 0 ? <p className="text-sm text-muted-foreground text-center p-8">
-            Nenhuma campanha criada ainda
-          </p> : <>
+  return (
+    <div className="space-y-4">
+      <AutomaticSendsHistory />
+      <Card>
+        <CardHeader>
+          <CardTitle>Campanhas Manuais</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : campaigns.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center p-8">
+              Nenhuma campanha criada ainda
+            </p>
+          ) : (
+            <>
             <div className="space-y-1.5">
               {campaigns.map(campaign => <Collapsible key={campaign.id} open={expandedId === campaign.id} onOpenChange={open => handleExpandChange(campaign.id, open)}>
                   <div className="border rounded bg-card hover:bg-accent/5 transition-colors">
@@ -471,7 +481,10 @@ export function SavedCampaigns() {
                   </PaginationItem>
                 </PaginationContent>
               </Pagination>}
-          </>}
-      </CardContent>
-    </Card>;
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
