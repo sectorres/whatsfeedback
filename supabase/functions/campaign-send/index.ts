@@ -111,7 +111,7 @@ serve(async (req) => {
 
     const normalizedPhone = normalizePhone(customerPhone);
 
-    // Garantir que temos 3 parâmetros para o template
+    // Garantir que temos os parâmetros disponíveis
     const param1_name = customerName || "Cliente";
     const param2_pedido = pedido_numero || "seu pedido";
     // Se deliveryDate não vier, usa a data de hoje formatada
@@ -164,7 +164,83 @@ serve(async (req) => {
         const TEMPLATE_LANGUAGE = credentials.templateLanguage || "pt_BR";
         const whatsappPhone = `55${normalizedPhone}`;
 
-        // Payload estrito com 3 parâmetros
+        // Consultar template para obter variáveis e mapeamento
+        const { data: templateData } = await supabase
+          .from("whatsapp_templates")
+          .select("variables, body_text")
+          .eq("template_name", TEMPLATE_NAME)
+          .maybeSingle();
+
+        interface TemplateVariable {
+          index: number;
+          type: string;
+          example: string;
+          description: string;
+          mapping?: string;
+        }
+
+        let variables: TemplateVariable[] = [];
+        let variableCount = 0;
+
+        if (templateData) {
+          if (templateData.variables && Array.isArray(templateData.variables)) {
+            variables = templateData.variables as TemplateVariable[];
+            variableCount = variables.length;
+          }
+          if (variableCount === 0 && templateData.body_text) {
+            const matches = templateData.body_text.match(/\{\{\d+\}\}/g);
+            variableCount = matches ? matches.length : 0;
+          }
+        }
+
+        // Dados disponíveis para mapeamento
+        const dataFields: Record<string, string> = {
+          customer_name: param1_name,
+          pedido_numero: param2_pedido,
+          data_entrega: param3_date,
+          driver_name: driverName || "",
+          nota_fiscal: nota_fiscal || "",
+          valor_total: valor_total ? valor_total.toFixed(2) : "",
+          endereco_completo: endereco_completo || "",
+          bairro: bairro || "",
+          cidade: cidade || "",
+          estado: estado || "",
+          cep: cep || "",
+          rota: rota || "",
+          quantidade_itens: quantidade_itens?.toString() || "",
+          peso_total: peso_total?.toString() || "",
+        };
+
+        // Ordenar variáveis por índice
+        const sortedVariables = [...variables].sort((a, b) => a.index - b.index);
+
+        // Construir parâmetros baseado no mapeamento
+        const templateParams: Array<{ type: string; text: string }> = [];
+        
+        for (let i = 0; i < variableCount; i++) {
+          const variable = sortedVariables[i];
+          let value = "-";
+          
+          if (variable?.mapping && dataFields[variable.mapping]) {
+            // Usar valor do campo mapeado
+            value = dataFields[variable.mapping];
+          } else {
+            // Fallback para comportamento padrão baseado na posição
+            if (i === 0) value = param1_name;
+            else if (i === 1) value = param2_pedido;
+            else if (i === 2) value = param3_date;
+          }
+          
+          templateParams.push({ type: "text", text: value });
+        }
+
+        // Se não encontrou template no banco, usar parâmetros padrão
+        if (templateParams.length === 0) {
+          templateParams.push({ type: "text", text: param1_name });
+          templateParams.push({ type: "text", text: param2_pedido });
+          templateParams.push({ type: "text", text: param3_date });
+        }
+
         const templatePayload = {
           number: whatsappPhone,
           name: TEMPLATE_NAME,
@@ -172,11 +248,7 @@ serve(async (req) => {
           components: [
             {
               type: "body",
-              parameters: [
-                { type: "text", text: param1_name },
-                { type: "text", text: param2_pedido },
-                { type: "text", text: param3_date },
-              ],
+              parameters: templateParams,
             },
           ],
         };

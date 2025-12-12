@@ -42,7 +42,7 @@ serve(async (req) => {
 
     const { apiUrl, apiKey, instanceName } = credentials;
 
-    // Consultar o template no banco para verificar número de variáveis
+    // Consultar o template no banco para verificar variáveis e mapeamento
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -53,12 +53,22 @@ serve(async (req) => {
       .eq("template_name", SURVEY_TEMPLATE_NAME)
       .single();
 
+    interface TemplateVariable {
+      index: number;
+      type: string;
+      example: string;
+      description: string;
+      mapping?: string;
+    }
+
+    let variables: TemplateVariable[] = [];
     let variableCount = 0;
     
     if (templateData) {
-      // Contar variáveis do template
+      // Usar variáveis do template com mapeamento
       if (templateData.variables && Array.isArray(templateData.variables)) {
-        variableCount = templateData.variables.length;
+        variables = templateData.variables as TemplateVariable[];
+        variableCount = variables.length;
       }
       // Fallback: contar {{n}} no body_text se variables estiver vazio
       if (variableCount === 0 && templateData.body_text) {
@@ -68,8 +78,14 @@ serve(async (req) => {
       console.log(`Template "${SURVEY_TEMPLATE_NAME}" has ${variableCount} variable(s)`);
     } else {
       console.log(`Template "${SURVEY_TEMPLATE_NAME}" not found in database, assuming 1 variable`);
-      variableCount = 1; // Fallback para comportamento anterior
+      variableCount = 1;
     }
+
+    // Dados disponíveis para mapeamento
+    const dataFields: Record<string, string> = {
+      customer_name: customerName || "Cliente",
+      pedido_numero: pedidoNumero || "Pedido",
+    };
 
     // Normalizar telefone e formatar para WhatsApp (com código do país)
     const normalizedPhone = normalizePhone(phone);
@@ -82,9 +98,10 @@ serve(async (req) => {
       customerName,
       pedidoNumero,
       variableCount,
+      variables: variables.map(v => ({ index: v.index, mapping: v.mapping })),
     });
 
-    // Montar payload do template respeitando o número de variáveis
+    // Montar payload do template respeitando o mapeamento de variáveis
     const templatePayload: Record<string, unknown> = {
       number: whatsappPhone,
       name: SURVEY_TEMPLATE_NAME,
@@ -95,18 +112,26 @@ serve(async (req) => {
     if (variableCount > 0) {
       const parameters: Array<{ type: string; text: string }> = [];
       
-      // Adiciona os parâmetros conforme a quantidade de variáveis
+      // Ordenar variáveis por índice
+      const sortedVariables = [...variables].sort((a, b) => a.index - b.index);
+      
       for (let i = 0; i < variableCount; i++) {
-        if (i === 0) {
-          // Primeiro parâmetro é sempre o nome do cliente
-          parameters.push({ type: "text", text: customerName || "Cliente" });
-        } else if (i === 1) {
-          // Segundo parâmetro é o número do pedido
-          parameters.push({ type: "text", text: pedidoNumero || "Pedido" });
+        const variable = sortedVariables[i];
+        let value = "-";
+        
+        if (variable?.mapping && dataFields[variable.mapping]) {
+          // Usar valor do campo mapeado
+          value = dataFields[variable.mapping];
         } else {
-          // Parâmetros adicionais - fallback genérico
-          parameters.push({ type: "text", text: "-" });
+          // Fallback para comportamento padrão baseado na posição
+          if (i === 0) {
+            value = customerName || "Cliente";
+          } else if (i === 1) {
+            value = pedidoNumero || "Pedido";
+          }
         }
+        
+        parameters.push({ type: "text", text: value });
       }
 
       templatePayload.components = [

@@ -191,19 +191,94 @@ serve(async (req) => {
     }
     const restrictedPrefixFatuList = restrictedOrderPrefixesFatu.map(p => p.prefix.toUpperCase());
 
+    // Interface for template variables with mapping
+    interface TemplateVariable {
+      index: number;
+      type: string;
+      example: string;
+      description: string;
+      mapping?: string;
+    }
+
     // Get template details to know how many variables each template expects and body text
     const { data: templateDetails } = await supabase
       .from("whatsapp_templates")
       .select("template_name, variables, body_text")
       .in("template_name", [TEMPLATE_ABER, TEMPLATE_FATU]);
 
-    const templateVariablesMap: Record<string, number> = {};
+    const templateVariablesMap: Record<string, TemplateVariable[]> = {};
     const templateBodyMap: Record<string, string> = {};
     templateDetails?.forEach(t => {
-      const vars = t.variables as any[] || [];
-      templateVariablesMap[t.template_name] = vars.length;
+      const vars = (t.variables as TemplateVariable[]) || [];
+      templateVariablesMap[t.template_name] = vars;
       templateBodyMap[t.template_name] = t.body_text || "";
     });
+
+    // Helper function to build template parameters based on mapping
+    function buildTemplateParams(
+      templateName: string,
+      orderData: {
+        clienteNome?: string;
+        pedido?: string;
+        formattedDate?: string;
+        motorista?: string;
+        notaFiscal?: string;
+        valorTotal?: number;
+        enderecoCompleto?: string;
+        bairro?: string;
+        cidade?: string;
+        estado?: string;
+        cep?: string;
+        rota?: string;
+        quantidadeItens?: number;
+        pesoTotal?: number;
+      }
+    ): Array<{ type: string; text: string }> {
+      const variables = templateVariablesMap[templateName] || [];
+      const variableCount = variables.length;
+
+      // Dados disponíveis para mapeamento
+      const dataFields: Record<string, string> = {
+        customer_name: orderData.clienteNome || "Cliente",
+        pedido_numero: orderData.pedido || "seu pedido",
+        data_entrega: orderData.formattedDate || new Date().toLocaleDateString("pt-BR"),
+        driver_name: orderData.motorista || "",
+        nota_fiscal: orderData.notaFiscal || "",
+        valor_total: orderData.valorTotal ? orderData.valorTotal.toFixed(2) : "",
+        endereco_completo: orderData.enderecoCompleto || "",
+        bairro: orderData.bairro || "",
+        cidade: orderData.cidade || "",
+        estado: orderData.estado || "",
+        cep: orderData.cep || "",
+        rota: orderData.rota || "",
+        quantidade_itens: orderData.quantidadeItens?.toString() || "",
+        peso_total: orderData.pesoTotal?.toString() || "",
+      };
+
+      // Ordenar variáveis por índice
+      const sortedVariables = [...variables].sort((a, b) => a.index - b.index);
+
+      const params: Array<{ type: string; text: string }> = [];
+      
+      for (let i = 0; i < variableCount; i++) {
+        const variable = sortedVariables[i];
+        let value = "-";
+        
+        if (variable?.mapping && dataFields[variable.mapping]) {
+          // Usar valor do campo mapeado
+          value = dataFields[variable.mapping];
+        } else {
+          // Fallback para comportamento padrão baseado na posição
+          if (i === 0) value = dataFields.customer_name;
+          else if (i === 1) value = dataFields.pedido_numero;
+          else if (i === 2) value = dataFields.data_entrega;
+        }
+        
+        params.push({ type: "text", text: value });
+      }
+
+      return params;
+    }
 
     // Helper function to save message to conversation - returns conversation ID
     async function saveToConversation(
@@ -436,15 +511,24 @@ serve(async (req) => {
         ? `${dataPedido.slice(6, 8)}/${dataPedido.slice(4, 6)}/${dataPedido.slice(0, 4)}`
         : "";
 
-      // Get number of variables this template expects
-      const numVariables = templateVariablesMap[templateName] || 0;
-      console.log(`Template ${templateName} expects ${numVariables} variables`);
-
-      // Build template parameters based on how many the template expects
-      let templateParams: any[] = [];
-      if (numVariables >= 1) templateParams.push({ type: "text", text: specificOrder.clienteNome || "Cliente" });
-      if (numVariables >= 2) templateParams.push({ type: "text", text: specificOrder.pedido || "seu pedido" });
-      if (numVariables >= 3) templateParams.push({ type: "text", text: formattedDate || new Date().toLocaleDateString("pt-BR") });
+      // Build template parameters using the mapping helper
+      const templateParams = buildTemplateParams(templateName, {
+        clienteNome: specificOrder.clienteNome,
+        pedido: specificOrder.pedido,
+        formattedDate,
+        motorista: orderCarga?.nomeMotorista,
+        notaFiscal: fullOrderData?.notaFiscal,
+        valorTotal: fullOrderData?.valor,
+        enderecoCompleto: fullOrderData?.cliente?.endereco,
+        bairro: fullOrderData?.cliente?.bairro,
+        cidade: fullOrderData?.cliente?.cidade,
+        estado: fullOrderData?.cliente?.estado,
+        cep: fullOrderData?.cliente?.cep,
+        rota: fullOrderData?.rota,
+        quantidadeItens: fullOrderData?.produtos?.length,
+        pesoTotal: fullOrderData?.pesoBruto,
+      });
+      console.log(`Template ${templateName} built with ${templateParams.length} params`);
 
       console.log(`Sending test ${templateName} to ${formattedPhone} for pedido ${specificOrder.pedido} with ${templateParams.length} params`);
 
@@ -710,14 +794,24 @@ serve(async (req) => {
           ? `${dataPedido.slice(6, 8)}/${dataPedido.slice(4, 6)}/${dataPedido.slice(0, 4)}`
           : "";
 
-        // Get number of variables this template expects
-        const numVariables = templateVariablesMap[templateName] || 0;
-
-        // Build template parameters based on how many the template expects
-        let templateParams: any[] = [];
-        if (numVariables >= 1) templateParams.push({ type: "text", text: pedido.cliente?.nome || "Cliente" });
-        if (numVariables >= 2) templateParams.push({ type: "text", text: pedido.pedido || "seu pedido" });
-        if (numVariables >= 3) templateParams.push({ type: "text", text: formattedDate || new Date().toLocaleDateString("pt-BR") });
+        // Build template parameters using the mapping helper
+        const templateParams = buildTemplateParams(templateName, {
+          clienteNome: pedido.cliente?.nome,
+          pedido: pedido.pedido,
+          formattedDate,
+          motorista: carga.nomeMotorista,
+          notaFiscal: pedido.notaFiscal,
+          valorTotal: pedido.valor,
+          enderecoCompleto: pedido.cliente?.endereco,
+          bairro: pedido.cliente?.bairro,
+          cidade: pedido.cliente?.cidade,
+          estado: pedido.cliente?.estado,
+          cep: pedido.cliente?.cep,
+          rota: pedido.rota,
+          quantidadeItens: pedido.produtos?.length,
+          pesoTotal: pedido.pesoBruto,
+        });
+        console.log(`Template ${templateName} built with ${templateParams.length} params`);
 
         console.log(`Sending ${templateName} to ${formattedPhone} for pedido ${pedido.pedido} with ${templateParams.length} params`);
 
