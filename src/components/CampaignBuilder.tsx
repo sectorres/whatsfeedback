@@ -625,6 +625,24 @@ export const CampaignBuilder = ({
     }
     return `Olá ${previewData.cliente},\n\n*Seu pedido ${previewData.pedido} será entregue dia ${previewData.data_entrega}*`;
   };
+  if (!campaignCreationEnabled) {
+    return <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-primary" />
+            Criar Nova Campanha
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+            <p className="text-sm text-destructive">🚫 Criação de campanhas desativada nas configurações</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>;
+  }
+
   return <div className="space-y-6">
       <Card>
         <CardHeader>
