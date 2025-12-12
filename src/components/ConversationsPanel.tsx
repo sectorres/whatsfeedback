@@ -21,7 +21,6 @@ import { OrderDetailsDialog } from "@/components/OrderDetailsDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-
 interface Conversation {
   id: string;
   customer_phone: string;
@@ -109,24 +108,21 @@ export function ConversationsPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const selectedConversationRef = useRef<Conversation | null>(null);
-  
+
   // Manter ref atualizada com o selectedConversation
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
-  
   useEffect(() => {
     audioRef.current = new Audio('/notification.mp3');
     audioRef.current.volume = 0.5;
     audioRef.current.load();
-    
+
     // Carregar configuração global da IA
     const loadAiConfig = async () => {
-      const { data } = await supabase
-        .from('ai_config')
-        .select('prompt')
-        .eq('config_key', 'ai_settings')
-        .maybeSingle();
+      const {
+        data
+      } = await supabase.from('ai_config').select('prompt').eq('config_key', 'ai_settings').maybeSingle();
       if (data?.prompt) {
         try {
           const config = JSON.parse(data.prompt);
@@ -158,9 +154,8 @@ export function ConversationsPanel({
       event: 'INSERT',
       schema: 'public',
       table: 'conversations'
-    }, (payload) => {
+    }, payload => {
       const newConv = payload.new as Conversation;
-      
       if (newConv.status === 'active') {
         setConversations(prev => [newConv, ...prev]);
       } else if (newConv.status === 'closed') {
@@ -170,24 +165,25 @@ export function ConversationsPanel({
       event: 'UPDATE',
       schema: 'public',
       table: 'conversations'
-    }, (payload) => {
+    }, payload => {
       const updatedConv = payload.new as Conversation;
-      
+
       // Verificar se a conversa está aberta - se sim, manter unread_count = 0 localmente
       const isOpen = selectedConversationRef.current?.id === updatedConv.id;
-      const finalConv = isOpen ? { ...updatedConv, unread_count: 0 } : updatedConv;
-      
-      console.log('Conversation UPDATE received:', { 
-        id: updatedConv.id, 
+      const finalConv = isOpen ? {
+        ...updatedConv,
+        unread_count: 0
+      } : updatedConv;
+      console.log('Conversation UPDATE received:', {
+        id: updatedConv.id,
         unread_count: updatedConv.unread_count,
         isOpen,
         finalUnreadCount: finalConv.unread_count
       });
-      
-      const updateFn = (prev: Conversation[]) => 
-        prev.map(conv => conv.id === finalConv.id ? { ...conv, ...finalConv } : conv)
-          .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
-      
+      const updateFn = (prev: Conversation[]) => prev.map(conv => conv.id === finalConv.id ? {
+        ...conv,
+        ...finalConv
+      } : conv).sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
       if (finalConv.status === 'active') {
         setConversations(updateFn);
         setArchivedConversations(prev => prev.filter(c => c.id !== finalConv.id));
@@ -199,7 +195,7 @@ export function ConversationsPanel({
       event: 'DELETE',
       schema: 'public',
       table: 'conversations'
-    }, (payload) => {
+    }, payload => {
       const deletedId = payload.old.id;
       setConversations(prev => prev.filter(c => c.id !== deletedId));
       setArchivedConversations(prev => prev.filter(c => c.id !== deletedId));
@@ -210,7 +206,7 @@ export function ConversationsPanel({
       event: 'INSERT',
       schema: 'public',
       table: 'messages'
-    }, async (payload) => {
+    }, async payload => {
       console.log('Nova mensagem recebida:', {
         sender_type: payload.new.sender_type,
         isOnAtendimentoTab,
@@ -221,52 +217,53 @@ export function ConversationsPanel({
       if (payload.new.sender_type === 'customer') {
         // Aguardar um momento para garantir que o webhook atualizou o banco
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         // Buscar a conversa atualizada com o unread_count correto do banco
-        const { data: updatedConv } = await supabase
-          .from('conversations')
-          .select('*')
-          .eq('id', payload.new.conversation_id)
-          .single();
-        
+        const {
+          data: updatedConv
+        } = await supabase.from('conversations').select('*').eq('id', payload.new.conversation_id).single();
         if (updatedConv) {
           // Verificar se esta conversa está selecionada (aberta)
           const isConversationOpen = selectedConversationRef.current?.id === updatedConv.id;
-          
+
           // Se a conversa está aberta, zerar o unread_count
           const finalUnreadCount = isConversationOpen ? 0 : updatedConv.unread_count;
-          
+
           // Se a conversa está fechada, movê-la para ativas
           if (updatedConv.status === 'closed') {
-            await supabase
-              .from('conversations')
-              .update({ status: 'active' })
-              .eq('id', updatedConv.id);
-            
+            await supabase.from('conversations').update({
+              status: 'active'
+            }).eq('id', updatedConv.id);
+
             // Remover de arquivadas
             setArchivedConversations(prev => prev.filter(c => c.id !== updatedConv.id));
-            
+
             // Adicionar a ativas
             setConversations(prev => {
               const filtered = prev.filter(c => c.id !== updatedConv.id);
-              return [{ ...updatedConv, status: 'active', unread_count: finalUnreadCount }, ...filtered]
-                .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+              return [{
+                ...updatedConv,
+                status: 'active',
+                unread_count: finalUnreadCount
+              }, ...filtered].sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
             });
           } else {
             // Se já está ativa, atualizar com dados do banco
             setConversations(prev => {
               const filtered = prev.filter(c => c.id !== updatedConv.id);
-              return [{ ...updatedConv, unread_count: finalUnreadCount }, ...filtered]
-                .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+              return [{
+                ...updatedConv,
+                unread_count: finalUnreadCount
+              }, ...filtered].sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
             });
           }
-          
+
           // Se a conversa está aberta, garantir que o unread_count está zerado no banco
           if (isConversationOpen && updatedConv.unread_count > 0) {
-            await supabase
-              .from('conversations')
-              .update({ unread_count: 0, last_read_at: new Date().toISOString() })
-              .eq('id', updatedConv.id);
+            await supabase.from('conversations').update({
+              unread_count: 0,
+              last_read_at: new Date().toISOString()
+            }).eq('id', updatedConv.id);
           }
         }
       }
@@ -288,7 +285,6 @@ export function ConversationsPanel({
       supabase.removeChannel(allMessagesChannel);
     };
   }, [isOnAtendimentoTab]);
-
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation.id);
@@ -326,28 +322,21 @@ export function ConversationsPanel({
       const {
         data: activeData,
         error: activeError
-      } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('status', 'active')
-        .order('last_message_at', { ascending: false });
-      
+      } = await supabase.from('conversations').select('*').eq('status', 'active').order('last_message_at', {
+        ascending: false
+      });
       const {
         data: archivedData,
         error: archivedError
-      } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('status', 'closed')
-        .order('last_message_at', { ascending: false });
-      
+      } = await supabase.from('conversations').select('*').eq('status', 'closed').order('last_message_at', {
+        ascending: false
+      });
       if (activeError) {
         console.error('Error loading active conversations:', activeError);
         toast.error('Erro ao carregar conversas ativas');
       } else if (activeData) {
         setConversations(activeData);
       }
-      
       if (archivedError) {
         console.error('Error loading archived conversations:', archivedError);
       } else if (archivedData) {
@@ -403,7 +392,9 @@ export function ConversationsPanel({
       setMessages(data || []);
       // Scroll para o final após carregar mensagens
       setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+        messagesEndRef.current?.scrollIntoView({
+          behavior: "auto"
+        });
       }, 100);
     }
   };
@@ -423,19 +414,16 @@ export function ConversationsPanel({
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [editingMessage, setEditingMessage] = useState<any>(null);
   const [editText, setEditText] = useState("");
-
   const sendMessage = async () => {
     if (!messageText.trim() || !selectedConversation) return;
-    
+
     // Salvar o texto e limpar o input IMEDIATAMENTE
     const textToSend = messageText.trim();
     setMessageText("");
-    
     setSending(true);
-    
+
     // Criar ID único para evitar duplicatas
     const messageId = crypto.randomUUID();
-    
     try {
       // Preparar dados da mensagem
       const messageData: any = {
@@ -453,7 +441,9 @@ export function ConversationsPanel({
       }
 
       // Salvar mensagem no banco ANTES de enviar (para aparecer imediatamente)
-      const { error: dbError } = await supabase.from('messages').insert(messageData);
+      const {
+        error: dbError
+      } = await supabase.from('messages').insert(messageData);
       if (dbError) throw dbError;
 
       // Preparar payload para Evolution API
@@ -473,29 +463,25 @@ export function ConversationsPanel({
       const response = await supabase.functions.invoke('whatsapp-send', {
         body: sendPayload
       });
-      
       if (response.error) {
         // Atualizar status para erro
-        await supabase.from('messages')
-          .update({ message_status: 'failed' })
-          .eq('id', messageId);
+        await supabase.from('messages').update({
+          message_status: 'failed'
+        }).eq('id', messageId);
         throw response.error;
       }
 
       // Atualizar status para enviada e salvar whatsapp_message_id
       const responseData = response.data as any;
-      await supabase.from('messages')
-        .update({ 
-          message_status: 'sent',
-          whatsapp_message_id: responseData?.key?.id
-        })
-        .eq('id', messageId);
+      await supabase.from('messages').update({
+        message_status: 'sent',
+        whatsapp_message_id: responseData?.key?.id
+      }).eq('id', messageId);
 
       // Atualizar última mensagem da conversa
       await supabase.from('conversations').update({
         last_message_at: new Date().toISOString()
       }).eq('id', selectedConversation.id);
-      
       setReplyingTo(null);
       toast.success('Mensagem enviada!');
     } catch (error) {
@@ -505,10 +491,8 @@ export function ConversationsPanel({
       setSending(false);
     }
   };
-
   const handleEditMessage = async (message: any) => {
     if (!editText.trim()) return;
-
     try {
       const response = await supabase.functions.invoke('whatsapp-edit-message', {
         body: {
@@ -516,9 +500,7 @@ export function ConversationsPanel({
           newText: editText
         }
       });
-
       if (response.error) throw response.error;
-
       toast.success('Mensagem editada!');
       setEditingMessage(null);
       setEditText("");
@@ -528,10 +510,8 @@ export function ConversationsPanel({
       toast.error('Erro ao editar mensagem');
     }
   };
-
   const handleDeleteMessage = async (message: any) => {
     if (!confirm('Tem certeza que deseja apagar esta mensagem?')) return;
-
     try {
       const response = await supabase.functions.invoke('whatsapp-delete-message', {
         body: {
@@ -539,9 +519,7 @@ export function ConversationsPanel({
           conversationId: selectedConversation!.id
         }
       });
-
       if (response.error) throw response.error;
-
       toast.success('Mensagem apagada!');
       loadMessages(selectedConversation!.id);
     } catch (error) {
@@ -660,7 +638,9 @@ export function ConversationsPanel({
       }
 
       // Salvar mensagem no banco com whatsapp_message_id
-      const { error: dbError } = await supabase.from('messages').insert({
+      const {
+        error: dbError
+      } = await supabase.from('messages').insert({
         conversation_id: selectedConversation.id,
         sender_type: 'operator',
         sender_name: 'Operador',
@@ -776,26 +756,18 @@ export function ConversationsPanel({
       setCreatingConversation(false);
     }
   };
-  
+
   // Memoizar conversas filtradas para evitar reprocessamento
   const filteredActiveConversations = useMemo(() => {
     if (!searchQuery) return conversations;
     const query = searchQuery.toLowerCase();
-    return conversations.filter(conv =>
-      conv.customer_name?.toLowerCase().includes(query) ||
-      conv.customer_phone.includes(query)
-    );
+    return conversations.filter(conv => conv.customer_name?.toLowerCase().includes(query) || conv.customer_phone.includes(query));
   }, [conversations, searchQuery]);
-  
   const filteredArchivedConversations = useMemo(() => {
     if (!searchQuery) return archivedConversations;
     const query = searchQuery.toLowerCase();
-    return archivedConversations.filter(conv =>
-      conv.customer_name?.toLowerCase().includes(query) ||
-      conv.customer_phone.includes(query)
-    );
+    return archivedConversations.filter(conv => conv.customer_name?.toLowerCase().includes(query) || conv.customer_phone.includes(query));
   }, [archivedConversations, searchQuery]);
-  
   return <div className="grid gap-4 h-[calc(100vh-185px)] min-h-0" style={{
     gridTemplateColumns: "300px 1fr 320px"
   }}>
@@ -807,12 +779,7 @@ export function ConversationsPanel({
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-        <Input
-          placeholder="Buscar por nome ou telefone..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="mb-2"
-        />
+        <Input placeholder="Buscar por nome ou telefone..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="mb-2" />
         <Tabs value={activeTab} onValueChange={value => setActiveTab(value as "active" | "archived")} className="flex flex-col h-full min-h-0">
           <TabsList className="grid w-full grid-cols-2 mb-2">
             <TabsTrigger value="active" className="gap-1 text-xs">
@@ -851,9 +818,9 @@ export function ConversationsPanel({
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(conv.last_message_at), {
-                          addSuffix: true,
-                          locale: ptBR
-                        })}
+                    addSuffix: true,
+                    locale: ptBR
+                  })}
                       </div>
                     </div>
                   </div>)}
@@ -879,9 +846,9 @@ export function ConversationsPanel({
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(conv.last_message_at), {
-                          addSuffix: true,
-                          locale: ptBR
-                        })}
+                    addSuffix: true,
+                    locale: ptBR
+                  })}
                       </div>
                     </div>
                   </div>)}
@@ -904,48 +871,38 @@ export function ConversationsPanel({
               </div>
               <div className="flex items-center gap-2">
                 {/* AI Toggle Button - só mostra se IA está habilitada globalmente */}
-                {aiGlobalEnabled && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={async () => {
-                      if (!selectedConversation) return;
-                      const newValue = !selectedConversation.ai_active;
-                      try {
-                        const { error } = await supabase
-                          .from('conversations')
-                          .update({ ai_active: newValue })
-                          .eq('id', selectedConversation.id);
-                        if (error) throw error;
-                        setSelectedConversation({ ...selectedConversation, ai_active: newValue });
-                        setConversations(prev => prev.map(c => 
-                          c.id === selectedConversation.id ? { ...c, ai_active: newValue } : c
-                        ));
-                        toast.success(newValue ? 'IA ativada para esta conversa' : 'IA desativada - atendimento humano');
-                      } catch (error) {
-                        console.error('Error toggling AI:', error);
-                        toast.error('Erro ao alterar status da IA');
-                      }
-                    }}
-                    className={selectedConversation.ai_active !== false 
-                      ? "bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/20" 
-                      : "bg-orange-500/10 text-orange-600 border-orange-500/30 hover:bg-orange-500/20"
-                    }
-                    title={selectedConversation.ai_active !== false ? "IA está respondendo - Clique para assumir" : "Você está atendendo - Clique para ativar IA"}
-                  >
-                    {selectedConversation.ai_active !== false ? (
-                      <>
+                {aiGlobalEnabled && <Button variant="outline" size="sm" onClick={async () => {
+              if (!selectedConversation) return;
+              const newValue = !selectedConversation.ai_active;
+              try {
+                const {
+                  error
+                } = await supabase.from('conversations').update({
+                  ai_active: newValue
+                }).eq('id', selectedConversation.id);
+                if (error) throw error;
+                setSelectedConversation({
+                  ...selectedConversation,
+                  ai_active: newValue
+                });
+                setConversations(prev => prev.map(c => c.id === selectedConversation.id ? {
+                  ...c,
+                  ai_active: newValue
+                } : c));
+                toast.success(newValue ? 'IA ativada para esta conversa' : 'IA desativada - atendimento humano');
+              } catch (error) {
+                console.error('Error toggling AI:', error);
+                toast.error('Erro ao alterar status da IA');
+              }
+            }} className={selectedConversation.ai_active !== false ? "bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/20" : "bg-orange-500/10 text-orange-600 border-orange-500/30 hover:bg-orange-500/20"} title={selectedConversation.ai_active !== false ? "IA está respondendo - Clique para assumir" : "Você está atendendo - Clique para ativar IA"}>
+                    {selectedConversation.ai_active !== false ? <>
                         <Bot className="h-4 w-4 mr-1" />
                         IA
-                      </>
-                    ) : (
-                      <>
+                      </> : <>
                         <User className="h-4 w-4 mr-1" />
                         Humano
-                      </>
-                    )}
-                  </Button>
-                )}
+                      </>}
+                  </Button>}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">
@@ -1101,58 +1058,46 @@ export function ConversationsPanel({
 
                       {/* Contato */}
                       {msg.media_type === 'contact' && msg.media_url && (() => {
-                          try {
-                            const contactData = JSON.parse(msg.media_url);
-                            // Extrair número de telefone do vcard - aceitar vários formatos
-                            const vcardMatch = contactData.vcard?.match(/TEL[^:]*:([\s\+\-\(\)\d]+)/);
-                            let phoneNumber = null;
-                            if (vcardMatch) {
-                              // Limpar o número mas preservar formato
-                              phoneNumber = vcardMatch[1].replace(/[\s\-\(\)]/g, '');
-                              // Se começar com +55, remover para normalizar
-                              if (phoneNumber.startsWith('+55')) {
-                                phoneNumber = phoneNumber.substring(3);
-                              } else if (phoneNumber.startsWith('55')) {
-                                phoneNumber = phoneNumber.substring(2);
-                              }
-                            }
-                            
-                            return (
-                              <div className="mb-2 bg-black/10 dark:bg-white/10 p-3 rounded space-y-2">
+                  try {
+                    const contactData = JSON.parse(msg.media_url);
+                    // Extrair número de telefone do vcard - aceitar vários formatos
+                    const vcardMatch = contactData.vcard?.match(/TEL[^:]*:([\s\+\-\(\)\d]+)/);
+                    let phoneNumber = null;
+                    if (vcardMatch) {
+                      // Limpar o número mas preservar formato
+                      phoneNumber = vcardMatch[1].replace(/[\s\-\(\)]/g, '');
+                      // Se começar com +55, remover para normalizar
+                      if (phoneNumber.startsWith('+55')) {
+                        phoneNumber = phoneNumber.substring(3);
+                      } else if (phoneNumber.startsWith('55')) {
+                        phoneNumber = phoneNumber.substring(2);
+                      }
+                    }
+                    return <div className="mb-2 bg-black/10 dark:bg-white/10 p-3 rounded space-y-2">
                                 <div className="flex items-center gap-2">
                                   <span className="text-2xl">📇</span>
                                   <span className="font-semibold">{contactData.displayName}</span>
                                 </div>
-                                {phoneNumber && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    onClick={() => {
-                                      console.log('Setting phone number:', phoneNumber);
-                                      setNewConversationPhone(phoneNumber);
-                                      setNewConversationName(contactData.displayName);
-                                      setNewConversationDialogOpen(true);
-                                    }}
-                                    className="w-full"
-                                  >
+                                {phoneNumber && <Button size="sm" variant="outline" onClick={() => {
+                        console.log('Setting phone number:', phoneNumber);
+                        setNewConversationPhone(phoneNumber);
+                        setNewConversationName(contactData.displayName);
+                        setNewConversationDialogOpen(true);
+                      }} className="w-full">
                                     Iniciar conversa
-                                  </Button>
-                                )}
-                              </div>
-                            );
-                          } catch (e) {
-                            return <p className="text-sm">📇 Contato compartilhado</p>;
-                          }
-                        })()}
+                                  </Button>}
+                              </div>;
+                  } catch (e) {
+                    return <p className="text-sm">📇 Contato compartilhado</p>;
+                  }
+                })()}
                       
                       {msg.message_text && msg.message_text !== '[Audio]' && msg.message_text !== '[Áudio]' && msg.message_text !== '[Imagem]' && msg.message_text !== '[Image]' && msg.message_text !== '[Localização]' && msg.message_text !== '[Location]' && !msg.message_text.startsWith('📇') && <p className="text-sm whitespace-pre-wrap">{msg.message_text}</p>}
                       <div className="flex items-center gap-1 mt-1">
-                        {msg.sender_type === 'bot' && (
-                          <Sparkles className="h-3 w-3 text-purple-400" />
-                        )}
+                        {msg.sender_type === 'bot' && <Sparkles className="h-3 w-3 text-purple-400" />}
                         <p className="text-xs opacity-70">
                           {formatMessageTimestamp(msg.created_at)}
-                          {msg.sender_type === 'bot' && <span className="ml-1 opacity-80">(IA)</span>}
+                          {msg.sender_type === 'bot' && <span className="ml-1 opacity-80">(Bot)</span>}
                         </p>
                       </div>
                     </div>
@@ -1287,14 +1232,14 @@ export function ConversationsPanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={newConversationDialogOpen} onOpenChange={(open) => {
-        setNewConversationDialogOpen(open);
-        // Só limpa os campos se o modal está sendo fechado
-        if (!open) {
-          setNewConversationPhone("");
-          setNewConversationName("");
-        }
-      }}>
+      <Dialog open={newConversationDialogOpen} onOpenChange={open => {
+      setNewConversationDialogOpen(open);
+      // Só limpa os campos se o modal está sendo fechado
+      if (!open) {
+        setNewConversationPhone("");
+        setNewConversationName("");
+      }
+    }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Iniciar Nova Conversa</DialogTitle>
