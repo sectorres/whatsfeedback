@@ -81,8 +81,8 @@ interface Carga {
   pedidos: Pedido[];
 }
 
-// Check if message matches any trigger phrase
-function checkTriggerMatch(message: string, triggers: TriggerPhrase[]): TriggerPhrase | null {
+// Check if message matches any trigger phrase using literal matching first
+function checkLiteralTriggerMatch(message: string, triggers: TriggerPhrase[]): TriggerPhrase | null {
   const normalizedMessage = message.toLowerCase().trim();
   
   for (const trigger of triggers) {
@@ -105,6 +105,85 @@ function checkTriggerMatch(message: string, triggers: TriggerPhrase[]): TriggerP
   }
   
   return null;
+}
+
+// Use AI to semantically match message with trigger phrases
+async function checkSemanticTriggerMatch(
+  message: string, 
+  triggers: TriggerPhrase[],
+  lovableApiKey: string | undefined
+): Promise<TriggerPhrase | null> {
+  if (!lovableApiKey || triggers.length === 0) {
+    console.log('No API key or no triggers for semantic matching');
+    return null;
+  }
+
+  const activeTriggers = triggers.filter(t => t.is_active);
+  if (activeTriggers.length === 0) return null;
+
+  // Build the trigger list for the AI prompt
+  const triggerList = activeTriggers.map((t, i) => `${i + 1}. "${t.phrase}"`).join('\n');
+
+  const systemPrompt = `Você é um analisador de intenção de mensagens. Sua tarefa é identificar se a mensagem do cliente corresponde semanticamente a alguma das frases gatilho listadas abaixo.
+
+FRASES GATILHO:
+${triggerList}
+
+INSTRUÇÕES:
+- Analise a INTENÇÃO e CONTEXTO da mensagem do cliente
+- O cliente pode expressar a mesma intenção de formas diferentes (sinônimos, frases reformuladas, gírias, erros de digitação)
+- Se a mensagem do cliente tem a mesma intenção de alguma frase gatilho, responda APENAS com o número correspondente
+- Se NÃO houver correspondência semântica com nenhuma frase, responda "0"
+- Responda APENAS com o número, sem explicações adicionais
+
+EXEMPLOS:
+- Se a frase gatilho é "status do pedido" e o cliente diz "como está minha encomenda?", isso é uma correspondência
+- Se a frase gatilho é "previsão de entrega" e o cliente diz "quando meu pedido vai chegar?", isso é uma correspondência
+- Se a frase gatilho é "reagendar entrega" e o cliente diz "preciso mudar a data", isso é uma correspondência`;
+
+  try {
+    console.log('Calling Gemini for semantic trigger matching...');
+    
+    const response = await fetch('https://api.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Mensagem do cliente: "${message}"` }
+        ],
+        max_tokens: 10,
+        temperature: 0.1
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Gemini API error:', response.status, await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    const aiResponse = data.choices?.[0]?.message?.content?.trim() || '0';
+    
+    console.log('Gemini semantic match response:', aiResponse);
+
+    const matchIndex = parseInt(aiResponse, 10);
+    
+    if (matchIndex > 0 && matchIndex <= activeTriggers.length) {
+      const matchedTrigger = activeTriggers[matchIndex - 1];
+      console.log('Semantic match found:', matchedTrigger.phrase);
+      return matchedTrigger;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error in semantic trigger matching:', error);
+    return null;
+  }
 }
 
 // Extract pedido number or CPF from message
@@ -337,8 +416,14 @@ serve(async (req) => {
       .select('*')
       .eq('is_active', true);
 
-    // Check if message matches any trigger phrase
-    const matchedTrigger = checkTriggerMatch(message_text, triggerPhrases || []);
+    // Check if message matches any trigger phrase - first try literal, then semantic
+    let matchedTrigger = checkLiteralTriggerMatch(message_text, triggerPhrases || []);
+    
+    // If no literal match, try semantic matching with AI
+    if (!matchedTrigger && triggerPhrases && triggerPhrases.length > 0) {
+      console.log('No literal match, trying semantic matching...');
+      matchedTrigger = await checkSemanticTriggerMatch(message_text, triggerPhrases, lovableApiKey);
+    }
     
     if (!matchedTrigger) {
       console.log('No trigger phrase matched, AI will not respond');
