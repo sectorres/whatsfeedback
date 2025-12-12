@@ -28,7 +28,7 @@ interface Conversation {
   last_message_at: string;
   status: string;
   assigned_to: string | null;
-  unread_count: number;
+  unread_count: number | null;
   last_read_at: string | null;
   tags: string[] | null;
   ai_active: boolean | null;
@@ -259,7 +259,7 @@ export function ConversationsPanel({
           }
 
           // Se a conversa está aberta, garantir que o unread_count está zerado no banco
-          if (isConversationOpen && updatedConv.unread_count > 0) {
+          if (isConversationOpen && (updatedConv.unread_count ?? 0) > 0) {
             await supabase.from('conversations').update({
               unread_count: 0,
               last_read_at: new Date().toISOString()
@@ -805,7 +805,7 @@ export function ConversationsPanel({
                       <div className="flex items-center justify-between gap-2">
                         <div className="font-medium text-sm truncate flex-1">{conv.customer_name || conv.customer_phone}</div>
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          {conv.unread_count > 0 && <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center px-1">
+                          {(conv.unread_count ?? 0) > 0 && <Badge variant="destructive" className="h-5 min-w-5 flex items-center justify-center px-1 text-xs font-bold">
                             {conv.unread_count}
                           </Badge>}
                           {conv.tags?.includes('reagendar') && <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs h-5">
