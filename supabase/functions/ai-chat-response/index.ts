@@ -186,6 +186,75 @@ EXEMPLOS:
   }
 }
 
+// Generate contextual response based on trigger and customer message
+async function generateContextualResponse(
+  customerMessage: string,
+  triggerResponse: string,
+  customerName: string,
+  lovableApiKey: string | undefined
+): Promise<string> {
+  if (!lovableApiKey) {
+    return triggerResponse;
+  }
+
+  const systemPrompt = `Você é um assistente de atendimento ao cliente amigável e profissional. Sua tarefa é adaptar uma resposta base ao contexto da mensagem do cliente.
+
+RESPOSTA BASE (use como conteúdo principal):
+"${triggerResponse}"
+
+REGRAS:
+1. Mantenha o conteúdo informativo da resposta base
+2. Adapte a resposta ao tom e contexto da mensagem do cliente
+3. Se o cliente fez uma saudação (oi, olá, bom dia, etc), inclua uma saudação apropriada no início
+4. Se o cliente foi informal, seja um pouco mais informal também
+5. Se o cliente perguntou de forma específica, responda focando nesse aspecto
+6. Mantenha a resposta concisa e objetiva
+7. NÃO invente informações que não estão na resposta base
+8. Use o nome do cliente quando apropriado: ${customerName || 'Cliente'}
+9. Sempre termine de forma educada
+
+IMPORTANTE: A resposta deve parecer natural, como se fosse uma conversa real, não uma resposta automática.`;
+
+  try {
+    console.log('Generating contextual response...');
+    
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${lovableApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Mensagem do cliente: "${customerMessage}"\n\nGere uma resposta contextualizada:` }
+        ],
+        max_tokens: 500,
+        temperature: 0.7
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Gemini API error for contextual response:', response.status, await response.text());
+      return triggerResponse;
+    }
+
+    const data = await response.json();
+    const contextualResponse = data.choices?.[0]?.message?.content?.trim();
+    
+    if (contextualResponse) {
+      console.log('Generated contextual response:', contextualResponse.substring(0, 100));
+      return contextualResponse;
+    }
+
+    return triggerResponse;
+  } catch (error) {
+    console.error('Error generating contextual response:', error);
+    return triggerResponse;
+  }
+}
+
 // Extract pedido number or CPF from message
 function extractSearchTerms(message: string): { pedido: string | null; cpf: string | null } {
   // Look for pedido pattern: XXX/XXXXXXX-X or variations
@@ -478,11 +547,19 @@ serve(async (req) => {
     }
 
     // Replace placeholders in the response
-    const aiMessage = replacePlaceholders(matchedTrigger.response, {
+    const baseResponse = replacePlaceholders(matchedTrigger.response, {
       customerName: conversation.customer_name,
       customerPhone: customer_phone,
       orders
     });
+
+    // Generate contextual response based on customer message
+    const aiMessage = await generateContextualResponse(
+      message_text,
+      baseResponse,
+      conversation.customer_name || 'Cliente',
+      lovableApiKey
+    );
 
     console.log('AI Response:', aiMessage.substring(0, 100));
 
