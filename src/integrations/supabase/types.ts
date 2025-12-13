@@ -841,6 +841,7 @@ export type Database = {
           meta_rejection_reason: string | null
           meta_status: string | null
           meta_template_id: string | null
+          nickname: string | null
           submitted_at: string | null
           template_name: string
           template_type: string
@@ -860,6 +861,7 @@ export type Database = {
           meta_rejection_reason?: string | null
           meta_status?: string | null
           meta_template_id?: string | null
+          nickname?: string | null
           submitted_at?: string | null
           template_name: string
           template_type?: string
@@ -879,6 +881,7 @@ export type Database = {
           meta_rejection_reason?: string | null
           meta_status?: string | null
           meta_template_id?: string | null
+          nickname?: string | null
           submitted_at?: string | null
           template_name?: string
           template_type?: string

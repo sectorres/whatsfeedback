@@ -11,6 +11,7 @@ import { toast } from "sonner";
 interface Template {
   id: string;
   template_name: string;
+  nickname: string | null;
   category: string;
   language: string;
   meta_status: string;
@@ -32,7 +33,7 @@ export function ChatTemplatesConfig() {
     try {
       const { data, error } = await supabase
         .from('whatsapp_templates')
-        .select('id, template_name, category, language, meta_status, is_disabled')
+        .select('id, template_name, nickname, category, language, meta_status, is_disabled')
         .eq('meta_status', 'approved')
         .eq('is_disabled', false)
         .order('template_name');
@@ -165,7 +166,10 @@ export function ChatTemplatesConfig() {
                     htmlFor={template.id} 
                     className="flex-1 cursor-pointer flex items-center gap-2"
                   >
-                    <span className="font-medium">{template.template_name}</span>
+                    <span className="font-medium">{template.nickname || template.template_name}</span>
+                    {template.nickname && (
+                      <span className="text-xs text-muted-foreground">({template.template_name})</span>
+                    )}
                     <Badge variant="outline" className="text-xs">
                       {template.language}
                     </Badge>
