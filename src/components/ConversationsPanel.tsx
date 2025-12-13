@@ -1238,7 +1238,7 @@ export function ConversationsPanel({
                         </Button>
                       </> : <Button className="w-full gap-2" onClick={() => setTemplateSelectorOpen(true)}>
                         <FileText className="h-4 w-4" />
-                        Enviar Template para Iniciar Conversa
+                        Enviar Template 
                       </Button>}
                   </div>
                 </div>;
