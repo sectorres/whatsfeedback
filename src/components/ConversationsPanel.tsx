@@ -430,34 +430,32 @@ export function ConversationsPanel({
       return newSet;
     });
   };
-
   const selectAllConversations = () => {
     const allIds = new Set(filteredActiveConversations.map(c => c.id));
     setSelectedConversationIds(allIds);
   };
-
   const clearSelection = () => {
     setSelectedConversationIds(new Set());
     setSelectionMode(false);
   };
-
   const archiveSelectedConversations = async () => {
     if (selectedConversationIds.size === 0) return;
-    
     try {
       const idsArray = Array.from(selectedConversationIds);
-      const { error } = await supabase
-        .from('conversations')
-        .update({ status: 'closed' })
-        .in('id', idsArray);
-
+      const {
+        error
+      } = await supabase.from('conversations').update({
+        status: 'closed'
+      }).in('id', idsArray);
       if (error) throw error;
 
       // Atualizar listas locais
       const archivedConvs = conversations.filter(c => selectedConversationIds.has(c.id));
       setConversations(prev => prev.filter(c => !selectedConversationIds.has(c.id)));
-      setArchivedConversations(prev => [...archivedConvs.map(c => ({ ...c, status: 'closed' })), ...prev]);
-      
+      setArchivedConversations(prev => [...archivedConvs.map(c => ({
+        ...c,
+        status: 'closed'
+      })), ...prev]);
       toast.success(`${selectedConversationIds.size} conversa(s) arquivada(s)`);
       clearSelection();
     } catch (error) {
@@ -465,7 +463,6 @@ export function ConversationsPanel({
       toast.error('Erro ao arquivar conversas');
     }
   };
-
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [editingMessage, setEditingMessage] = useState<any>(null);
   const [editText, setEditText] = useState("");
@@ -831,38 +828,32 @@ export function ConversationsPanel({
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-semibold">Conversas</h3>
           <div className="flex items-center gap-1">
-            {selectionMode ? (
-              <>
+            {selectionMode ? <>
                 <Button variant="ghost" size="sm" onClick={selectAllConversations} title="Selecionar todas" className="h-7 px-2 text-xs">
                   Todas
                 </Button>
                 <Button variant="ghost" size="sm" onClick={clearSelection} title="Cancelar seleção" className="h-7 px-2">
                   <X className="h-4 w-4" />
                 </Button>
-              </>
-            ) : (
-              <>
+              </> : <>
                 <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setSelectionMode(true)} title="Selecionar múltiplas">
                   <CheckSquare className="h-4 w-4" />
                 </Button>
                 <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setNewConversationDialogOpen(true)} title="Iniciar nova conversa">
                   <Plus className="h-4 w-4" />
                 </Button>
-              </>
-            )}
+              </>}
           </div>
         </div>
         
         {/* Barra de ação para seleção */}
-        {selectionMode && selectedConversationIds.size > 0 && (
-          <div className="flex items-center justify-between bg-primary/10 rounded-lg p-2 mb-2">
+        {selectionMode && selectedConversationIds.size > 0 && <div className="flex items-center justify-between bg-primary/10 rounded-lg p-2 mb-2">
             <span className="text-sm font-medium">{selectedConversationIds.size} selecionada(s)</span>
             <Button size="sm" variant="secondary" onClick={archiveSelectedConversations} className="h-7 gap-1">
               <Archive className="h-3 w-3" />
               Arquivar
             </Button>
-          </div>
-        )}
+          </div>}
         
         <Input placeholder="Buscar por nome ou telefone..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="mb-2" />
         <Tabs value={activeTab} onValueChange={value => setActiveTab(value as "active" | "archived")} className="flex flex-col h-full min-h-0">
@@ -885,38 +876,20 @@ export function ConversationsPanel({
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div> : filteredActiveConversations.length === 0 ? <p className="text-sm text-muted-foreground text-center p-4">
                   Nenhuma conversa ativa
-                </p> : filteredActiveConversations.map(conv => (
-                  <div 
-                    key={conv.id} 
-                    className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${
-                      selectedConversation?.id === conv.id ? 'bg-primary/10' : 
-                      selectedConversationIds.has(conv.id) ? 'bg-primary/5 ring-1 ring-primary/30' : 
-                      'hover:bg-muted'
-                    }`} 
-                    onClick={() => selectionMode ? toggleConversationSelection(conv.id, { stopPropagation: () => {} } as React.MouseEvent) : setSelectedConversation(conv)}
-                  >
+                </p> : filteredActiveConversations.map(conv => <div key={conv.id} className={`p-2 rounded-lg cursor-pointer mb-1 transition-colors relative ${selectedConversation?.id === conv.id ? 'bg-primary/10' : selectedConversationIds.has(conv.id) ? 'bg-primary/5 ring-1 ring-primary/30' : 'hover:bg-muted'}`} onClick={() => selectionMode ? toggleConversationSelection(conv.id, {
+              stopPropagation: () => {}
+            } as React.MouseEvent) : setSelectedConversation(conv)}>
                     <div className="flex gap-2">
-                      {selectionMode && (
-                        <div 
-                          className="flex items-center justify-center shrink-0 pt-0.5"
-                          onClick={(e) => toggleConversationSelection(conv.id, e)}
-                        >
-                          {selectedConversationIds.has(conv.id) ? (
-                            <CheckSquare className="h-4 w-4 text-primary" />
-                          ) : (
-                            <Square className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </div>
-                      )}
+                      {selectionMode && <div className="flex items-center justify-center shrink-0 pt-0.5" onClick={e => toggleConversationSelection(conv.id, e)}>
+                          {selectedConversationIds.has(conv.id) ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4 text-muted-foreground" />}
+                        </div>}
                       <div className="flex flex-col gap-1 flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <span className="font-medium text-sm truncate">{conv.customer_name || conv.customer_phone}</span>
-                            {(conv.unread_count ?? 0) > 0 && (
-                              <Badge variant="destructive" className="h-5 min-w-[20px] flex items-center justify-center px-1.5 text-xs font-bold shrink-0">
+                            {(conv.unread_count ?? 0) > 0 && <Badge variant="destructive" className="h-5 min-w-[20px] flex items-center justify-center px-1.5 text-xs font-bold shrink-0">
                                 {conv.unread_count}
-                              </Badge>
-                            )}
+                              </Badge>}
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0">
                             {conv.tags?.includes('reagendar') && <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 text-xs h-5">
@@ -929,14 +902,13 @@ export function ConversationsPanel({
                         </div>
                         <div className="text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(conv.last_message_at), {
-                            addSuffix: true,
-                            locale: ptBR
-                          })}
+                      addSuffix: true,
+                      locale: ptBR
+                    })}
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  </div>)}
             </ScrollArea>
           </TabsContent>
 
@@ -1221,51 +1193,31 @@ export function ConversationsPanel({
 
             {/* Área de envio de mensagem com verificação de janela de 24h */}
             {(() => {
-              // Verificar se a janela de 24h está aberta (última mensagem do cliente < 24h)
-              const lastCustomerMessage = messages
-                .filter(m => m.sender_type === 'customer')
-                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-              
-              const isWindowOpen = lastCustomerMessage 
-                ? differenceInHours(new Date(), new Date(lastCustomerMessage.created_at)) < 24
-                : false;
-              
-              const hoursRemaining = lastCustomerMessage
-                ? 24 - differenceInHours(new Date(), new Date(lastCustomerMessage.created_at))
-                : 0;
-
-              return (
-                <div className="mt-4 space-y-2">
-                  {!isWindowOpen && (
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
+          // Verificar se a janela de 24h está aberta (última mensagem do cliente < 24h)
+          const lastCustomerMessage = messages.filter(m => m.sender_type === 'customer').sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+          const isWindowOpen = lastCustomerMessage ? differenceInHours(new Date(), new Date(lastCustomerMessage.created_at)) < 24 : false;
+          const hoursRemaining = lastCustomerMessage ? 24 - differenceInHours(new Date(), new Date(lastCustomerMessage.created_at)) : 0;
+          return <div className="mt-4 space-y-2">
+                  {!isWindowOpen && <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
                       <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
                       <span className="text-amber-600 dark:text-amber-400">
-                        Janela de 24h encerrada. Envie um template para iniciar a conversa.
+                        Janela de 24h encerrada pela Meta. Para abrir o chat, envie um template e aguarde a resposta.                                  
                       </span>
-                    </div>
-                  )}
-                  {isWindowOpen && hoursRemaining <= 6 && (
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm">
+                    </div>}
+                  {isWindowOpen && hoursRemaining <= 6 && <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm">
                       <Clock className="h-4 w-4 text-blue-500 shrink-0" />
                       <span className="text-blue-600 dark:text-blue-400">
                         Janela de 24h fecha em ~{Math.ceil(hoursRemaining)}h
                       </span>
-                    </div>
-                  )}
+                    </div>}
                   <div className="flex gap-2">
                     <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
                     
-                    {isWindowOpen ? (
-                      <>
+                    {isWindowOpen ? <>
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="icon" 
-                                onClick={() => setTemplateSelectorOpen(true)}
-                                title="Enviar Template"
-                              >
+                              <Button variant="outline" size="icon" onClick={() => setTemplateSelectorOpen(true)} title="Enviar Template">
                                 <FileText className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
@@ -1275,42 +1227,22 @@ export function ConversationsPanel({
                           </Tooltip>
                         </TooltipProvider>
 
-                        <Button 
-                          variant="outline" 
-                          size="icon" 
-                          onClick={() => fileInputRef.current?.click()} 
-                          disabled={uploadingFile || sending}
-                        >
+                        <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile || sending}>
                           {uploadingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
                         </Button>
                         
-                        <Input 
-                          placeholder="Digite sua mensagem..." 
-                          value={messageText} 
-                          onChange={e => setMessageText(e.target.value)} 
-                          onKeyPress={e => e.key === 'Enter' && sendMessage()} 
-                        />
+                        <Input placeholder="Digite sua mensagem..." value={messageText} onChange={e => setMessageText(e.target.value)} onKeyPress={e => e.key === 'Enter' && sendMessage()} />
                         
-                        <Button 
-                          onClick={sendMessage} 
-                          disabled={sending || uploadingFile || !messageText.trim()}
-                        >
+                        <Button onClick={sendMessage} disabled={sending || uploadingFile || !messageText.trim()}>
                           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                         </Button>
-                      </>
-                    ) : (
-                      <Button 
-                        className="w-full gap-2"
-                        onClick={() => setTemplateSelectorOpen(true)}
-                      >
+                      </> : <Button className="w-full gap-2" onClick={() => setTemplateSelectorOpen(true)}>
                         <FileText className="h-4 w-4" />
                         Enviar Template para Iniciar Conversa
-                      </Button>
-                    )}
+                      </Button>}
                   </div>
-                </div>
-              );
-            })()}
+                </div>;
+        })()}
           </> : <div className="flex items-center justify-center h-full text-muted-foreground">
             Selecione uma conversa para começar
           </div>}
@@ -1397,18 +1329,11 @@ export function ConversationsPanel({
 
       <OrderDetailsDialog open={orderDialogOpen} onOpenChange={setOrderDialogOpen} pedidoNumero={selectedOrderNumero} />
 
-      <ChatTemplateSelector
-        open={templateSelectorOpen}
-        onOpenChange={setTemplateSelectorOpen}
-        customerPhone={selectedConversation?.customer_phone || ""}
-        customerName={selectedConversation?.customer_name || null}
-        conversationId={selectedConversation?.id || ""}
-        onTemplateSent={() => {
-          if (selectedConversation) {
-            loadMessages(selectedConversation.id);
-          }
-        }}
-      />
+      <ChatTemplateSelector open={templateSelectorOpen} onOpenChange={setTemplateSelectorOpen} customerPhone={selectedConversation?.customer_phone || ""} customerName={selectedConversation?.customer_name || null} conversationId={selectedConversation?.id || ""} onTemplateSent={() => {
+      if (selectedConversation) {
+        loadMessages(selectedConversation.id);
+      }
+    }} />
 
       <Dialog open={editPhoneDialogOpen} onOpenChange={setEditPhoneDialogOpen}>
         <DialogContent>
