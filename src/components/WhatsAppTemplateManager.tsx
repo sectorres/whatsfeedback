@@ -22,7 +22,8 @@ import {
   Download,
   Eye,
   Ban,
-  DollarSign
+  DollarSign,
+  Pencil
 } from "lucide-react";
 import { Switch } from "./ui/switch";
 import { toast } from "sonner";
@@ -32,6 +33,7 @@ import { TemplateVariableMapping } from "./TemplateVariableMapping";
 interface WhatsAppTemplate {
   id: string;
   template_name: string;
+  nickname: string | null;
   template_type: string;
   category: string;
   language: string;
@@ -90,11 +92,13 @@ export const WhatsAppTemplateManager = () => {
   const [importing, setImporting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewingTemplate, setViewingTemplate] = useState<WhatsAppTemplate | null>(null);
+  const [editingNickname, setEditingNickname] = useState<{ id: string; nickname: string } | null>(null);
   const [analytics, setAnalytics] = useState<MetaAnalytics | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   
   // Form state
   const [templateName, setTemplateName] = useState("");
+  const [templateNickname, setTemplateNickname] = useState("");
   const [category, setCategory] = useState<string>("delivery_notification");
   const [language, setLanguage] = useState("pt_BR");
   const [headerText, setHeaderText] = useState("");
@@ -207,6 +211,7 @@ export const WhatsAppTemplateManager = () => {
     try {
       const insertData = {
         template_name: templateName.toLowerCase().replace(/\s+/g, '_'),
+        nickname: templateNickname.trim() || null,
         template_type: 'UTILITY',
         category,
         language,
@@ -241,6 +246,7 @@ export const WhatsAppTemplateManager = () => {
 
   const resetForm = () => {
     setTemplateName("");
+    setTemplateNickname("");
     setCategory("delivery_notification");
     setLanguage("pt_BR");
     setHeaderText("");
@@ -326,6 +332,26 @@ export const WhatsAppTemplateManager = () => {
     } catch (error) {
       console.error('Erro ao atualizar template:', error);
       toast.error("Erro ao atualizar template");
+    }
+  };
+
+  const handleSaveNickname = async () => {
+    if (!editingNickname) return;
+    
+    try {
+      const { error } = await supabase
+        .from('whatsapp_templates')
+        .update({ nickname: editingNickname.nickname.trim() || null })
+        .eq('id', editingNickname.id);
+
+      if (error) throw error;
+
+      toast.success("Apelido salvo com sucesso!");
+      setEditingNickname(null);
+      loadTemplates();
+    } catch (error) {
+      console.error('Erro ao salvar apelido:', error);
+      toast.error("Erro ao salvar apelido");
     }
   };
 
@@ -434,17 +460,28 @@ export const WhatsAppTemplateManager = () => {
                       </p>
                     </div>
                     <div className="space-y-2">
-                      <Label>Categoria</Label>
-                      <Select value={category} onValueChange={setCategory}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="delivery_notification">Notificação de Entrega</SelectItem>
-                          <SelectItem value="satisfaction_survey">Pesquisa de Satisfação</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label>Apelido (exibido nas seleções)</Label>
+                      <Input
+                        placeholder="Confirmação de Entrega"
+                        value={templateNickname}
+                        onChange={(e) => setTemplateNickname(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Nome amigável para exibir nos dropdowns
+                      </p>
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Categoria</Label>
+                    <Select value={category} onValueChange={setCategory}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="delivery_notification">Notificação de Entrega</SelectItem>
+                        <SelectItem value="satisfaction_survey">Pesquisa de Satisfação</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
@@ -577,7 +614,7 @@ export const WhatsAppTemplateManager = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nome</TableHead>
+                  <TableHead>Apelido / Nome</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Categoria</TableHead>
                   <TableHead>Idioma</TableHead>
@@ -597,7 +634,12 @@ export const WhatsAppTemplateManager = () => {
                   return (
                     <TableRow key={template.id} className={template.is_disabled ? "opacity-50" : ""}>
                       <TableCell className="font-medium">
-                        {template.template_name}
+                        <div className="flex flex-col">
+                          <span>{template.nickname || template.template_name}</span>
+                          {template.nickname && (
+                            <span className="text-xs text-muted-foreground">{template.template_name}</span>
+                          )}
+                        </div>
                         {template.is_disabled && (
                           <Badge variant="destructive" className="ml-2 text-xs">
                             <Ban className="h-3 w-3 mr-1" />
@@ -664,6 +706,14 @@ export const WhatsAppTemplateManager = () => {
                               onSave={loadTemplates}
                             />
                           )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingNickname({ id: template.id, nickname: template.nickname || '' })}
+                            title="Editar apelido"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
@@ -778,6 +828,41 @@ export const WhatsAppTemplateManager = () => {
             <DialogFooter>
               <Button variant="outline" onClick={() => setViewingTemplate(null)}>
                 Fechar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de edição de apelido */}
+        <Dialog open={!!editingNickname} onOpenChange={(open) => !open && setEditingNickname(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Pencil className="h-5 w-5" />
+                Editar Apelido
+              </DialogTitle>
+            </DialogHeader>
+            {editingNickname && (
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label>Apelido</Label>
+                  <Input
+                    placeholder="Nome amigável para exibição"
+                    value={editingNickname.nickname}
+                    onChange={(e) => setEditingNickname({ ...editingNickname, nickname: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Este nome será exibido nas telas de seleção de templates
+                  </p>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingNickname(null)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveNickname}>
+                Salvar
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -13,6 +13,7 @@ import { toast } from "sonner";
 interface Template {
   id: string;
   template_name: string;
+  nickname: string | null;
   body_text: string;
   header_text: string | null;
   footer_text: string | null;
@@ -212,7 +213,7 @@ export function ChatTemplateSelector({
                     visibleTemplates.map(template => (
                       <SelectItem key={template.id} value={template.id}>
                         <div className="flex items-center gap-2">
-                          <span>{template.template_name}</span>
+                          <span>{template.nickname || template.template_name}</span>
                           <Badge variant="secondary" className="text-xs">
                             {template.language}
                           </Badge>
