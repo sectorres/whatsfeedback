@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getEvolutionCredentials } from "../_shared/evolution-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,37 +30,14 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Buscar configuração da Evolution API
-    const { data: evolutionConfig } = await supabase
-      .from('evolution_api_config')
-      .select('*')
-      .eq('is_active', true)
-      .single();
-
-    if (!evolutionConfig) {
-      throw new Error('Configuração da Evolution API não encontrada');
-    }
-
-    const isOfficial = evolutionConfig.config_type === 'official';
+    // Obter credenciais da Evolution API
+    const credentials = await getEvolutionCredentials();
     
-    // Obter credenciais
-    let apiUrl: string;
-    let apiKey: string;
-    let instanceName: string;
-
-    if (isOfficial) {
-      apiUrl = evolutionConfig.api_url;
-      apiKey = evolutionConfig.api_key;
-      instanceName = evolutionConfig.instance_name;
-    } else {
-      apiUrl = Deno.env.get('EVOLUTION_API_URL') || '';
-      apiKey = Deno.env.get('EVOLUTION_API_KEY') || '';
-      instanceName = Deno.env.get('EVOLUTION_INSTANCE_NAME') || '';
+    if (!credentials.isOfficial) {
+      throw new Error('Envio de templates só está disponível para API oficial');
     }
 
-    if (!apiUrl || !apiKey || !instanceName) {
-      throw new Error('Credenciais da Evolution API incompletas');
-    }
+    const { apiUrl, apiKey, instanceName } = credentials;
 
     // Formatar número de telefone
     let formattedPhone = phone.replace(/\D/g, '');
@@ -89,8 +67,8 @@ serve(async (req) => {
 
     console.log('Template payload:', JSON.stringify(templatePayload, null, 2));
 
-    // Enviar template via Evolution API
-    const response = await fetch(`${apiUrl}/message/sendWhatsAppTemplate/${instanceName}`, {
+    // Enviar template via Evolution API - endpoint correto é /message/sendTemplate/
+    const response = await fetch(`${apiUrl}/message/sendTemplate/${instanceName}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -1255,48 +1255,58 @@ export function ConversationsPanel({
                   <div className="flex gap-2">
                     <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
                     
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            onClick={() => setTemplateSelectorOpen(true)}
-                            title="Enviar Template"
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Enviar Template Meta</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    {isWindowOpen ? (
+                      <>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="icon" 
+                                onClick={() => setTemplateSelectorOpen(true)}
+                                title="Enviar Template"
+                              >
+                                <FileText className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Enviar Template Meta</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
 
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      onClick={() => fileInputRef.current?.click()} 
-                      disabled={uploadingFile || sending || !isWindowOpen} 
-                      title={isWindowOpen ? "Anexar arquivo" : "Envie um template primeiro"}
-                    >
-                      {uploadingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-                    </Button>
-                    
-                    <Input 
-                      placeholder={isWindowOpen ? "Digite sua mensagem..." : "Envie um template para iniciar..."} 
-                      value={messageText} 
-                      onChange={e => setMessageText(e.target.value)} 
-                      onKeyPress={e => e.key === 'Enter' && isWindowOpen && sendMessage()} 
-                      disabled={!isWindowOpen}
-                    />
-                    
-                    <Button 
-                      onClick={sendMessage} 
-                      disabled={sending || uploadingFile || !messageText.trim() || !isWindowOpen}
-                    >
-                      {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    </Button>
+                        <Button 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={() => fileInputRef.current?.click()} 
+                          disabled={uploadingFile || sending}
+                        >
+                          {uploadingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                        </Button>
+                        
+                        <Input 
+                          placeholder="Digite sua mensagem..." 
+                          value={messageText} 
+                          onChange={e => setMessageText(e.target.value)} 
+                          onKeyPress={e => e.key === 'Enter' && sendMessage()} 
+                        />
+                        
+                        <Button 
+                          onClick={sendMessage} 
+                          disabled={sending || uploadingFile || !messageText.trim()}
+                        >
+                          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button 
+                        className="w-full gap-2"
+                        onClick={() => setTemplateSelectorOpen(true)}
+                      >
+                        <FileText className="h-4 w-4" />
+                        Enviar Template para Iniciar Conversa
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
